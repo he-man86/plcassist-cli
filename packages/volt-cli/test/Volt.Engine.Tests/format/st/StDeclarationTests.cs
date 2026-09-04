@@ -14,6 +14,9 @@ namespace Volt.Engine.Tests;
 /// </summary>
 public class StDeclarationTests
 {
+    /// <summary>Nothing but this declaration — these cases are all about the SCAN, not the walk.</summary>
+    private static string? NoProject(string name) => null;
+
     [Theory]
     [InlineData("VAR\n\tt1 : TON;\nEND_VAR", "t1", "TON")]
     [InlineData("VAR\n\tt1:TON;\nEND_VAR", "t1", "TON")]                       // no spaces
@@ -23,7 +26,7 @@ public class StDeclarationTests
     [InlineData("VAR_INPUT\n\tt1 : TON;\nEND_VAR", "t1", "TON")]               // any VAR block
     [InlineData("VAR\n\ts : STRING(80);\nEND_VAR", "s", "STRING")]             // length is not the type
     public void Finds_the_declared_type(string declaration, string name, string expected) =>
-        Assert.Equal(expected, StDeclaration.TypeOfVariable(declaration, name));
+        Assert.Equal(expected, StDeclaration.TypeOfCallTarget(declaration, name, NoProject));
 
     /// <summary>A COMMENTED-OUT declaration must not answer for a live one — otherwise a box gets the type of a
     /// variable that no longer exists, and the IDE resolves nothing.</summary>
@@ -31,12 +34,12 @@ public class StDeclarationTests
     [InlineData("VAR\n\t// t1 : TON;\nEND_VAR")]
     [InlineData("VAR\n\t(* t1 : TON; *)\nEND_VAR")]
     public void Ignores_a_commented_out_declaration(string declaration) =>
-        Assert.Null(StDeclaration.TypeOfVariable(declaration, "t1"));
+        Assert.Null(StDeclaration.TypeOfCallTarget(declaration, "t1", NoProject));
 
     [Theory]
     [InlineData("VAR\n\tother : TON;\nEND_VAR", "t1")]
     [InlineData("", "t1")]
     [InlineData(null, "t1")]
     public void Answers_null_when_it_is_not_declared(string? declaration, string name) =>
-        Assert.Null(StDeclaration.TypeOfVariable(declaration, name));
+        Assert.Null(StDeclaration.TypeOfCallTarget(declaration, name, NoProject));
 }

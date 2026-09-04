@@ -418,6 +418,9 @@ public sealed class FakeIde : DriverBase, IIdeDriver
     /// IS the content, so asserting on <c>Recorded</c> alone would miss everything a push actually did.</summary>
     public Dictionary<string, ItemContent> WrittenContent { get; } = new();
 
+    /// <summary>The sibling declarations each <see cref="WriteContent"/> was handed, by item name.</summary>
+    public Dictionary<string, IReadOnlyDictionary<string, string>> PushedDeclarations { get; } = new();
+
     /// <summary>Every piece of text a written <see cref="ItemContent"/> carries — declaration, body, and the
     /// same for each member and accessor. Assertions used to read <c>WrittenXml[name]</c> and search the
     /// document; the question they were asking ("did the write carry this text?") is unchanged, and this keeps
@@ -519,11 +522,18 @@ public sealed class FakeIde : DriverBase, IIdeDriver
     /// document and nothing else, so a member added by a push was invisible to any later tree walk — which made
     /// the member transport untestable offline, and would have let "the member cannot be found after its own
     /// write" pass here and fail live.</summary>
-    public void WriteContent(ItemRef item, ItemContent content)
+    public void WriteContent(ItemRef item, ItemContent content,
+                             IReadOnlyDictionary<string, string> pushedDeclarations)
     {
         var name = NameOf(item);
         Recorded.Add($"writecontent:{name}");
         WrittenContent[name] = content;
+        // RECORDED, because a real driver's answer depends on it and nothing else offline can see it. A
+        // graphical box may call through a name the written item does not declare, and the driver resolves that
+        // by walking OTHER items' declarations; the push carries them so the answer does not depend on op
+        // order (see `PushService.DeclarationsIn`). Passing an empty one would be invisible here and would show
+        // up live as a refused body, which is exactly how it was found.
+        PushedDeclarations[name] = pushedDeclarations;
 
         var owner = FindOrNull(item);
         if (owner is not null)

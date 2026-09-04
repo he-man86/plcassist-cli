@@ -25,7 +25,8 @@ namespace Volt.Ide.Codesys
     /// </summary>
     internal static class CodesysNetworkWriter
     {
-        public static void Write(CodesysObjectModel om, object node, NetworkBody body, string? declaration = null)
+        public static void Write(CodesysObjectModel om, object node, NetworkBody body, string? declaration,
+                                 Func<string, string?> declarationOf)
         {
             om.ModifyObject(node, iobj =>
             {
@@ -60,11 +61,12 @@ namespace Volt.Ide.Codesys
 
                 var existing = NwlInterop.Items(NwlInterop.Require(impl, "NetworkList"), listMember: "");
                 for (int i = 0; i < existing.Count; i++)
-                    WriteNetwork(impl, existing[i], body.Networks[i], declaration, body.Language);
+                    WriteNetwork(impl, existing[i], body.Networks[i], declaration, declarationOf, body.Language);
             });
         }
 
-        internal static void WriteNetwork(object impl, object net, Network model, string? declaration, BodyLanguage language)
+        internal static void WriteNetwork(object impl, object net, Network model, string? declaration,
+                                          Func<string, string?> declarationOf, BodyLanguage language)
         {
             SetIfChanged(net, "Title", model.Title ?? "");
             SetIfChanged(net, "Label", model.Label ?? "");
@@ -87,7 +89,7 @@ namespace Volt.Ide.Codesys
             for (int i = NwlInterop.RequireInt(net, "NetworkItemCount") - 1; i >= 0; i--)
                 NwlInterop.Call(net, "RemoveNetworkItem", i);
 
-            var ctx = new BuildContext(net, declaration);
+            var ctx = new BuildContext(net, declaration, declarationOf);
             foreach (var tree in model.Trees)
                 NwlInterop.Call(net, "AppendTree", ctx.Node(tree));
         }
@@ -135,8 +137,13 @@ namespace Volt.Ide.Codesys
             private readonly object _net;
             private readonly string? _declaration;
 
-            public BuildContext(object net, string? declaration)
-            { _net = net; _declaration = declaration; }
+            /// <summary>Reach ANOTHER item's declaration by name — what a qualified call target
+            /// (`Mach1_AuxData.IEC_TIMERS.OffDelayLockDrives`) has to be followed through. Only the driver can
+            /// ask the IDE, so it is handed in.</summary>
+            private readonly Func<string, string?> _declarationOf;
+
+            public BuildContext(object net, string? declaration, Func<string, string?> declarationOf)
+            { _net = net; _declaration = declaration; _declarationOf = declarationOf; }
 
             public object Node(Node n)
             {
@@ -449,14 +456,14 @@ namespace Volt.Ide.Codesys
                 if (b.Kind != CallKind.FunctionBlock || b.Instance is not { } inst) return b.Type;
                 if (!string.Equals(b.Type, inst.Text, StringComparison.OrdinalIgnoreCase)) return b.Type;
 
-                return StDeclaration.TypeOfVariable(_declaration, inst.Text)
+                return StDeclaration.TypeOfCallTarget(_declaration, inst.Text, _declarationOf)
                     ?? throw new NotSupportedException(
-                           $"CODESYS: the call '{inst.Text}' names a function-block instance that is not declared " +
-                           "in this POU, so Volt cannot tell the IDE which TYPE the box calls. Declare it, or " +
-                           "edit this network in the IDE.");
+                           $"CODESYS: the call '{inst.Text}' names a function-block instance whose TYPE Volt " +
+                           "cannot find — not in this POU's declaration, and not by following the name through " +
+                           "the project. Declare it, or edit this network in the IDE.");
             }
 
-            /// <summary>Name the function-block instance a box calls            /// <summary>Name the function-block instance a box calls — by MUTATING the operand the box already
+            /// <summary>Name the function-block instance a box calls — by MUTATING the operand the box already
             /// holds, not by replacing it.
             ///
             /// <para><b><c>IBoxTreeBox.Instance</c> is READ-ONLY on this build.</b> Reflected over the shipped

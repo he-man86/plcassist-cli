@@ -65,12 +65,13 @@ public static class PushService
         }
 
         var parent = ide.GetPlcProjectRoot();
+        var pushedDeclarations = DeclarationsIn(request.Ops);
         var applied = new List<(string Action, string Name)>();  // what each op did, for the write receipt in the log
         var opTotal = request.Ops.Count;
         onProgress?.Invoke(new ProgressFrame { Operation = Ops.Push, Done = 0, Total = opTotal, Phase = "applying" });
         foreach (var op in request.Ops)
         {
-            try { applied.Add((ApplyOp(ide, parent, itemCache, op, request.Force), op.Name)); }
+            try { applied.Add((ApplyOp(ide, parent, itemCache, op, request.Force, pushedDeclarations), op.Name)); }
             catch (Exception ex)
             {
                 // A structured network-text diagnostic (parser / round-trip gate) carries a stable code + source line;
@@ -115,10 +116,48 @@ public static class PushService
             }));
     }
 
+    /// <summary>Every declaration arriving in this push, by BARE name — the push's own answer to "what type is
+    /// this?", which the IDE cannot always give.
+    ///
+    /// <para>A graphical box can call through a name its own POU does not declare. Resolving it walks OTHER
+    /// items' declarations (`Mach1_AuxData.IEC_TIMERS.OffDelayLockDrives` = a GVL, a struct, then the timer),
+    /// and the driver asked the live IDE for them. That answers only for items that are ALREADY there: pushing
+    /// a whole project into an empty one failed on `Mach1_Drives` because the struct it walks through was
+    /// hundreds of ops further down the same push. Op order is not a contract and cannot be made one — two
+    /// items may legitimately reference each other — so the answer is not to sort the ops, it is to stop asking
+    /// a question the push already holds the answer to.</para>
+    ///
+    /// <para>BARE names, because that is the key the resolver walks with — the IDE's own lookup key. The wire
+    /// carries FULL names (`Mach1_AuxData.gvl`), converted here exactly as <see cref="ApplyOp"/> does.</para>
+    ///
+    /// <para>Built ONCE per push. A same-name collision keeps the FIRST: two ops naming the same item is a
+    /// malformed request that <see cref="ApplyOp"/> is the right place to fail on, and silently letting the
+    /// later one win here would resolve types against a declaration the push never applies.</para></summary>
+    private static Dictionary<string, string> DeclarationsIn(IReadOnlyList<PushOp> ops)
+    {
+        var byName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var op in ops)
+        {
+            if (op is not SetItemOp { SourceText: { } src } set) continue;
+            // The name the item will HAVE — a rename+edit is indexed under its new name, because the bodies
+            // being pushed alongside it are the ones that reference it by that name.
+            var name = Materializer.Bare(set.ToName ?? set.Name);
+            if (byName.ContainsKey(name)) continue;
+
+            // A source text that does not parse is NOT failed here. This index is a lookup, and the op that
+            // carries the bad text is the one that must report it — with its own name, its own line number and
+            // the whole apply loop's error handling around it. Failing here would blame the first item pushed.
+            try { byName[name] = StReader.Read(src).Declaration; }
+            catch (Exception) { /* the op's own write reports it */ }
+        }
+        return byName;
+    }
+
     /// <summary>Apply one op and return a short label of what it did (created/updated/renamed/moved/deleted),
     /// used only for the log receipt.</summary>
     private static string ApplyOp(IIdeDriver ide, ItemRef parent,
-        Dictionary<string, (ItemRef Item, string Folder)> itemCache, PushOp op, bool force)
+        Dictionary<string, (ItemRef Item, string Folder)> itemCache, PushOp op, bool force,
+        IReadOnlyDictionary<string, string> pushedDeclarations)
     {
         // The wire carries FULL names; the IDE is extensionless. Convert once, here, at the boundary.
         var name = Materializer.Bare(op.Name);
@@ -129,7 +168,7 @@ public static class PushService
         switch (op)
         {
             case SetItemOp set:
-                return ApplySetItem(ide, parent, name, existing, currentFolder, set, force);
+                return ApplySetItem(ide, parent, name, existing, currentFolder, set, force, pushedDeclarations);
             case DeleteItemOp when existing is { } del:
                 // `ide.Name(del)`, NOT the wire `name`: `del` is the already-resolved handle, so this is the item's
                 // ACTUAL IDE name. itemCache resolves case-INSENSITIVELY while the drivers' child scan matches
@@ -155,7 +194,8 @@ public static class PushService
     /// precedes a move; a move recreates in the new folder (name kept ⇒ name-based references survive); a
     /// content change goes through the shared full-fidelity writer. Each facet absent = unchanged.</summary>
     private static string ApplySetItem(IIdeDriver ide, ItemRef parent, string name, ItemRef? existing,
-                                   string currentFolder, SetItemOp op, bool force)
+                                   string currentFolder, SetItemOp op, bool force,
+                                   IReadOnlyDictionary<string, string> pushedDeclarations)
     {
         if (op.SourceText is { } st && string.IsNullOrWhiteSpace(st))
             throw new BridgeException(BridgeErrorCodes.BadRequest, $"set '{op.Name}': sourceText is empty");
@@ -165,7 +205,7 @@ public static class PushService
         {
             if (op.SourceText is null)
                 throw new BridgeException(BridgeErrorCodes.BadRequest, $"set '{op.Name}': a new item needs sourceText");
-            WriteItemFromSource(ide, parent, name, existing: null, op.SourceText, op.ToFolder);
+            WriteItemFromSource(ide, parent, name, existing: null, op.SourceText, op.ToFolder, pushedDeclarations);
             return "created";
         }
 
@@ -238,7 +278,7 @@ public static class PushService
         // full tree path isn't misread as a move (and a graphical item isn't spuriously refused).
         if (op.ToFolder is { Length: > 0 } toFolder && !string.Equals(toFolder, currentFolder, StringComparison.OrdinalIgnoreCase))
         {
-            MoveItem(ide, parent, currentName, item, toFolder, op.SourceText);       // recreate in the new folder
+            MoveItem(ide, parent, currentName, item, toFolder, op.SourceText, pushedDeclarations);   // recreate in the new folder
             return renamed ? "renamed+moved" : "moved";
         }
         if (op.SourceText is { } src)
@@ -246,7 +286,7 @@ public static class PushService
             // FORCE deliberately overrides a diverged IDE, so it skips the last-moment check too - passing
             // `ifVersion` through regardless made `volt push --force` refuse the very case it exists for.
             WriteItemFromSource(ide, parent, currentName, item, src, currentFolder,
-                                force ? null : op.IfVersion); // content update in place
+                                pushedDeclarations, force ? null : op.IfVersion); // content update in place
             return renamed ? "renamed+updated" : "updated";
         }
         return renamed ? "renamed" : "no-op";          // rename-only (or a bare no-op set)
@@ -260,7 +300,8 @@ public static class PushService
     /// admitted what it cost: it REFUSED a graphical move outright (a diagram cannot be rebuilt from text), and a
     /// delete whose re-create then failed left a DUPLICATE rather than a no-op. It was "the arm only TwinCAT
     /// takes", and TwinCAT has a move now (DIALECT D4f), so it models a driver that does not exist.</para></summary>
-    private static void MoveItem(IIdeDriver ide, ItemRef parent, string name, ItemRef item, string newFolder, string? sourceText)
+    private static void MoveItem(IIdeDriver ide, ItemRef parent, string name, ItemRef item, string newFolder,
+                                 string? sourceText, IReadOnlyDictionary<string, string> pushedDeclarations)
     {
         var kind = ItemKind.Map(ide.KindCode(item));
         if (kind == null || !ItemKind.IsSourceKind(kind))
@@ -274,7 +315,7 @@ public static class PushService
         // the refusal atomic: the item has not moved, so there is nothing to undo.
         if (sourceText is { } edited)
         {
-            WriteItemFromSource(ide, parent, name, item, edited, newFolder);
+            WriteItemFromSource(ide, parent, name, item, edited, newFolder, pushedDeclarations);
             // RE-RESOLVE before moving. On TwinCAT the write is a document IMPORT, and an import invalidates every
             // handle into the item it replaced (DIALECT D4d) — so the handle this method was called with is dead
             // by the time the move needs it. That made a move+edit fail with "Item 'X' is deleted or invalidated
@@ -310,7 +351,7 @@ public static class PushService
                 ?? throw new BridgeException(BridgeErrorCodes.NotFound,
                     $"'{name}' could not be found after being moved — the edit cannot be re-applied, so the " +
                     "push is failed rather than leaving the item holding its pre-edit content.");
-            WriteItemFromSource(ide, parent, name, moved, settle, newFolder);
+            WriteItemFromSource(ide, parent, name, moved, settle, newFolder, pushedDeclarations);
         }
     }
 
@@ -329,7 +370,9 @@ public static class PushService
     /// <summary>Create-or-update an item and its children from full canonical ST source. Shared by the
     /// set create/update path and the move recreate, so both apply identical full-fidelity write semantics.</summary>
     private static void WriteItemFromSource(IIdeDriver ide, ItemRef parent, string name, ItemRef? existing,
-                                        string src, string? folder, string? ifVersion = null)
+                                        string src, string? folder,
+                                        IReadOnlyDictionary<string, string> pushedDeclarations,
+                                        string? ifVersion = null)
     {
         var split = StReader.Read(src);
 
@@ -467,7 +510,7 @@ public static class PushService
         //   - `BodyFormatGuard.RequireChildFormatWritable` over a parsed document: the guard's POLICY (decide
         //     from the IDE's LIVE body language, never from the incoming text) is right and survives - inside
         //     the driver, which is the only layer that can ask the IDE cheaply.
-        ide.WriteContent(pou, OnlyChanged(live, split));
+        ide.WriteContent(pou, OnlyChanged(live, split), pushedDeclarations);
     }
 
     /// <summary>Drop the members whose content the IDE already has, so a push writes what an engineer CHANGED

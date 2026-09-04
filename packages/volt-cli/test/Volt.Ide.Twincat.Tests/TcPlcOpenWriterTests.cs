@@ -41,6 +41,11 @@ namespace Volt.Ide.Twincat.Tests;
 /// </summary>
 public class TcPlcOpenWriterTests
 {
+
+    /// <summary>No project behind this double — a dotted call target cannot resolve here, and these tests do
+    /// not use one. The lookup is passed EXPLICITLY rather than defaulted so a test that starts needing a real
+    /// one has to say so.</summary>
+    private static string? NoProject(string name) => null;
     private static string Fixture(string name) => Fixtures.Path("tc-pou", name);
 
     /// <summary>The whole &lt;NWL&gt; body of a vendor file, exactly as it sits on disk.</summary>
@@ -92,7 +97,7 @@ public class TcPlcOpenWriterTests
     private static XElement Lower(NetworkBody model)
     {
         XNamespace tc6 = "http://www.plcopen.org/xml/tc6_0200";
-        return TcPlcOpenWriter.WriteProject("P", model)
+        return TcPlcOpenWriter.WriteProject("P", model, null, NoProject)
             .Descendants(tc6 + "body").Single().Elements().Single();
     }
 

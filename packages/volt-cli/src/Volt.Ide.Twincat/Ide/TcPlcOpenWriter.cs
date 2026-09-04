@@ -36,7 +36,7 @@ internal static class TcPlcOpenWriter
     /// <summary>The FBD/LD element for a whole body. Networks share one element and one id space, keyed the way
     /// the vendor keys them: <c>localId = 10^10 * (order + 1) + n</c>, which is why the vendor's own export of
     /// network 0 starts at 10000000001 with the attribute marker at 10000000000.</summary>
-    private static XElement WriteBody(NetworkBody body, string? declaration)
+    private static XElement WriteBody(NetworkBody body, string? declaration, Func<string, string?> declarationOf)
     {
         // ALWAYS <FBD>, for a ladder too. An <LD> body whose children are FBD-shaped makes TwinCAT's importer
         // throw ("Object reference not set to an instance of an object"), because PLCopen ladder is a different
@@ -52,13 +52,14 @@ internal static class TcPlcOpenWriter
         // literally called `FBD Implementation Attributes()`. It is a body-level declaration ("input pins may
         // carry flags"), so it is written once, in the first network's id space, exactly where the vendor's own
         // export puts it (localId 10000000000, immediately before that network's items).
-        var first = new NetworkWriter(root, body.Networks.Count > 0 ? body.Networks[0].Order : 0, declaration);
+        var first = new NetworkWriter(root, body.Networks.Count > 0 ? body.Networks[0].Order : 0, declaration,
+                                      declarationOf);
         first.EmitAttributeMarker();
 
         for (int i = 0; i < body.Networks.Count; i++)
         {
             var network = body.Networks[i];
-            var w = i == 0 ? first : new NetworkWriter(root, network.Order, declaration);
+            var w = i == 0 ? first : new NetworkWriter(root, network.Order, declaration, declarationOf);
             w.CountWireConsumers(network);
             foreach (var tree in network.Trees) w.Emit(tree);
         }
@@ -76,7 +77,8 @@ internal static class TcPlcOpenWriter
     /// <para>It stays absent anyway, which is now a choice rather than a limit: <c>DeclarationText</c> is the
     /// documented path, it already works, and every other write here goes through it. Carrying the declaration
     /// twice would give two sources of truth for one string.</para></para></summary>
-    public static XDocument WriteProject(string pouName, NetworkBody body, string? declaration = null)
+    public static XDocument WriteProject(string pouName, NetworkBody body, string? declaration,
+                                        Func<string, string?> declarationOf)
     {
         // ALWAYS a program. This document is never the engineer's object - it builds a SCRATCH POU whose only
         // purpose is to make TwinCAT resolve the body, after which the archive is copied off it and the scratch
@@ -87,7 +89,7 @@ internal static class TcPlcOpenWriter
             new XAttribute("name", pouName),
             new XAttribute("pouType", "program"),
             new XElement(Namespaces.Tc6 + "interface"),
-            new XElement(Namespaces.Tc6 + "body", WriteBody(body, declaration)));
+            new XElement(Namespaces.Tc6 + "body", WriteBody(body, declaration, declarationOf)));
 
         return new XDocument(
             new XDeclaration("1.0", "utf-8", null),
@@ -126,11 +128,15 @@ internal static class TcPlcOpenWriter
         private readonly Dictionary<int, int> _consumers = new();
         private readonly string? _declaration;
 
-        public NetworkWriter(XElement root, int order, string? declaration)
+        /// <summary>Reach ANOTHER item's declaration by name — CODESYS's rule, member for member.</summary>
+        private readonly Func<string, string?> _declarationOf;
+
+        public NetworkWriter(XElement root, int order, string? declaration, Func<string, string?> declarationOf)
         {
             _root = root;
             _next = 10_000_000_000L * (order + 1);
             _declaration = declaration;
+            _declarationOf = declarationOf;
         }
 
         private long Id() => _next++;
@@ -197,11 +203,11 @@ internal static class TcPlcOpenWriter
             if (box.Kind != CallKind.FunctionBlock || box.Instance is not { } inst) return box.Type;
             if (!string.Equals(box.Type, inst.Text, StringComparison.OrdinalIgnoreCase)) return box.Type;
 
-            return Volt.Engine.Format.St.StDeclaration.TypeOfVariable(_declaration, inst.Text)
+            return Volt.Engine.Format.St.StDeclaration.TypeOfCallTarget(_declaration, inst.Text, _declarationOf)
                 ?? throw new NotSupportedException(
-                       $"TwinCAT: the call '{inst.Text}' names a function-block instance that is not declared in " +
-                       "this POU, so Volt cannot tell the IDE which TYPE the box calls. Declare it, or edit this " +
-                       "network in the IDE.");
+                       $"TwinCAT: the call '{inst.Text}' names a function-block instance whose TYPE Volt cannot " +
+                       "find — not in this POU's declaration, and not by following the name through the " +
+                       "project. Declare it, or edit this network in the IDE.");
         }
 
         private long EmitBox(Box box)

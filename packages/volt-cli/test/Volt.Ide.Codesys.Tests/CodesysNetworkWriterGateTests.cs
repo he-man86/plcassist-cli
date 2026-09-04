@@ -24,6 +24,11 @@ namespace Volt.Ide.Codesys.Tests;
 /// </summary>
 public class CodesysNetworkWriterGateTests
 {
+
+    /// <summary>No project behind this double — a dotted call target cannot resolve here, and these tests do
+    /// not use one. The lookup is passed EXPLICITLY rather than defaulted so a test that starts needing a real
+    /// one has to say so.</summary>
+    private static string? NoProject(string name) => null;
     /// <summary>A live network holding `out := (a AND b)`, as the vendor would present it.</summary>
     private static Nwl.Network LiveAndRung()
     {
@@ -48,7 +53,7 @@ public class CodesysNetworkWriterGateTests
     {
         try
         {
-            CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, language);
+            CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, NoProject, language);
             return null;
         }
         catch (Exception ex) { return ex; }
@@ -171,6 +176,11 @@ public class CodesysNetworkWriterGateTests
 /// </summary>
 public class CodesysCoilFlagTests
 {
+
+    /// <summary>No project behind this double — a dotted call target cannot resolve here, and these tests do
+    /// not use one. The lookup is passed EXPLICITLY rather than defaulted so a test that starts needing a real
+    /// one has to say so.</summary>
+    private static string? NoProject(string name) => null;
     /// <summary>Rebuild a network from <paramref name="model"/> and hand back the operand the coil ended up as.
     ///
     /// <para>The live network deliberately holds something DIFFERENT, so the change gate opens and the
@@ -178,7 +188,7 @@ public class CodesysCoilFlagTests
     private static Nwl.Operand Coil(Network model)
     {
         var live = new Nwl.Network().With(new Nwl.BoxTreeAssign());
-        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, BodyLanguage.Ld);
+        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, NoProject, BodyLanguage.Ld);
 
         var assign = Assert.IsType<Nwl.BoxTreeAssign>(live.GetTree(live.NetworkItemCount - 1));
         return Assert.IsType<Nwl.Operand>(Assert.Single(assign.Outputs.List));
@@ -300,7 +310,7 @@ public class CodesysCoilFlagTests
         });
 
         var live = new Nwl.Network().With(new Nwl.BoxTreeAssign());
-        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, BodyLanguage.Ld);
+        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, NoProject, BodyLanguage.Ld);
         var back = CodesysNetworkReader.ReadNetwork(live, 0);
 
         var box = Assert.IsType<Box>(back.Trees.Last());
@@ -324,7 +334,7 @@ public class CodesysCoilFlagTests
         });
 
         var live = new Nwl.Network().With(new Nwl.BoxTreeAssign());
-        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, BodyLanguage.Ld);
+        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, NoProject, BodyLanguage.Ld);
 
         var written = Assert.IsType<Nwl.BoxTreeBox>(live.GetTree(live.NetworkItemCount - 1));
         var names = Assert.IsType<Nwl.ParamList>(written.InputParams).Names;
@@ -359,7 +369,7 @@ public class CodesysCoilFlagTests
                     System.Array.Empty<Output>(), null, null, Flags.None),
         });
 
-        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, BodyLanguage.Fbd);
+        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, NoProject, BodyLanguage.Fbd);
 
         var written = Assert.IsType<Nwl.BoxTreeBox>(live.GetTree(live.NetworkItemCount - 1));
         var instance = Assert.IsType<Nwl.Operand>(written.Instance);
@@ -381,7 +391,7 @@ public class CodesysCoilFlagTests
                     System.Array.Empty<Output>(), null, st, Flags.None),
         });
 
-        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, BodyLanguage.Fbd);
+        CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, NoProject, BodyLanguage.Fbd);
 
         var written = Assert.IsType<Nwl.BoxTreeBox>(live.GetTree(live.NetworkItemCount - 1));
         Assert.Equal("EXECUTE", written.BoxType);

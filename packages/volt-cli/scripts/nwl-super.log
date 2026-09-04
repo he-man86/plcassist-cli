@@ -1,0 +1,2233 @@
+probe of: Lenze_MID-S100_V5_00_602_T51_Codesys.project
+wanted POUs: ['ATD_TorqueControl', 'Mach1_Drives']
+opened (a copy; the original is never touched)
+
+==============================================================================
+POU Mach1_Drives  (34 networks)
+==============================================================================
+
+-- NETWORK 0  title='DONE network 3 : All drives ready' label='' comment=''
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.MainDrive.Status.DriveIsReady' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.MainDrive.Control.SetDriveEnable' type='BOOL' flags=Negation
+        in[1]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.WrappingDevice.Status.DriveIsReady' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.WrappingDevice.Control.SetDriveEnable' type='BOOL' flags=Negation
+        in[2]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.SideCorrection.Status.DriveIsReady' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.SideCorrection.Control.SetDriveEnable' type='BOOL' flags=Negation
+    out[0] = 'Mach1.GenFlags.ConditionsReadyForOperation' type='BOOL' flags=none
+
+-- NETWORK 1  title='' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'EnableDrivePower' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Data.Drives.WrappingDevice.Status.DriveIsHomed' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.WrappingDevice.Control.StartSetHomePos' type='BOOL' flags=Negation+Set
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeDemux  itemflags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.WrappingDevice.Status.DriveIsHomed' type='BOOL' flags=Negation
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'FF500ms' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.WrappingDevice.Control.StartSetHomePos' type='BOOL' flags=Set
+
+-- NETWORK 2  title='DONE Network 4: Enable drive power ' label='' comment='The off delay ensures that the drive can stop before the power is removed from the drive. The power must be removed from the drive before it goes to STO. If the power remains on during STO, the drive will generate an error.'
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeOperand  itemflags=none
+          Operand = 'TRUE' type='BOOL' flags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Safety.Status.STO_OK' type='BOOL' flags=none
+    out[0] = 'EnableDrivePower' type='BOOL' flags=none
+
+-- NETWORK 3  title='' label='' comment=''
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeOperand  itemflags=none
+      Operand = 'Mach1_Data.Drives.MainDrive.Status.DriveIsHomed' type='BOOL' flags=none
+    out[0] = 'Mach1_AuxData.AllDrivesHomed' type='BOOL' flags=none
+
+-- NETWORK 4  title='' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'mach1.Genflags.DelayAfterSTO' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.MainDrive_VM.Control.SetDriveEnable' type='BOOL' flags=none
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeDemux  itemflags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.MainDrive_VM.Status.DriveIsReady' type='BOOL' flags=Negation
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'FF100ms' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.MainDrive_VM.Control.ResetError' type='BOOL' flags=none
+  tree[3]: BoxTreeBox  itemflags=none  BoxType='VirtualMasterControl'
+    Instance = 'MainDrive_VirtualMasterControl'
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=5   InputParams.Names=['EN', 'iAcc', 'iDec', 'ioVirtualMaster', 'ioVirtualMasterCom']
+    OutputParams.Names=['ENO']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeDemux  itemflags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = '600' type='INT' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = '1800' type='INT' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.MainDrive_VM' type='UDT_VirtualMaster' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = 'Data_Exchange_Motion.Servo_VirtualMaster' type='sUDT_VirtualMasterComm_Drive' flags=none
+    out[0] = <null>
+  tree[4]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+    Instance = None
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=2   InputParams.Names=['EN']
+    OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+        Instance = None
+        En  = True (Boolean)
+        Eno = True (Boolean)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=2   InputParams.Names=['EN']
+        OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+          in[0]: BoxTreeDemux  itemflags=none
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'Mach1_Data.Drives.MainDrive_VM.Status.ActSpeed' type='INT' flags=none
+        out[0] = <null>
+        out[1] = 'HMI_Var.Mach1.ActualSpeed' type='INT' flags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.MainDrive_VM.Status.ActXPos' type='INT' flags=none
+    out[0] = <null>
+    out[1] = 'HMI_Var.Mach1.Position' type='INT' flags=none
+
+-- NETWORK 5  title='Warning: machine in manual homing mode' label='' comment=''
+  tree[0]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+    Instance = None
+    En  = False (Boolean)
+    Eno = False (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+    OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+      in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+        Instance = None
+        En  = None (null)
+        Eno = None (null)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=2   InputParams.Names=[]
+        OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+          in[0]: BoxTreeOperand  itemflags=none
+            Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'Mach1_AuxData.EnableManualHomeSetting' type='BOOL' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Alarms.Alm033' type='BOOL' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1.GenFlags.Warning' type='BOOL' flags=none
+    out[0] = <null>
+
+-- NETWORK 6  title='DONE Network 5 : Conditions for sync/lock' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=4   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='TON'
+          Instance = 'TON_0'
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=['IN', 'PT']
+          OutputParams.Names=['Q']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeBox  itemflags=none  BoxType='TOF'
+                  Instance = 'OffDelaySync'
+                  En  = False (Boolean)
+                  Eno = False (Boolean)
+                  EnEno=True  EnEnoPossible=True
+                  ProvidesSTSnippet=False  STSnippet=None
+                  InputItemList count=2   InputParams.Names=['IN', 'PT']
+                  OutputParams.Names=['Q']  MainOutputIndex=0  MainInputIndex=0
+                    in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+                      Instance = None
+                      En  = None (null)
+                      Eno = None (null)
+                      EnEno=True  EnEnoPossible=True
+                      ProvidesSTSnippet=False  STSnippet=None
+                      InputItemList count=2   InputParams.Names=[]
+                      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                        in[0]: BoxTreeDemux  itemflags=none
+                        in[1]: BoxTreeOperand  itemflags=none
+                          Operand = 'Mach1_Safety.Status.DoorsOK' type='BOOL' flags=none
+                    in[1]: BoxTreeOperand  itemflags=none
+                      Operand = 'T#500MS' type='TIME' flags=none
+                  out[0] = <null>
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Safety.Status.STO_OK' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'T#500MS' type='TIME' flags=none
+          out[0] = <null>
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.ConditionsReadyForOperation' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_AuxData.AllDrivesHomed' type='BOOL' flags=none
+        in[3]: BoxTreeOperand  itemflags=Negation
+          Operand = 'Mach1_AuxData.EnableManualHomeSetting' type='BOOL' flags=Negation
+    out[0] = 'Mach1_AuxData.SetDrivesInSync' type='BOOL' flags=none
+  tree[2]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_AuxData.SetDrivesInSync' type='BOOL' flags=none
+  tree[3]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=4   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Data.Drives.MainDrive.Status.InSync' type='BOOL' flags=none
+        in[2]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.WrappingDevice.Status.InSync' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.WrappingDevice.Control.SetDriveEnable' type='BOOL' flags=Negation
+        in[3]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.SideCorrection.Status.InSync' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.SideCorrection.Control.SetDriveEnable' type='BOOL' flags=Negation
+    out[0] = 'bServoDrivesInSync' type='BOOL' flags=none
+  tree[4]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='TON'
+      Instance = 'TimeOutInSync'
+      En  = False (Boolean)
+      Eno = False (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=['IN', 'PT']
+      OutputParams.Names=['Q', 'ET']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeDemux  itemflags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'bServoDrivesInSync' type='BOOL' flags=Negation
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'T#10S' type='TIME' flags=none
+      out[0] = <null>
+      out[1] = '' type='TIME' flags=none
+    out[0] = 'bInSyncTimeOut' type='BOOL' flags=none
+  tree[5]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeParallel  itemflags=none
+      Input: BoxTreeBox  itemflags=none  BoxType='AND'
+        Instance = None
+        En  = None (null)
+        Eno = None (null)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=2   InputParams.Names=[]
+        OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+          in[0]: BoxTreeDemux  itemflags=none
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'bServoDrivesInSync' type='BOOL' flags=none
+      branch[0]: BoxTreeBox  itemflags=none  BoxType='TOF'
+        Instance = 'Mach1_AuxData.IEC_TIMERS.OffDelayLockDrives'
+        En  = False (Boolean)
+        Eno = False (Boolean)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=2   InputParams.Names=['IN', 'PT']
+        OutputParams.Names=['Q', 'ET']  MainOutputIndex=0  MainInputIndex=0
+          in[0]: BoxTreeTerminator  itemflags=none
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'T#2s' type='TIME' flags=none
+        out[0] = <null>
+        out[1] = '' type='TIME' flags=none
+      branch[1]: BoxTreeOperand  itemflags=none
+        Operand = 'TRUE' type='BOOL' flags=none
+    out[0] = 'Mach1_AuxData.SetDrivesInLock' type='BOOL' flags=none
+  tree[6]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_AuxData.SetDrivesInLock' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_AuxData.SetDrivesInSync' type='BOOL' flags=none
+  tree[7]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=4   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Data.Drives.MainDrive.Status.InSync' type='BOOL' flags=none
+        in[2]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.WrappingDevice.Status.InSync' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.WrappingDevice.Control.SetDriveEnable' type='BOOL' flags=Negation
+        in[3]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.SideCorrection.Status.InSync' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.SideCorrection.Control.SetDriveEnable' type='BOOL' flags=Negation
+    out[0] = 'Mach1_AuxData.AllDrivesInLock' type='BOOL' flags=none
+  tree[8]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='TON'
+      Instance = 'TimeOutInLock'
+      En  = False (Boolean)
+      Eno = False (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=['IN', 'PT']
+      OutputParams.Names=['Q', 'ET']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeDemux  itemflags=none
+            in[1]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_AuxData.AllDrivesInLock' type='BOOL' flags=Negation
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'T#5S' type='TIME' flags=none
+      out[0] = <null>
+      out[1] = '' type='TIME' flags=none
+    out[0] = 'bInLockTimeOut' type='BOOL' flags=none
+  tree[9]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'tSetDrivesInLock' type='BOOL' flags=none
+
+-- NETWORK 7  title='DONE Network 6: Servo Main drive: Control' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Safety.Control.RequestManSpeed' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Safety.Status.SafetyManSpeed' type='BOOL' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Safety.Control.RequestAutoSpeed' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Safety.Status.SafetyAutoSpeed' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.MainDrive_VM.Control.StartMovement' type='BOOL' flags=none
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+          Instance = None
+          En  = True (Boolean)
+          Eno = True (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=['EN']
+          OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeDemux  itemflags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'TRUE' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'ctCurveIs0ToMax' type='INT' flags=none
+          out[0] = <null>
+          out[1] = 'Mach1_Data.Drives.MainDrive.CAM.CamType' type='INT' flags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'tSetDrivesInLock' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.MainDrive.Control.SetInSync' type='BOOL' flags=none
+  tree[3]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'TRUE' type='BOOL' flags=none
+  tree[4]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms.Alm001' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=none
+          Operand = 'HMI_Var.ReleaseBrake' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.MainDrive.Control.SetBrakeRelease' type='BOOL' flags=none
+  tree[5]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='OR'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Alarms.Alm001' type='BOOL' flags=Negation
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'mach1.Genflags.StartFlag' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm001' type='BOOL' flags=none
+    out[0] = 'HMI_Var.ReleaseBrake' type='BOOL' flags=Negation+Set
+  tree[6]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='R_TRIG'
+      Instance = 'OspRotationFlag'
+      En  = False (Boolean)
+      Eno = False (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=1   InputParams.Names=['CLK']
+      OutputParams.Names=['Q']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='ServoControl'
+              Instance = 'ServoMainDrive'
+              En  = True (Boolean)
+              Eno = True (Boolean)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=6   InputParams.Names=['EN', 'iServoStatus', 'iEnableHomeMovement', 'iEnablePower', 'iFF100ms', 'ioUDT_ServoDrive']
+              OutputParams.Names=['ENO', 'oServoControl']  MainOutputIndex=0  MainInputIndex=0
+                in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+                  Instance = None
+                  En  = None (null)
+                  Eno = None (null)
+                  EnEno=True  EnEnoPossible=True
+                  ProvidesSTSnippet=False  STSnippet=None
+                  InputItemList count=2   InputParams.Names=[]
+                  OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                    in[0]: BoxTreeDemux  itemflags=none
+                    in[1]: BoxTreeOperand  itemflags=none
+                      Operand = 'TRUE' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Data_Exchange_Motion.Servo_MainDrive.Status' type='sUDT_ServoComm_Drive_Status' flags=none
+                in[2]: BoxTreeOperand  itemflags=none
+                  Operand = 'TRUE' type='BOOL' flags=none
+                in[3]: BoxTreeOperand  itemflags=none
+                  Operand = 'EnableDrivePower' type='BOOL' flags=none
+                in[4]: BoxTreeOperand  itemflags=none
+                  Operand = 'LST_General.FF100ms' type='BOOL' flags=none
+                in[5]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Data.Drives.MainDrive' type='UDT_ServoDrive' flags=none
+              out[0] = <null>
+              out[1] = 'Data_Exchange_Motion.Servo_MainDrive.Control' type='sUDT_ServoComm_Drive_Control' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.MainDrive.Status.RotationPulse' type='BOOL' flags=none
+      out[0] = <null>
+    out[0] = 'Mach1.GenFlags.Rotflag' type='BOOL' flags=none
+
+-- NETWORK 8  title='DONE Network 7 : Servo Main drive: Alarms' label='' comment=''
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='OR'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=Negation
+                  Operand = 'Mach1_Data.Drives.MainDrive.Status.DriveIsReady' type='BOOL' flags=Negation
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm020' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+        in[1]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Data.Drives.MainDrive.Status.DriveTorqueError' type='BOOL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm021' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+        in[2]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=Negation
+                  Operand = 'Mach1_Data.Drives.MainDrive.Status.DriveIsHomed' type='BOOL' flags=Negation
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm022' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+    out[0] = 'Mach1.GenFlags.StopDriveDirect' type='BOOL' flags=Set
+
+-- NETWORK 9  title='' label='' comment=''
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='OR'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='OR'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=3   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm020' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm021' type='BOOL' flags=none
+                in[2]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm022' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=4   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'TON_0.Q' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Imp100ms' type='BOOL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Safety.Status.ServiceMode' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Safety.Status.Service_ButtonAB' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.MainDrive.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 10  title='DONE Network 8: Servo Wrapping device: Control' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+          Instance = None
+          En  = True (Boolean)
+          Eno = True (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=['EN']
+          OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeDemux  itemflags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'TRUE' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'ctCurveIsSpeed' type='INT' flags=none
+          out[0] = <null>
+          out[1] = 'Mach1_Data.Drives.WrappingDevice.CAM.CamType' type='INT' flags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'tSetDrivesInLock' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.WrappingDevice.Control.SetInSync' type='BOOL' flags=none
+  tree[2]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+    Instance = None
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=2   InputParams.Names=['EN']
+    OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeDemux  itemflags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Settings.Ints.RollingDeviceSpeedFactor' type='INT' flags=none
+    out[0] = <null>
+    out[1] = 'Mach1_Data.Drives.WrappingDevice.CAM.Y_Scale_Recipe' type='INT' flags=none
+  tree[3]: BoxTreeBox  itemflags=none  BoxType='ServoControl'
+    Instance = 'ServoWrappingDevice'
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=6   InputParams.Names=['EN', 'iServoStatus', 'iEnableHomeMovement', 'iEnablePower', 'iFF100ms', 'ioUDT_ServoDrive']
+    OutputParams.Names=['ENO', 'oServoControl']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+        Instance = None
+        En  = None (null)
+        Eno = None (null)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=2   InputParams.Names=[]
+        OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+          in[0]: BoxTreeDemux  itemflags=none
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'TRUE' type='BOOL' flags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Data_Exchange_Motion.Servo_WrappingDevice.Status' type='sUDT_ServoComm_Drive_Status' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = 'TRUE' type='BOOL' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = 'EnableDrivePower' type='BOOL' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = 'LST_General.FF100ms' type='BOOL' flags=none
+      in[5]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.WrappingDevice' type='UDT_ServoDrive' flags=none
+    out[0] = <null>
+    out[1] = 'Data_Exchange_Motion.Servo_WrappingDevice.Control' type='sUDT_ServoComm_Drive_Control' flags=none
+
+-- NETWORK 11  title='DONE Network 9 : Servo Wrapping Device: Alarms' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='OR'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=3   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=Negation
+                  Operand = 'Mach1_Data.Drives.WrappingDevice.Status.DriveIsReady' type='BOOL' flags=Negation
+                in[2]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Data.Drives.WrappingDevice.Control.SetDriveEnable' type='BOOL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm023' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+        in[1]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Data.Drives.WrappingDevice.Status.DriveTorqueError' type='BOOL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm024' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+        in[2]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=Negation
+                  Operand = 'Mach1_Data.Drives.WrappingDevice.Status.DriveIsHomed' type='BOOL' flags=Negation
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm025' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'Mach1.GenFlags.StopDriveDirect' type='BOOL' flags=Set
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.WrappingDevice.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 12  title='' label='' comment=''
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='OR'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='OR'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=3   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm023' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm024' type='BOOL' flags=none
+                in[2]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm025' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=4   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'TON_0.Q' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Imp100ms' type='BOOL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Safety.Status.ServiceMode' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Safety.Status.Service_ButtonAB' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.WrappingDevice.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 13  title='' label='' comment=''
+
+-- NETWORK 14  title='Digital inputs' label='' comment='16: non-motor side\r\n17: motor side'
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='MOVE'
+      Instance = None
+      En  = True (Boolean)
+      Eno = True (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=['EN']
+      OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeOperand  itemflags=none
+          Operand = 'TRUE' type='BOOL' flags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = '%ID79' type='DWORD' flags=none
+      out[0] = <null>
+      out[1] = 'mydword' type='DWORD' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'mydword.16' type='BOOL' flags=none
+    out[0] = 'Data_Exchange_Motion.Servo_SideCorrection.Status.Spare1' type='BOOL' flags=none
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'mydword.17' type='BOOL' flags=none
+    out[0] = 'Data_Exchange_Motion.Servo_SideCorrection.Status.Spare2' type='BOOL' flags=none
+
+-- NETWORK 15  title='DONE Network 10: Servo Side correction: Control' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+          Instance = None
+          En  = True (Boolean)
+          Eno = True (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=['EN']
+          OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeDemux  itemflags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'TRUE' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'ctCurveIsSpeed' type='INT' flags=none
+          out[0] = <null>
+          out[1] = 'Mach1_Data.Drives.SideCorrection.CAM.CamType' type='INT' flags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'tSetDrivesInLock' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.SideCorrection.Control.SetInSync' type='BOOL' flags=none
+  tree[2]: BoxTreeBox  itemflags=none  BoxType='ServoControl'
+    Instance = 'ServoSideCorrection'
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=6   InputParams.Names=['EN', 'iServoStatus', 'iEnableHomeMovement', 'iEnablePower', 'iFF100ms', 'ioUDT_ServoDrive']
+    OutputParams.Names=['ENO', 'oServoControl']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+        Instance = None
+        En  = None (null)
+        Eno = None (null)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=2   InputParams.Names=[]
+        OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+          in[0]: BoxTreeDemux  itemflags=none
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'TRUE' type='BOOL' flags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Data_Exchange_Motion.Servo_SideCorrection.Status' type='sUDT_ServoComm_Drive_Status' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = 'TRUE' type='BOOL' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = 'EnableDrivePower' type='BOOL' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = 'LST_General.FF100ms' type='BOOL' flags=none
+      in[5]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.SideCorrection' type='UDT_ServoDrive' flags=none
+    out[0] = <null>
+    out[1] = 'SideCorrection_CW' type='sUDT_ServoComm_Drive_Control' flags=none
+  tree[3]: BoxTreeBox  itemflags=none  BoxType='Servo_LimitJog'
+    Instance = 'Servo_LimitJog_Instance'
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=5   InputParams.Names=['EN', 'iServoStatus', 'iServoControl', 'ioUDT_ServoDrive', 'ioUDT_JogLimitFree']
+    OutputParams.Names=['ENO', 'oServoControl']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+        Instance = None
+        En  = None (null)
+        Eno = None (null)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=2   InputParams.Names=[]
+        OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+          in[0]: BoxTreeDemux  itemflags=none
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'TRUE' type='BOOL' flags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Data_Exchange_Motion.Servo_SideCorrection.Status' type='sUDT_ServoComm_Drive_Status' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = 'SideCorrection_CW' type='sUDT_ServoComm_Drive_Control' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.SideCorrection' type='UDT_ServoDrive' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.SideCorrection_FreeLimit' type='UDT_ServoJogLimitFree' flags=none
+    out[0] = <null>
+    out[1] = 'Data_Exchange_Motion.Servo_SideCorrection.Control' type='sUDT_ServoComm_Drive_Control' flags=none
+
+-- NETWORK 16  title='DONE Network 11 : Servo Side correction: Alarms' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='OR'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=3   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=Negation
+                  Operand = 'Mach1_Data.Drives.SideCorrection.Status.DriveIsReady' type='BOOL' flags=Negation
+                in[2]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Data.Drives.SideCorrection.Control.SetDriveEnable' type='BOOL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm026' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+        in[1]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Data.Drives.SideCorrection.Status.DriveTorqueError' type='BOOL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm027' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+        in[2]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=2   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.DelayAfterSTO' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=Negation
+                  Operand = 'Mach1_Data.Drives.SideCorrection.Status.DriveIsHomed' type='BOOL' flags=Negation
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm028' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'Mach1.GenFlags.StopDriveDirect' type='BOOL' flags=Set
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.SideCorrection.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 17  title='' label='' comment=''
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='OR'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='OR'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=3   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm026' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm027' type='BOOL' flags=none
+                in[2]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_Alarms.Alm028' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=4   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'TON_0.Q' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Imp100ms' type='BOOL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Safety.Status.ServiceMode' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Safety.Status.Service_ButtonAB' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.SideCorrection.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 18  title='' label='' comment=''
+
+-- NETWORK 19  title='DONE Network 12: Feedforward ADS' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=Negation
+          Operand = 'Mach1_Alarms.Alm015' type='BOOL' flags=Negation
+    out[0] = 'Mach1_Data.Drives.FeedForwardADS.Control.Enable' type='BOOL' flags=none
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'Mach1_Data.Drives.FeedForwardADS.Control.Reverse' type='BOOL' flags=none
+  tree[3]: BoxTreeBox  itemflags=none  BoxType='FB_Lenze_i550'
+    Instance = 'FBFeedforwardADS'
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=8   InputParams.Names=['EN', 'iStatusWord', 'iGearRatioNumerator', 'iGearRatioDenominator', 'iNominalMotorSpeedwoSlipComp_RPM', 'iNominalMotorFrequency_Hz', 'iAxisJogSpeed_RPM', 'ioUDT']
+    OutputParams.Names=['ENO', 'oControlWord', 'oRefSpeed']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeDemux  itemflags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Data_Exchange_Motion.FQI_FeedforwardADS.Status' type='sUDT_FQIComm_Drive_Status' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = '2790.0' type='LREAL' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = '111.0' type='LREAL' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = '3000.0' type='LREAL' flags=none
+      in[5]: BoxTreeOperand  itemflags=none
+        Operand = '100.0' type='LREAL' flags=none
+      in[6]: BoxTreeOperand  itemflags=none
+        Operand = '10.0' type='LREAL' flags=none
+      in[7]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.FeedForwardADS' type='UDT_FQI_Drive' flags=none
+    out[0] = <null>
+    out[1] = 'Data_Exchange_Motion.FQI_FeedforwardADS.Controlword' type='sUDT_FQIComm_Drive_Control' flags=none
+    out[2] = 'Data_Exchange_Motion.FQI_FeedforwardADS.RefSpeed' type='WORD' flags=none
+
+-- NETWORK 20  title='DONE Network 13: Alarms feed forward dryer ' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+      Instance = None
+      En  = False (Boolean)
+      Eno = False (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+      OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.FeedForwardADS.Status.Error' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=none
+          Operand = 'True' type='BOOL' flags=none
+        in[3]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms.Alm015' type='BOOL' flags=none
+        in[4]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+      out[0] = <null>
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'Mach1.GenFlags.StopDriveDirect' type='BOOL' flags=Set
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.FeedForwardADS.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 21  title='DONE Network 14: Feedforward ATF' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=Negation
+          Operand = 'Mach1_Alarms.Alm016' type='BOOL' flags=Negation
+    out[0] = 'Mach1_Data.Drives.FeedForwardATF.Control.Enable' type='BOOL' flags=none
+  tree[2]: BoxTreeBox  itemflags=none  BoxType='FB_Lenze_i550'
+    Instance = 'FBFeedforwardATF'
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=8   InputParams.Names=['EN', 'iStatusWord', 'iGearRatioNumerator', 'iGearRatioDenominator', 'iNominalMotorSpeedwoSlipComp_RPM', 'iNominalMotorFrequency_Hz', 'iAxisJogSpeed_RPM', 'ioUDT']
+    OutputParams.Names=['ENO', 'oControlWord', 'oRefSpeed']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeDemux  itemflags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Data_Exchange_Motion.FQI_FeedforwardATF.Status' type='sUDT_FQIComm_Drive_Status' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = '2790.0' type='LREAL' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = '111.0' type='LREAL' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = '3000.0' type='LREAL' flags=none
+      in[5]: BoxTreeOperand  itemflags=none
+        Operand = '100.0' type='LREAL' flags=none
+      in[6]: BoxTreeOperand  itemflags=none
+        Operand = '10.0' type='LREAL' flags=none
+      in[7]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.FeedForwardATF' type='UDT_FQI_Drive' flags=none
+    out[0] = <null>
+    out[1] = 'Data_Exchange_Motion.FQI_FeedforwardATF.Controlword' type='sUDT_FQIComm_Drive_Control' flags=none
+    out[2] = 'Data_Exchange_Motion.FQI_FeedforwardATF.RefSpeed' type='WORD' flags=none
+
+-- NETWORK 22  title='DONE Network 15: Alarms feed forward trayfiller\r\n' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+      Instance = None
+      En  = False (Boolean)
+      Eno = False (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+      OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.FeedForwardATF.Status.Error' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=none
+          Operand = 'True' type='BOOL' flags=none
+        in[3]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms.Alm016' type='BOOL' flags=none
+        in[4]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+      out[0] = <null>
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'Mach1.GenFlags.StopDriveDirect' type='BOOL' flags=Set
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.FeedForwardATF.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 23  title='DONE Network 16: Elevator ATF' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=Negation
+          Operand = 'Mach1_Alarms.Alm014' type='BOOL' flags=Negation
+    out[0] = 'Mach1_Data.Drives.ElevatorATF.Control.Enable' type='BOOL' flags=none
+  tree[2]: BoxTreeBox  itemflags=none  BoxType='FB_Lenze_i550'
+    Instance = 'FBElevatorATF'
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=8   InputParams.Names=['EN', 'iStatusWord', 'iGearRatioNumerator', 'iGearRatioDenominator', 'iNominalMotorSpeedwoSlipComp_RPM', 'iNominalMotorFrequency_Hz', 'iAxisJogSpeed_RPM', 'ioUDT']
+    OutputParams.Names=['ENO', 'oControlWord', 'oRefSpeed']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeDemux  itemflags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Data_Exchange_Motion.FQI_ElevatorATF.Status' type='sUDT_FQIComm_Drive_Status' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = '100.0' type='LREAL' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = '111.0' type='LREAL' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = '3000.0' type='LREAL' flags=none
+      in[5]: BoxTreeOperand  itemflags=none
+        Operand = '100.0' type='LREAL' flags=none
+      in[6]: BoxTreeOperand  itemflags=none
+        Operand = '10.0' type='LREAL' flags=none
+      in[7]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.ElevatorATF' type='UDT_FQI_Drive' flags=none
+    out[0] = <null>
+    out[1] = 'Data_Exchange_Motion.FQI_ElevatorATF.Controlword' type='sUDT_FQIComm_Drive_Control' flags=none
+    out[2] = 'Data_Exchange_Motion.FQI_ElevatorATF.RefSpeed' type='WORD' flags=none
+
+-- NETWORK 24  title='DONE Network 17: Alarms Elevator trayfiller\r\n' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+      Instance = None
+      En  = False (Boolean)
+      Eno = False (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+      OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.ElevatorATF.Status.Error' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=none
+          Operand = 'True' type='BOOL' flags=none
+        in[3]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms.Alm014' type='BOOL' flags=none
+        in[4]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+      out[0] = <null>
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'Mach1.GenFlags.StopDriveDirect' type='BOOL' flags=Set
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.ElevatorATF.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 25  title='DONE Network 18: Fan' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.EnableAuxDrive' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=Negation
+          Operand = 'Mach1_Alarms.Alm017' type='BOOL' flags=Negation
+    out[0] = 'Mach1_Data.Drives.Fan.Control.Enable' type='BOOL' flags=none
+  tree[2]: BoxTreeBox  itemflags=none  BoxType='FB_Lenze_i550'
+    Instance = 'FBFan'
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=8   InputParams.Names=['EN', 'iStatusWord', 'iGearRatioNumerator', 'iGearRatioDenominator', 'iNominalMotorSpeedwoSlipComp_RPM', 'iNominalMotorFrequency_Hz', 'iAxisJogSpeed_RPM', 'ioUDT']
+    OutputParams.Names=['ENO', 'oControlWord', 'oRefSpeed']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeDemux  itemflags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Data_Exchange_Motion.FQI_Fan.Status' type='sUDT_FQIComm_Drive_Status' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = '1.0' type='LREAL' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = '1.0' type='LREAL' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = '3000.0' type='LREAL' flags=none
+      in[5]: BoxTreeOperand  itemflags=none
+        Operand = '50.0' type='LREAL' flags=none
+      in[6]: BoxTreeOperand  itemflags=none
+        Operand = '10.0' type='LREAL' flags=none
+      in[7]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.Fan' type='UDT_FQI_Drive' flags=none
+    out[0] = <null>
+    out[1] = 'Data_Exchange_Motion.FQI_Fan.Controlword' type='sUDT_FQIComm_Drive_Control' flags=none
+    out[2] = 'Data_Exchange_Motion.FQI_Fan.RefSpeed' type='WORD' flags=none
+
+-- NETWORK 26  title='DONE Network 19: Alarms Fan\r\n' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+      Instance = None
+      En  = False (Boolean)
+      Eno = False (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+      OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Drives.Fan.Status.Error' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=none
+          Operand = 'True' type='BOOL' flags=none
+        in[3]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms.Alm017' type='BOOL' flags=none
+        in[4]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+      out[0] = <null>
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'Mach1.GenFlags.StopDriveDirect' type='BOOL' flags=Set
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.Fan.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 27  title='DONE Network 20: Bobbin' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='GT'
+          Instance = None
+          En  = True (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=3   InputParams.Names=['EN']
+          OutputParams.Names=['']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=3   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeDemux  itemflags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.EnableAuxDrive' type='BOOL' flags=none
+                in[2]: BoxTreeOperand  itemflags=Negation
+                  Operand = 'HMI_Var.Btn_Cleaning' type='BOOL' flags=Negation
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Data.Settings.Ints.TorqueControlBobbin' type='INT' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = '0' type='INT' flags=none
+          out[0] = <null>
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Safety.Status.AllDoorsActuallyClosed' type='BOOL' flags=none
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'Mach1_Data.Drives.Bobbine.Control.Enable' type='BOOL' flags=none
+  tree[3]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='MOVE'
+      Instance = None
+      En  = True (Boolean)
+      Eno = True (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=['EN']
+      OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = '860' type='INT' flags=none
+      out[0] = <null>
+      out[1] = 'Mach1_Data.Drives.Bobbine.Control.AutoSpeed' type='INT' flags=none
+    out[0] = 'Mach1_Data.Drives.Bobbine.Control.StartAuto' type='BOOL' flags=none
+  tree[4]: BoxTreeBox  itemflags=none  BoxType='FB_Lenze_i550'
+    Instance = 'FBBobbin'
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=8   InputParams.Names=['EN', 'iStatusWord', 'iGearRatioNumerator', 'iGearRatioDenominator', 'iNominalMotorSpeedwoSlipComp_RPM', 'iNominalMotorFrequency_Hz', 'iAxisJogSpeed_RPM', 'ioUDT']
+    OutputParams.Names=['ENO', 'oControlWord', 'oRefSpeed']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeDemux  itemflags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Data_Exchange_Motion.FQI_Bobbin.Status' type='sUDT_FQIComm_Drive_Status' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = '2790.0' type='LREAL' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = '111.0' type='LREAL' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = '3000.0' type='LREAL' flags=none
+      in[5]: BoxTreeOperand  itemflags=none
+        Operand = '50.0' type='LREAL' flags=none
+      in[6]: BoxTreeOperand  itemflags=none
+        Operand = '10.0' type='LREAL' flags=none
+      in[7]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Drives.Bobbine' type='UDT_FQI_Drive' flags=none
+    out[0] = <null>
+    out[1] = 'Data_Exchange_Motion.FQI_Bobbin.Controlword' type='sUDT_FQIComm_Drive_Control' flags=none
+    out[2] = 'Data_Exchange_Motion.FQI_Bobbin.RefSpeed' type='WORD' flags=none
+  tree[5]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'HMI_Var.Mach1.CalibrateTorqueValues' type='BOOL' flags=none
+  tree[6]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+    Instance = None
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=2   InputParams.Names=['EN']
+    OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeDemux  itemflags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_AuxData.TorqueCalibrationValue' type='DINT' flags=none
+    out[0] = <null>
+    out[1] = 'Data_Exchange_Motion.BobbinTorque' type='DINT' flags=none
+  tree[7]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='MOVE'
+      Instance = None
+      En  = True (Boolean)
+      Eno = True (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=['EN']
+      OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeDemux  itemflags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'HMI_Var.Mach1.setMinTorqueValue' type='BOOL' flags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_AuxData.TorqueCalibrationValue' type='DINT' flags=none
+      out[0] = <null>
+      out[1] = 'Mach1_Data.Settings.Dints.minTorqueValue' type='DINT' flags=none
+    out[0] = 'HMI_Var.Mach1.setMinTorqueValue' type='BOOL' flags=Negation+Set
+  tree[8]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='MOVE'
+      Instance = None
+      En  = True (Boolean)
+      Eno = True (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=['EN']
+      OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=2   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeDemux  itemflags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'HMI_Var.Mach1.setMaxTorqueValue' type='BOOL' flags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_AuxData.TorqueCalibrationValue' type='DINT' flags=none
+      out[0] = <null>
+      out[1] = 'Mach1_Data.Settings.Dints.maxTorqueValue' type='DINT' flags=none
+    out[0] = 'HMI_Var.Mach1.setMaxTorqueValue' type='BOOL' flags=Negation+Set
+  tree[9]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+    Instance = None
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=2   InputParams.Names=['EN']
+    OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeBox  itemflags=none  BoxType='LIN_TRAFO'
+        Instance = 'ScaleBobbinTorque'
+        En  = True (Boolean)
+        Eno = True (Boolean)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=6   InputParams.Names=['EN', 'IN', 'IN_MIN', 'IN_MAX', 'OUT_MIN', 'OUT_MAX']
+        OutputParams.Names=['ENO', 'OUT']  MainOutputIndex=0  MainInputIndex=0
+          in[0]: BoxTreeBox  itemflags=none  BoxType='AND'
+            Instance = None
+            En  = None (null)
+            Eno = None (null)
+            EnEno=True  EnEnoPossible=True
+            ProvidesSTSnippet=False  STSnippet=None
+            InputItemList count=2   InputParams.Names=[]
+            OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+              in[0]: BoxTreeDemux  itemflags=none
+              in[1]: BoxTreeOperand  itemflags=Negation
+                Operand = 'HMI_Var.Mach1.CalibrateTorqueValues' type='BOOL' flags=Negation
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'Mach1_Data.Settings.Ints.TorqueControlBobbin' type='INT' flags=none
+          in[2]: BoxTreeOperand  itemflags=none
+            Operand = '0' type='INT' flags=none
+          in[3]: BoxTreeOperand  itemflags=none
+            Operand = '1000' type='INT' flags=none
+          in[4]: BoxTreeOperand  itemflags=none
+            Operand = 'DINT_TO_REAL(Mach1_Data.Settings.Dints.minTorqueValue)' type='REAL' flags=none
+          in[5]: BoxTreeOperand  itemflags=none
+            Operand = 'DINT_TO_REAL(Mach1_Data.Settings.Dints.maxTorqueValue)' type='REAL' flags=none
+        out[0] = <null>
+        out[1] = 'tBobbinTorque' type='REAL' flags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'REAL_TO_DINT(tBobbinTorque)' type='DINT' flags=none
+    out[0] = <null>
+    out[1] = 'Data_Exchange_Motion.BobbinTorque' type='DINT' flags=none
+
+-- NETWORK 28  title='DONE Network 21: Alarms Bobbine \r\n' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+      Instance = None
+      En  = False (Boolean)
+      Eno = False (Boolean)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+      OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+        in[0]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+        in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+          Instance = None
+          En  = None (null)
+          Eno = None (null)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=4   InputParams.Names=[]
+          OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_AuxData.MIDS_Active' type='BOOL' flags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+            in[2]: BoxTreeOperand  itemflags=Negation
+              Operand = 'Mach1_Data.Drives.Bobbine.Status.DriveReady' type='BOOL' flags=Negation
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_AuxData.AllDrivesHomed' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=none
+          Operand = 'True' type='BOOL' flags=none
+        in[3]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1_Alarms.Alm010' type='BOOL' flags=none
+        in[4]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+      out[0] = <null>
+  tree[1]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeDemux  itemflags=none
+    out[0] = 'Mach1.GenFlags.StopDriveDirect' type='BOOL' flags=Set
+  tree[2]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeDemux  itemflags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.ResetFlag' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.Bobbine.Control.ResetError' type='BOOL' flags=Set
+
+-- NETWORK 29  title='TODO Network 22:' label='' comment='WRAPPER'
+
+-- NETWORK 30  title='TODO Network 23: Limit Wrapper stop position' label='' comment=''
+  tree[0]: BoxTreeDemux  itemflags=none
+    Input: BoxTreeOperand  itemflags=none
+      Operand = 'TRUE' type='BOOL' flags=none
+  tree[1]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+    Instance = None
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=2   InputParams.Names=['EN']
+    OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeBox  itemflags=none  BoxType='GT'
+        Instance = None
+        En  = True (Boolean)
+        Eno = False (Boolean)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=3   InputParams.Names=['EN']
+        OutputParams.Names=['']  MainOutputIndex=0  MainInputIndex=0
+          in[0]: BoxTreeDemux  itemflags=none
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'Mach1_Data.Settings.Dints.WrapperStopPosition' type='DINT' flags=none
+          in[2]: BoxTreeOperand  itemflags=none
+            Operand = '400' type='INT' flags=none
+        out[0] = <null>
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = '400' type='INT' flags=none
+    out[0] = <null>
+    out[1] = 'Mach1_Data.Settings.Dints.WrapperStopPosition' type='DINT' flags=none
+  tree[2]: BoxTreeBox  itemflags=none  BoxType='MOVE'
+    Instance = None
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=2   InputParams.Names=['EN']
+    OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeBox  itemflags=none  BoxType='LT'
+        Instance = None
+        En  = True (Boolean)
+        Eno = False (Boolean)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=3   InputParams.Names=['EN']
+        OutputParams.Names=['']  MainOutputIndex=0  MainInputIndex=0
+          in[0]: BoxTreeDemux  itemflags=none
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'Mach1_Data.Settings.Dints.WrapperStopPosition' type='DINT' flags=none
+          in[2]: BoxTreeOperand  itemflags=none
+            Operand = '5' type='INT' flags=none
+        out[0] = <null>
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = '5' type='INT' flags=none
+    out[0] = <null>
+    out[1] = 'Mach1_Data.Settings.Dints.WrapperStopPosition' type='DINT' flags=none
+  tree[3]: BoxTreeBox  itemflags=none  BoxType='MUL'
+    Instance = None
+    En  = True (Boolean)
+    Eno = True (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=3   InputParams.Names=['EN']
+    OutputParams.Names=['ENO', '']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeDemux  itemflags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'Mach1_Data.Settings.Dints.WrapperStopPosition' type='DINT' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = '100' type='INT' flags=none
+    out[0] = <null>
+    out[1] = 'tWrapperStopPosition' type='DINT' flags=none
+
+-- NETWORK 31  title='TODO Network 25:' label='' comment=''
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=3   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeOperand  itemflags=none
+          Operand = 'TRUE' type='BOOL' flags=none
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'Mach1.GenFlags.DelayAfterEmergStop' type='BOOL' flags=none
+        in[2]: BoxTreeOperand  itemflags=Negation
+          Operand = 'Mach1_Alarms.Alm066' type='BOOL' flags=Negation
+    out[0] = 'Data_Exchange_Motion.FeedForwardWrapper.Control.Enable' type='BOOL' flags=none
+
+-- NETWORK 32  title='TODO Network 26:' label='' comment=''
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeBox  itemflags=none  BoxType='AND'
+      Instance = None
+      En  = None (null)
+      Eno = None (null)
+      EnEno=True  EnEnoPossible=True
+      ProvidesSTSnippet=False  STSnippet=None
+      InputItemList count=2   InputParams.Names=[]
+      OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+        in[0]: BoxTreeBox  itemflags=none  BoxType='Alarms_V5_1_100'
+          Instance = None
+          En  = False (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=5   InputParams.Names=['AlarmDB', 'iCond', 'iReset', 'iAlm', 'ioAction']
+          OutputParams.Names=['   ']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms' type='scAlarmsDB' flags=none
+            in[1]: BoxTreeBox  itemflags=none  BoxType='AND'
+              Instance = None
+              En  = None (null)
+              Eno = None (null)
+              EnEno=True  EnEnoPossible=True
+              ProvidesSTSnippet=False  STSnippet=None
+              InputItemList count=6   InputParams.Names=[]
+              OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+                in[0]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_AuxData.MIDS_Active' type='BOOL' flags=none
+                in[1]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1.GenFlags.EnableMainDrive' type='BOOL' flags=none
+                in[2]: BoxTreeOperand  itemflags=none
+                  Operand = 'HMI_Var.Test_Prod' type='BOOL' flags=none
+                in[3]: BoxTreeOperand  itemflags=Negation
+                  Operand = 'HMI_Var.Btn_Cleaning' type='BOOL' flags=Negation
+                in[4]: BoxTreeOperand  itemflags=none
+                  Operand = 'Mach1_AuxData.AllDrivesHomed' type='BOOL' flags=none
+                in[5]: BoxTreeOperand  itemflags=Negation
+                  Operand = 'Data_Exchange_Motion.FeedForwardWrapper.Status.ReadyForMotion' type='BOOL' flags=Negation
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.Genflags.StartFlag' type='BOOL' flags=none
+            in[3]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1_Alarms.Alm056' type='BOOL' flags=none
+            in[4]: BoxTreeOperand  itemflags=none
+              Operand = 'Mach1.GenFlags.MinorAlarm' type='BOOL' flags=none
+          out[0] = <null>
+        in[1]: BoxTreeOperand  itemflags=none
+          Operand = 'mach1.Genflags.ResetFlag' type='BOOL' flags=none
+    out[0] = 'Mach1_Data.Drives.WrappingDevice.Control.ResetError' type='BOOL' flags=Set
+    out[1] = 'Data_Exchange_Motion.FeedForwardWrapper.Control.ResetError' type='BOOL' flags=none
+
+-- NETWORK 33  title='TODO Network 27:' label='' comment=''
+  tree[0]: BoxTreeOperand  itemflags=none
+    Operand = '' type='sUDT_ServoComm_Status' flags=none
+
+==============================================================================
+POU ATD_TorqueControl  (2 networks)
+==============================================================================
+
+-- NETWORK 0  title='' label='' comment=''
+  tree[0]: BoxTreeBox  itemflags=none  BoxType='ATD_FQI'
+    Instance = 'SUPER^'
+    En  = False (Boolean)
+    Eno = False (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=2   InputParams.Names=['ioAxis', 'DataIO']
+    OutputParams.Names=[]  MainOutputIndex=None  MainInputIndex=0
+      in[0]: BoxTreeOperand  itemflags=none
+        Operand = 'ioAxis' type='AXIS_REF' flags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'DataIO' type='sUDT_FQIComm_Drive' flags=none
+
+-- NETWORK 1  title='' label='' comment=''
+  tree[0]: BoxTreeBox  itemflags=none  BoxType='L_MC1P_CyclicParameterAccessWrite'
+    Instance = 'L_MC1P_CyclicParameterAccessWrite_0'
+    En  = False (Boolean)
+    Eno = False (Boolean)
+    EnEno=True  EnEnoPossible=True
+    ProvidesSTSnippet=False  STSnippet=None
+    InputItemList count=8   InputParams.Names=['Axis', 'xEnable', 'wIndex', 'usiSubIndex', 'usiSize', 'xSigned', 'lrScaleFactor', 'lrData']
+    OutputParams.Names=['xValid', 'xBusy', 'xError', 'eErrorID']  MainOutputIndex=0  MainInputIndex=0
+      in[0]: BoxTreeOperand  itemflags=none
+        Operand = 'ioAxis' type='AXIS_REF' flags=none
+      in[1]: BoxTreeOperand  itemflags=none
+        Operand = 'TRUE' type='BOOL' flags=none
+      in[2]: BoxTreeOperand  itemflags=none
+        Operand = '16#4008' type='INT' flags=none
+      in[3]: BoxTreeOperand  itemflags=none
+        Operand = '5' type='INT' flags=none
+      in[4]: BoxTreeOperand  itemflags=none
+        Operand = '2' type='INT' flags=none
+      in[5]: BoxTreeOperand  itemflags=none
+        Operand = '1' type='INT' flags=none
+      in[6]: BoxTreeOperand  itemflags=none
+        Operand = '1' type='INT' flags=none
+      in[7]: BoxTreeOperand  itemflags=none
+        Operand = 'lrTorque' type='LREAL' flags=none
+    out[0] = <null>
+    out[1] = '' type='' flags=none
+    out[2] = '' type='' flags=none
+    out[3] = '' type='' flags=none
+
+done

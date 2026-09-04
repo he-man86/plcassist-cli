@@ -1,0 +1,99 @@
+probe of: Lenze_MID-S100_V5_00_602_T51.project
+wanted POUs: ['fc_CamC_CC_Base']
+opened (a copy; the original is never touched)
+
+==============================================================================
+POU fc_CamC_CC_Base  (1 networks)
+==============================================================================
+
+-- NETWORK 0  title='' label='' comment=''
+  tree[0]: BoxTreeAssign  itemflags=none
+    RValue: BoxTreeParallel  itemflags=none
+      Input: BoxTreeOperand  itemflags=none
+        Operand = 'i_xEnable' type='BOOL' flags=none
+      branch[0]: BoxTreeBox  itemflags=none  BoxType='LE'
+        Instance = None
+        En  = True (Boolean)
+        Eno = False (Boolean)
+        EnEno=True  EnEnoPossible=True
+        ProvidesSTSnippet=False  STSnippet=None
+        InputItemList count=3   InputParams.Names=['EN']
+        OutputParams.Names=['']  MainOutputIndex=0  MainInputIndex=0
+          in[0]: BoxTreeBox  itemflags=none  BoxType='GE'
+            Instance = None
+            En  = True (Boolean)
+            Eno = False (Boolean)
+            EnEno=True  EnEnoPossible=True
+            ProvidesSTSnippet=False  STSnippet=None
+            InputItemList count=3   InputParams.Names=['EN']
+            OutputParams.Names=['']  MainOutputIndex=0  MainInputIndex=0
+              in[0]: BoxTreeBox  itemflags=none  BoxType='LT'
+                Instance = None
+                En  = True (Boolean)
+                Eno = False (Boolean)
+                EnEno=True  EnEnoPossible=True
+                ProvidesSTSnippet=False  STSnippet=None
+                InputItemList count=3   InputParams.Names=['EN']
+                OutputParams.Names=['']  MainOutputIndex=0  MainInputIndex=0
+                  in[0]: BoxTreeTerminator  itemflags=none
+                  in[1]: BoxTreeOperand  itemflags=none
+                    Operand = 'i_intStartCam' type='INT' flags=none
+                  in[2]: BoxTreeOperand  itemflags=none
+                    Operand = 'i_intStopCam' type='INT' flags=none
+                out[0] = <null>
+              in[1]: BoxTreeOperand  itemflags=none
+                Operand = 'i_lrMachinePosition' type='LREAL' flags=none
+              in[2]: BoxTreeOperand  itemflags=none
+                Operand = 'i_intStartCam' type='INT' flags=none
+            out[0] = <null>
+          in[1]: BoxTreeOperand  itemflags=none
+            Operand = 'i_lrMachinePosition' type='LREAL' flags=none
+          in[2]: BoxTreeOperand  itemflags=none
+            Operand = 'i_intStopCam' type='INT' flags=none
+        out[0] = <null>
+      branch[1]: BoxTreeParallel  itemflags=none
+        Input: BoxTreeBox  itemflags=none  BoxType='GT'
+          Instance = None
+          En  = True (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=3   InputParams.Names=['EN']
+          OutputParams.Names=['']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeTerminator  itemflags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'i_intStartCam' type='INT' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'i_intStopCam' type='INT' flags=none
+          out[0] = <null>
+        branch[0]: BoxTreeBox  itemflags=none  BoxType='GE'
+          Instance = None
+          En  = True (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=3   InputParams.Names=['EN']
+          OutputParams.Names=['']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeTerminator  itemflags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'i_lrMachinePosition' type='LREAL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'i_intStartCam' type='INT' flags=none
+          out[0] = <null>
+        branch[1]: BoxTreeBox  itemflags=none  BoxType='LE'
+          Instance = None
+          En  = True (Boolean)
+          Eno = False (Boolean)
+          EnEno=True  EnEnoPossible=True
+          ProvidesSTSnippet=False  STSnippet=None
+          InputItemList count=3   InputParams.Names=['EN']
+          OutputParams.Names=['']  MainOutputIndex=0  MainInputIndex=0
+            in[0]: BoxTreeTerminator  itemflags=none
+            in[1]: BoxTreeOperand  itemflags=none
+              Operand = 'i_lrMachinePosition' type='LREAL' flags=none
+            in[2]: BoxTreeOperand  itemflags=none
+              Operand = 'i_intStopCam' type='INT' flags=none
+          out[0] = <null>
+    out[0] = 'o_xCamControl' type='BOOL' flags=none
+
+done

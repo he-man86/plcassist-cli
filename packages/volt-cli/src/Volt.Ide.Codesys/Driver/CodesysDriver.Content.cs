@@ -46,7 +46,8 @@ public sealed partial class CodesysDriver
             members);
     }
 
-    public void WriteContent(ItemRef item, ItemContent content)
+    public void WriteContent(ItemRef item, ItemContent content,
+                             IReadOnlyDictionary<string, string> pushedDeclarations)
     {
         // A graphical body is validated BEFORE anything is written, so a refusal leaves the item untouched.
         NetworkBody? graph = content.Body is { } b && NetworkText.Is(b) ? NetworkTextGate.Validate(b) : null;
@@ -72,10 +73,10 @@ public sealed partial class CodesysDriver
             // ordering rule that used to live in PushService was about TwinCAT's IMPORTER, and there is no
             // import on this path at all.)
             _om.WriteSourceText(item.Native, content.Declaration, null);
-            CodesysNetworkWriter.Write(_om, item.Native, graph, content.Declaration);
+            CodesysNetworkWriter.Write(_om, item.Native, graph, content.Declaration, n => DeclarationOfName(pushedDeclarations, n));
         }
 
-        WriteMembers(item, content.Members, content.Declaration);
+        WriteMembers(item, content.Members, content.Declaration, pushedDeclarations);
     }
 
     // ── body ──────────────────────────────────────────────────────────────────────────────────────
@@ -236,6 +237,35 @@ public sealed partial class CodesysDriver
     private string ReadDeclarationText(ItemRef item) =>
         item.Native is LibRefNode lib ? lib.Manifest : _om.ReadDeclaration(item.Native);
 
+    /// <summary>Another top-level item's declaration, by name — the vendor half of
+    /// <see cref="StDeclaration.TypeOfCallTarget"/>.
+    ///
+    /// <para>A graphical box can call through a name this POU does not declare:
+    /// `Mach1_AuxData.IEC_TIMERS.OffDelayLockDrives(...)` walks a GVL, then a struct, then reaches the timer.
+    /// Each hop is one more item's declaration, and only the driver can ask the IDE for it.</para>
+    ///
+    /// <para>THE PUSH IS ASKED FIRST, and that is not an optimization. The IDE can only answer for items it
+    /// ALREADY holds, so on a push that creates a whole project the answer depends on op order — `Mach1_Drives`
+    /// walks a struct that was hundreds of ops further down the same push, and its body was refused. The push
+    /// is also the NEWER truth for an item it is updating. The IDE answers for everything the push does not
+    /// carry, which is every unchanged item in the project.</para>
+    ///
+    /// <para>The IDE half is CACHED for the life of the driver. <see cref="ItemLookup.Find"/> is a full walk
+    /// from the tree root, and a body like Lenze's `Mach1_MIDS` resolves fourteen paths through the same two
+    /// items — without the cache that is a project walk per box. A miss is cached too: "there is no item by
+    /// that name" is just as expensive to establish, and the push overlay in front of it means a name that
+    /// arrives later in the same push is never reached through here.</para></summary>
+    private readonly Dictionary<string, string?> _declarationByName = new(StringComparer.OrdinalIgnoreCase);
+
+    private string? DeclarationOfName(IReadOnlyDictionary<string, string> pushed, string name)
+    {
+        if (pushed.TryGetValue(name, out var incoming) && !string.IsNullOrWhiteSpace(incoming)) return incoming;
+        if (_declarationByName.TryGetValue(name, out var cached)) return cached;
+
+        var declaration = ItemLookup.Find(this, name) is { } item ? ReadDeclarationText(item) : null;
+        return _declarationByName[name] = string.IsNullOrWhiteSpace(declaration) ? null : declaration;
+    }
+
 
     private string KindOf(ItemRef item, string declaration)
     {
@@ -262,7 +292,8 @@ public sealed partial class CodesysDriver
         : string.IsNullOrWhiteSpace(owner) ? member
         : member + "\n" + owner;
 
-    private void WriteMembers(ItemRef pou, IReadOnlyList<Member> members, string? ownerDeclaration)
+    private void WriteMembers(ItemRef pou, IReadOnlyList<Member> members, string? ownerDeclaration,
+                              IReadOnlyDictionary<string, string> pushedDeclarations)
     {
         if (members.Count == 0) return;
 
@@ -297,7 +328,8 @@ public sealed partial class CodesysDriver
             else
             {
                 _om.WriteSourceText(target.Native, m.Kind == ItemKind.Kinds.Action ? null : m.Declaration, null);
-                CodesysNetworkWriter.Write(_om, target.Native, graph, Scope(m.Declaration, ownerDeclaration));
+                CodesysNetworkWriter.Write(_om, target.Native, graph, Scope(m.Declaration, ownerDeclaration),
+                                       n => DeclarationOfName(pushedDeclarations, n));
             }
 
             // The accessor is LOOKED UP by the code this vendor's classifier actually returns, and the
@@ -312,8 +344,10 @@ public sealed partial class CodesysDriver
             // written to fix. An engineer's edit to a `GET … END_GET` in a `.itf` was accepted and dropped, and
             // `volt status` then reported in sync.
             var ownerIsInterface = m.Kind == ItemKind.Kinds.InterfaceProperty;
-            WriteAccessor(target, ItemKind.PlcPropGet, m.Getter, ownerIsInterface, ownerDeclaration);
-            WriteAccessor(target, ItemKind.PlcPropSet, m.Setter, ownerIsInterface, ownerDeclaration);
+            WriteAccessor(target, ItemKind.PlcPropGet, m.Getter, ownerIsInterface, pushedDeclarations,
+                          ownerDeclaration);
+            WriteAccessor(target, ItemKind.PlcPropSet, m.Setter, ownerIsInterface, pushedDeclarations,
+                          ownerDeclaration);
         }
     }
 
@@ -328,6 +362,7 @@ public sealed partial class CodesysDriver
     /// transport, where the import wrote the whole object at once and never touched an accessor directly.</para>
     /// </summary>
     private void WriteAccessor(ItemRef property, int code, Accessor? accessor, bool ownerIsInterface,
+                               IReadOnlyDictionary<string, string> pushedDeclarations,
                                string? ownerDeclaration)
     {
         if (accessor is null) return;
@@ -394,7 +429,8 @@ public sealed partial class CodesysDriver
             }
 
             _om.WriteSourceText(child.Native, accessor.Declaration, null);
-            CodesysNetworkWriter.Write(_om, child.Native, graph, Scope(accessor.Declaration, ownerDeclaration));
+            CodesysNetworkWriter.Write(_om, child.Native, graph, Scope(accessor.Declaration, ownerDeclaration),
+                                       n => DeclarationOfName(pushedDeclarations, n));
             return;
         }
     }
