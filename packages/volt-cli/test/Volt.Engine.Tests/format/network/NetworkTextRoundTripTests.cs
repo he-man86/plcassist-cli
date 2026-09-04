@@ -61,6 +61,10 @@ public class NetworkTextRoundTripTests
     [InlineData("NETWORK 0 LD\n  LET en1 := rung;\n  IF en1 THEN diff := (light - deviation); END_IF\n  LET en2 := en1;\n  IF en2 THEN out := (sensor > diff); END_IF\nEND_NETWORK\n")]
     // the inner box with NO pin of its own — the enable still has to survive
     [InlineData("NETWORK 0 LD\n  LET en1 := rung;\n  IF en1 THEN (light - deviation); END_IF\n  LET en2 := en1;\n  IF en2 THEN out := (sensor > 5); END_IF\nEND_NETWORK\n")]
+    // A FED PARALLEL WHOSE RUNG AND BRANCHES BOTH HOIST. The rung is emitted first, so it must be RENDERED
+    // first — otherwise the `en*` numbers are minted in one order and re-read in another, and a body comes
+    // back with the same graph under different names. `fc_CamC_CC_Base` and `TrayFiller` were refused for it.
+    [InlineData("NETWORK 0 LD\n  LET en1 := ;\n  IF en1 THEN (a > b); END_IF\n  LET en2 := ;\n  IF en2 THEN (c >= d); END_IF\n  LET en3 := ;\n  IF en3 THEN (e <= f); END_IF\n  out := (en1 AND (en2 OR en3));\nEND_NETWORK\n")]
     // a leaf's OWN modifier rides on its RHS
     [InlineData("NETWORK 0 FBD\n  LET i1 := NOT x;\n  fb(IN := i1);\nEND_NETWORK\n")]
     // an empty network (or one whose only content was a dropped opaque/vendor node) keeps its

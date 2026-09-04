@@ -387,12 +387,24 @@ public static class NetworkTextWriter
                     // engineer edited anyway, and the change gate spares every network they did not touch. A
                     // dedicated spelling for a parallel would keep the shape too, and wants measuring against a
                     // real ladder before it is invented.
+                    // RENDERED IN THE ORDER IT IS EMITTED, and that is now load-bearing. The rung comes FIRST
+                    // in the text — `(Input AND (b1 OR b2))` — so it must be rendered first too.
+                    //
+                    // It used to render the branches first and the input second, which was invisible while
+                    // rendering had no side effects. Hoisting gave it one: an enabled box at operand position
+                    // mints an `en*` echo into the prelude as it is rendered, so RENDER order fixes the
+                    // NUMBERING while TEXT order fixes what a re-read walks. With the two disagreeing, a body
+                    // came back with the same graph and different numbers — `(en6 AND (en4 OR en5))` re-rendered
+                    // as `(en4 AND (en5 OR en6))` — and the canonical-form gate refused a push over names Volt
+                    // had minted itself. Measured on `fc_CamC_CC_Base` and `TrayFiller`.
+                    //
+                    // The invariant, for any arm that renders more than one child: RENDER LEFT TO RIGHT, in the
+                    // order the pieces will appear. Every other multi-child arm already does.
+                    var rungText = p.Input is null ? null : Render(p.Input, nested: true);
                     var branches = "(" + string.Join(" OR ",
                                                      p.Branches.Select(x => Render(x, nested: true))) + ")";
-                    var rung = p.Input is null
-                        ? branches
-                        : "(" + Render(p.Input, nested: true) + " AND " + branches + ")";
-                    return ApplyMods(rung, p.Flags);
+                    return ApplyMods(rungText is null ? branches : "(" + rungText + " AND " + branches + ")",
+                                     p.Flags);
                 // AN UNCONNECTED PIN HAS A SPELLING. These two arms used to return "" — the same silent
                 // default that the comment below calls "the single line that turned a missing feature into
                 // invisible data loss", three lines above where it says so. A box input wired to nothing is a
