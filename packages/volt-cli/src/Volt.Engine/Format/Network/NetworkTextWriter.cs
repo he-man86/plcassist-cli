@@ -465,7 +465,16 @@ public static class NetworkTextWriter
                 return "(" + string.Join(" " + op + " ", args.Select(a => a.Text)) + ")";
             }
             if (b.Instance is { } inst)
-                return inst.Text + "(" + string.Join(", ", args.Select(a => a.Formal + " := " + a.Text).Concat(outs)) + ")";
+            {
+                // AN UNNAMED INSTANCE CARRIES ITS TYPE. Naming a call once is enough everywhere else: the type
+                // sits one line up in the declaration (`t1 : TON;`) and the push reads it from there. The
+                // vendor's `???` box is the one instance that is declared NOWHERE, so the type had no second
+                // home and was simply dropped — four such boxes in `Lenze_MID-S100`'s `POU.prg`, every one of
+                // them pullable and un-pushable (`Box.UnnamedInstance`). ST already spells "this name is of
+                // this type" with a colon, so that is the form.
+                var head = inst.Text == Box.UnnamedInstance ? inst.Text + " : " + b.Type : inst.Text;
+                return head + "(" + string.Join(", ", args.Select(a => a.Formal + " := " + a.Text).Concat(outs)) + ")";
+            }
             return b.Type + "(" + string.Join(", ", args.Select(a => a.Text).Concat(outs)) + ")";
         }
 

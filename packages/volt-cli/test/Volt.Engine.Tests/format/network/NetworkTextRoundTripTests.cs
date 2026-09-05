@@ -103,6 +103,27 @@ public class NetworkTextRoundTripTests
     [InlineData("NETWORK 0 LD\n  coil := ;\nEND_NETWORK\n")]   // a rung nothing drives
     [InlineData("NETWORK 0 LD\n  ;\nEND_NETWORK\n")]   // an item wired to nothing at all
     //
+    // AN UNNAMED INSTANCE CARRIES ITS TYPE. `???` is the vendor's marker for a call box whose instance has
+    // not been named, and such a box still has a real TYPE - measured on this project's `POU.prg`, four
+    // boxes with `Instance='???'` and `BoxType='L_MC1P_AxisBasicControlV2'` and friends. The format named a
+    // call ONCE and the push read its type off the declaration, so `???` - declared nowhere - lost its type
+    // on the way out and could never be pushed back. It is spelled with ST's own `name : TYPE`.
+    [InlineData("NETWORK 0 FBD\n  ??? : L_TT1P_FlexCamBase(xEnable := , Axis := );\nEND_NETWORK\n")]
+    [InlineData("NETWORK 0 FBD\n  ??? : TON(IN := a, PT := t);\n  ??? := ioAxis.xVirtual;\nEND_NETWORK\n")]   // and the marker as a coil target, unchanged
+    //
+    // AND THE MARKER IN EVERY OTHER POSITION IT CAN OCCUPY. `???` is CONTENT - the vendor's own marker for a
+    // slot nobody filled - so the format has to carry it verbatim wherever it lands, not just where a real
+    // project happened to put it. The corpus only ever holds two of these positions (instance, and an
+    // assignment target), which is exactly why the other three are pinned here: an input is the position a
+    // project has not shown us yet, and "we have never seen it" is not the same as "it round-trips".
+    // Measured live on SP21, every one of them a real compile error the IDE raises (scripts/audit-check.ts):
+    //   operand / named pin  -> "Expression expected instead of '?'" + "Unexpected token '?' found"
+    //   assignment target    -> "The assignment target is not specified."
+    [InlineData("NETWORK 0 FBD\n  out := (??? AND a);\nEND_NETWORK\n")]                 // an operand inside a group
+    [InlineData("NETWORK 0 FBD\n  t1(IN := ???, PT := pt);\nEND_NETWORK\n")]            // a NAMED input pin
+    [InlineData("NETWORK 0 LD\n  ??? := a;\nEND_NETWORK\n")]                            // a coil with no target
+    [InlineData("NETWORK 0 LD\n  LET en1 := ;\n  IF en1 THEN ??? := NOT(a); END_IF\nEND_NETWORK\n")]   // behind an unconnected enable
+    //
     // A POSITIONAL CALL STANDS ALONE. `MOVE(g0, iDec);` - a box with EN wired and its output connected
     // to nothing - is a bare statement in 34 networks; the reader used to refuse every one of them.
     [InlineData("NETWORK 0 LD\n  MOVE(a, b);\nEND_NETWORK\n")]

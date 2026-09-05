@@ -175,7 +175,10 @@ empty          = (* nothing — a pin connected to nothing, §3 *) ;
 core           = group | call | member | name | literal ;
 group          = "(" , operand , operator , operand , { operator , operand } , ")" ;
                  (* exactly ONE operator KIND per group; fully parenthesised; no precedence *)
-call           = name , "(" , [ args ] , ")" ;  (* function: positional; FB: PIN := val *)
+call           = [ name , ":" ] , name , "(" , [ args ] , ")" ;
+                 (* function: positional; FB: PIN := val *)
+                 (* the leading `name :` is the INSTANCE, written only when that instance is `???` — *)
+                 (* the one instance no declaration carries a type for (§6). Else a call names ONE thing *)
 member         = name , [ ws ] , "." , [ ws ] , name ;  (* inst.Q — spacing is the engineer's, kept *)
 
 fb-args        = fb-arg , { "," , fb-arg } ;
@@ -284,6 +287,21 @@ t1(IN := a, PT := pt);
 done := t1.Q;
 et   := t1.ET;
 ```
+
+#### The one instance that carries its own type — `??? : TYPE(PIN := …)`
+A call names ONE thing, and the push recovers the other from the declaration: `t1(IN := a)` plus `t1 : TON;`
+one line up is the type. **`???` is the exception.** It is the IDE's own marker for a call box whose instance
+has not been named — real content, drawn in the editor so the engineer sees the compile error — and it is
+declared nowhere, so there is no declaration to read the type off. The box still HAS a type, so the type is
+written inline, in ST's own `name : TYPE` form:
+```
+??? : L_TT1P_FlexCamBase(xEnable := , Axis := );
+```
+Measured on `Lenze_MID-S100`'s `POU.prg`: four boxes, `Instance='???'` with `BoxType='L_MC1P_AxisBasicControlV2'`
+and friends (`scripts/probe-nwl-dump.py`). Without the inline type the type was dropped on pull and could not
+be recovered on push, so those POUs could be pulled and **never pushed back** — `volt push` refused the item
+with "the call '???' names a function-block instance whose TYPE Volt cannot find". This form is written for
+that instance and no other; a named instance keeps its declaration as the one place its type lives.
 
 ### The `LET` prefix carries the meaning
 `g<n>` is a **fan-out wire**, `i<n>` an **opaque leaf**, `en<n>` an **enable echo** — those are the names

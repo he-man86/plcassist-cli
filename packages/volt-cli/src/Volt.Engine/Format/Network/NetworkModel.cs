@@ -101,6 +101,20 @@ public sealed record Box(
     /// and the vendor says so by naming that slot — see <see cref="HasEnableSlot"/>.</summary>
     public const string EnablePin = "EN";
 
+    /// <summary>The vendor's literal marker for a call box whose INSTANCE has not been named — CODESYS stores
+    /// the string <c>???</c> in the box's instance operand and draws it in the editor, so the engineer sees the
+    /// compile error. It is content, not a Volt spelling (which is why network text has no magic token for an
+    /// unconnected pin — see <c>NetworkTextReader.IsEmptyOperand</c>).
+    ///
+    /// <para><b>Such a box still has a real TYPE, and network text could not carry it.</b> Measured on
+    /// `Lenze_MID-S100`'s `POU.prg` (<c>scripts/probe-nwl-dump.py</c>): four boxes, each
+    /// <c>BoxType='L_MC1P_AxisBasicControlV2'</c> / <c>'L_TT1P_BasicMotionBase'</c> / … with
+    /// <c>Instance='???'</c>. The format names an FB call ONCE — the instance — and the push recovers the type
+    /// from the declaration that instance is declared in. <c>???</c> is declared nowhere, so the type was lost
+    /// on pull and the push was refused: the POU could be pulled and never pushed back. The type is therefore
+    /// written inline for exactly this instance (<c>??? : TYPE(PIN := …)</c>, docs/network-text.md §6).</para></summary>
+    public const string UnnamedInstance = "???";
+
     /// <summary>Whether the box's input slot 0 is the ENABLE WIRE rather than a data pin.
     ///
     /// <para><b>The enable's expression is an ORDINARY INPUT ITEM, and the <c>En</c> member is not it.</b>

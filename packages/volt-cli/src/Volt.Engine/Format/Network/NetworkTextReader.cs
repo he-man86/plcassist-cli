@@ -788,6 +788,23 @@ public static class NetworkTextReader
 
             var name = Token();
             SkipWs();
+            // `inst : TYPE(…)` — a call whose instance carries its own type, because that instance is declared
+            // nowhere and the declaration cannot carry it (`Box.UnnamedInstance`). The probe is positional and
+            // restores on any miss: a bare `:` occurs nowhere else at an operand position, `:=` already ended
+            // the token, and the type must be followed by `(` or this was not a call at all.
+            if (!AtEnd && _s[_i] == ':' && (_i + 1 >= _s.Length || _s[_i + 1] != '='))
+            {
+                int save = _i;
+                _i++;
+                SkipWs();
+                if (!AtEnd && _s[_i] != '(')
+                {
+                    var type = Token();
+                    SkipWs();
+                    if (!AtEnd && _s[_i] == '(') return Call(type, instance: name);
+                }
+                _i = save;
+            }
             if (!AtEnd && _s[_i] == '(') return Call(name);
             return new Leaf(new Operand(name), Flags.None);
         }
@@ -835,8 +852,13 @@ public static class NetworkTextReader
         }
 
         /// <summary>A call. Named arguments (<c>PIN := v</c>) mean an FB INSTANCE; positional ones mean a
-        /// stateless function.</summary>
-        private Node Call(string name)
+        /// stateless function.
+        ///
+        /// <para><paramref name="instance"/> is set only by the <c>inst : TYPE(…)</c> form, where the text
+        /// names both. Everywhere else a call names ONE thing, and which of the two it is depends on the
+        /// arguments: an instance call's own name IS its instance (the type comes from the declaration on
+        /// push), a function call's is its type.</para></summary>
+        private Node Call(string name, string? instance = null)
         {
             _i++;   // '('
             var args = new List<Input>();
@@ -898,9 +920,9 @@ public static class NetworkTextReader
             // An INSTANCE call is one whose INPUT pins are named. A box that only names an OUTPUT
             // (`fc_MeanValue(20, oMeanValue => x)`) is still a function — naming a result pin says nothing
             // about whether the call has an instance.
-            var instanceCall = args.Any(a => !string.IsNullOrEmpty(a.Formal));
+            var instanceCall = instance is not null || args.Any(a => !string.IsNullOrEmpty(a.Formal));
             return instanceCall
-                ? new Box(name, new Operand(name, IsInstance: true), CallKind.FunctionBlock, args,
+                ? new Box(name, new Operand(instance ?? name, IsInstance: true), CallKind.FunctionBlock, args,
                           outs, null, null, Flags.None)
                 : new Box(name, null, CallKind.Function, args, outs, null, null, Flags.None);
         }

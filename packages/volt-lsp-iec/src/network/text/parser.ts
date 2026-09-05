@@ -242,6 +242,17 @@ function parseStatement(
     const value = parseExprFromTokens(run.slice(assignAt + 1))
     return { statement: { kind: "sink", target, value, span: spanOf(run) }, next }
   }
+  // `inst : TYPE(…)` — a call whose instance carries its own TYPE, because the instance is `???`, the marker
+  // the IDE writes for a box it could not resolve, and a marker is declared nowhere for the type to be read
+  // off. The instance itself is already reported by the NETWORK_UNRESOLVED_BOX token scan; what matters here
+  // is that the call still PARSES, so the box's pins keep being resolved like any other call's.
+  // The `:` is found by SCANNING, not at a fixed index: `???` lexes as three `?` tokens, so the instance is
+  // not one token and never was.
+  const typeAt = assignAt < 0 ? topLevelColon(run) : -1
+  if (typeAt > 0 && typeAt < run.length - 1) {
+    const typed = parseExprFromTokens(run.slice(typeAt + 1))
+    if (typed?.kind === "call") return { statement: { kind: "fb_call", call: typed, span: spanOf(run) }, next }
+  }
   // No `:=` but a call shape `inst(…)` — an FB/function box with no result binding.
   const call = parseExprFromTokens(run)
   if (call?.kind === "call") return { statement: { kind: "fb_call", call, span: spanOf(run) }, next }
@@ -346,7 +357,9 @@ function dedupeName(name: NetworkName, names: Set<string>, diagnostics: NetworkT
  * the VALUE, which is why `NETWORK_MODIFIER_WORDS` had to exempt two words that collide with ordinary enum
  * members (`DEVICE_TRANSITION_STATE.RESET`); as operators they are unambiguous and need no exemption.
  */
-const ASSIGN_OPS: ReadonlySet<string> = new Set([":=", "S=", "R="])
+/** The operators that make what precedes them an assignment TARGET: plain, SET coil, RESET coil. Exported
+ *  because the `???` check needs the same fact while walking TOKENS rather than statements. */
+export const ASSIGN_OPS: ReadonlySet<string> = new Set([":=", "S=", "R="])
 
 /** Index of the first assignment operator at paren/bracket depth 0 in a run, else -1. */
 function topLevelAssign(run: Token[]): number {
@@ -356,6 +369,18 @@ function topLevelAssign(run: Token[]): number {
     if (x.text === "(" || x.text === "[") depth++
     else if (x.text === ")" || x.text === "]") depth = Math.max(0, depth - 1)
     else if (depth === 0 && ASSIGN_OPS.has(x.text)) return k
+  }
+  return -1
+}
+
+/** The `:` of `inst : TYPE(…)`, at depth 0. `-1` when the run has none. */
+function topLevelColon(run: Token[]): number {
+  let depth = 0
+  for (let k = 0; k < run.length; k++) {
+    const x = run[k]!
+    if (x.text === "(" || x.text === "[") depth++
+    else if (x.text === ")" || x.text === "]") depth = Math.max(0, depth - 1)
+    else if (depth === 0 && x.text === ":") return k
   }
   return -1
 }
