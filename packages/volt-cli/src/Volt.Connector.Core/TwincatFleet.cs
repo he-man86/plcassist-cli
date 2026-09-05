@@ -19,6 +19,17 @@ namespace Volt.Connector
         private readonly BridgeSupervisor _supervisor = new();
         private readonly TwincatSupervisor _policy = new(); // decides which per-XAE TwinCAT workers to run
         private readonly ProbeHealth _probe = new();       // speaks only when the probe starts or stops working
+        private readonly Func<string?, TimeSpan, System.Collections.Generic.IReadOnlyList<int>?> _listPids;
+
+        public TwincatFleet() : this(TwincatXaeProbe.ListPids) { }
+
+        /// <summary>The pid probe, as a seam. It is the ONE part of this loop a test cannot drive: it spawns a
+        /// COM-isolated subprocess and reads its stdout, so without this the composition below — the thing the
+        /// class was extracted from the tray to make testable — could only be exercised by having real XAE
+        /// windows open. Everything else (the reap policy, the supervisor, the probe-health edge detector) is
+        /// already reachable; only the pid source was not.</summary>
+        internal TwincatFleet(Func<string?, TimeSpan, System.Collections.Generic.IReadOnlyList<int>?> listPids) =>
+            _listPids = listPids;
 
         /// <summary>The worker id for one XAE window — the SAME string across spawn, reap and restart, so it is
         /// spelled exactly once.</summary>
@@ -32,7 +43,7 @@ namespace Volt.Connector
         public async Task Tick(string? probeExe, TimeSpan probeTimeout)
         {
             if (string.IsNullOrEmpty(probeExe)) return;                    // no worker binary (dev without a build)
-            var pids = await Task.Run(() => TwincatXaeProbe.ListPids(probeExe, probeTimeout));
+            var pids = await Task.Run(() => _listPids(probeExe, probeTimeout));
 
             // SAY SO WHEN THE PROBE STOPS WORKING. Returning here on null is right — a persistently failing
             // probe must not reap every healthy worker — but it suspends spawn, respawn AND reap for as long as
@@ -56,6 +67,10 @@ namespace Volt.Connector
 
         /// <summary>Kill one worker; the next <see cref="Tick"/> respawns it while its XAE is still live.</summary>
         public void StopWorker(string id) => _supervisor.StopWorker(id);
+
+        /// <summary>Is that worker's process alive? The fleet's observable state, and what makes <see cref="Tick"/>
+        /// assertable without reaching past it into the supervisor.</summary>
+        public bool IsWorkerRunning(string id) => _supervisor.IsWorkerRunning(id);
 
         public void Dispose() => _supervisor.Dispose();
     }

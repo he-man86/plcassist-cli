@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- The connector's UI-FREE connection model — DetectedProject / IProjectSource / ConnectionManager and the
          pipe-backed vendor sources. Split out of the WinForms shell (Volt.Connector) so the model is testable
@@ -10,5 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Volt.Contracts\Volt.Contracts.csproj" />
     <ProjectReference Include="..\Volt.Wire\Volt.Wire.csproj" />
+    <!-- The pid probe spawns a subprocess, so `TwincatFleet`'s composition needs one seam to be driveable. -->
+    <InternalsVisibleTo Include="Volt.Connector.Tests" />
   </ItemGroup>
 </Project>

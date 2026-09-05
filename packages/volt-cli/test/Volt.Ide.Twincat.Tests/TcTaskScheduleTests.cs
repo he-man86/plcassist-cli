@@ -16,6 +16,22 @@ namespace Volt.Ide.Twincat.Tests;
 /// </summary>
 public class TcTaskScheduleTests
 {
+    // WHY THERE IS NO CODESYS TWIN OF THIS FILE, and why that is not a parity gap.
+    //
+    // A review flagged it as one: seven offline tests for TwinCAT's task write, none for CODESYS's. The
+    // asymmetry is real and it is deliberate, because the two implementations are not the same SHAPE. TwinCAT's
+    // half is a PURE translation — XML in, `TaskSettings` out, tick/ns arithmetic — so it is worth pinning
+    // offline, and this file does. CODESYS's half is reflection glue over live scripting objects
+    // (`ScriptTaskObject`, and `PerformWithWriteableCopy`, whose callback takes a vendor type not referenced at
+    // compile time). A hand-rolled double for that would encode what the author BELIEVES those objects do — and
+    // the measured surprises there (DIALECT C19: `priority` is a string; the `pous` list discards mutations) are
+    // precisely the things such a double would get wrong and then assert.
+    //
+    // Both vendors ARE covered where it counts: `test/e2e/items/task-writable.test.ts` drives create, edit,
+    // call-list rewrite, delete and the canonical-form refusal against a LIVE IDE, with no vendor gate — six
+    // tests, run on both bridges. The shared format itself is pinned in `Volt.Engine.Tests`. What is left here
+    // is the part only TwinCAT has: two tree items and two units.
+
     /// <summary>`TIRT^PlcTask`, verbatim, trimmed to the elements this translation reads plus the module context
     /// it verifies against. Priority 20, CycleTime 100000 ticks of 100ns = 10ms.</summary>
     private const string SysTaskXml =
