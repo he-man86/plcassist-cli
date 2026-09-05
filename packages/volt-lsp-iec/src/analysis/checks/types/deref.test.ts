@@ -28,7 +28,11 @@ test("dereferencing a scalar is flagged, byte-identical per vendor", () => {
 })
 
 test("dereferencing an array is flagged", () => {
-  expect(deref(fb(`VAR a : ARRAY[0..3] OF INT; i : INT; END_VAR\ni := a^;`))).toHaveLength(1)
+  // The exact message, like every sibling in this file. `toHaveLength(1)` passed for ANY diagnostic this check
+  // emitted, including the wrong one.
+  expect(deref(fb(`VAR a : ARRAY[0..3] OF INT; i : INT; END_VAR\ni := a^;`))).toEqual([
+    "Dereference requires a pointer",
+  ])
 })
 
 test("dereferencing a POINTER is not flagged (the legal case)", () => {

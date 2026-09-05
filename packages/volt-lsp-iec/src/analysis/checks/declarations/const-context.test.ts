@@ -9,11 +9,11 @@ import { computeSemanticDiagnostics, resolveConfig } from "../../index.js"
 
 const run =
   (code: string) =>
-  (body: string): string[] => {
+  (body: string, vendor: "codesys" | "twincat" = "codesys"): string[] => {
     const src = `PROGRAM P\n${body}\nEND_PROGRAM`
     const pr = parseSource(src)
     const project = buildSymbolTable([{ uri: "F", parseResult: pr, source: src }])
-    return computeSemanticDiagnostics({ parseResult: pr, source: src, project, config: resolveConfig({ vendor: "codesys" }) })
+    return computeSemanticDiagnostics({ parseResult: pr, source: src, project, config: resolveConfig({ vendor }) })
       .filter((d) => d.code === code)
       .map((d) => d.message)
   }
@@ -37,4 +37,12 @@ test("C0227: a VAR CONSTANT initialized from a variable is flagged; constant ini
 test("C0526: a VAR_INPUT default that is a mutable variable is flagged; a constant one is not", () => {
   expect(dflt(`VAR i:INT; END_VAR\nVAR_INPUT p:INT:=i; END_VAR`)).toEqual(["Default value is not constant"])
   expect(dflt(`VAR_INPUT p:INT:=5; END_VAR`)).toEqual([]) // literal default
+})
+
+test("TwinCAT accepts a non-constant VAR_INPUT default where CODESYS refuses it — the gate is asserted", () => {
+  // C0526 is gated `vendor === "codesys"` on a MEASURED fact (live /build: TwinCAT silently accepts it). Only
+  // the CODESYS half was pinned, so removing the gate would have changed TwinCAT's answer with every test green.
+  const src = `VAR i:INT; END_VAR\nVAR_INPUT p:INT:=i; END_VAR`
+  expect(dflt(src, "codesys")).toEqual(["Default value is not constant"])
+  expect(dflt(src, "twincat")).toEqual([])
 })

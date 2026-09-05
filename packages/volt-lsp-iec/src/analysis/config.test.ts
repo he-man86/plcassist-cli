@@ -45,7 +45,11 @@ test("a code Volt emits as ERROR but CODESYS defaults to warning is corrected to
   // C0118 jump-label-unreferenced — Volt's check emits it as error; the filter forces the configured warning.
   const src = `FUNCTION_BLOCK F\nlbl: ;\nEND_FUNCTION_BLOCK`
   const labels = diag(src).filter((d) => d.code === "jump-label-unreferenced")
-  if (labels.length > 0) expect(labels[0]?.severity).toBe("warning") // default state = warning
+  // NOT `if (labels.length > 0)`. Guarding the assertion made this pass when the check emitted NOTHING — and
+  // "the check still fires" is half of what the test is for: the correction is only meaningful if there is
+  // something to correct.
+  expect(labels, "the unreferenced-label check must still fire — there is nothing to correct otherwise").toHaveLength(1)
+  expect(labels[0]?.severity).toBe("warning") // CODESYS's default state for C0118
 })
 
 test("a non-configurable ERROR is never affected by the dialog states", () => {
