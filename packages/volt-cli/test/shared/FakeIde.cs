@@ -253,7 +253,6 @@ public sealed class FakeIde : DriverBase, IIdeDriver
     // descends the full path from the tree root instead of re-creating the spine under the PLC-project root.
     public string PlcRootName { get; init; } = "<root>";
     public string TreeRootName { get; init; } = "<root>";
-    public ItemRef GetPlcProjectRoot() => Ref(PlcRootName);
     public ItemRef GetTreeRoot() => Ref(TreeRootName);
     public ItemRef Parent(ItemRef item) => Ref("<root>");
     /// <summary>Modelled the way CODESYS answers it — by looking at the accessor children the fake holds.
@@ -281,9 +280,15 @@ public sealed class FakeIde : DriverBase, IIdeDriver
     /// Recorded because passing the wrong one is invisible until a live IDE rejects it.</summary>
     public Dictionary<string, string?> CreatedSeeds { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Which node each create was given as its PARENT. `Recorded` only carries the name, so a create
+    /// that lands in the wrong container looks identical to one that lands in the right one — which is how an
+    /// empty `toFolder` resolving to the Application instead of the tree root stayed invisible offline.</summary>
+    public Dictionary<string, string> CreatedParents { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     public ItemRef CreateChild(ItemRef parent, string name, int kindCode, string? seed = null)
     {
         Recorded.Add($"create:{name}");
+        CreatedParents[name] = NameOf(parent);
         CreatedKinds[name] = kindCode;
         CreatedSeeds[name] = seed;
         // A real IDE's created object EXISTS the moment CreateChild returns: it is walkable, readable, and

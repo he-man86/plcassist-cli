@@ -16,9 +16,6 @@ public interface IProjectTree
     /// folder that faulted. See <see cref="WalkResult"/>.</para></summary>
     WalkResult WalkItems();
 
-    /// <summary>The default parent for new top-level items (CODESYS Application / TwinCAT PLC project).</summary>
-    ItemRef GetPlcProjectRoot();
-
     /// <summary>The root the <see cref="WalkItems"/> folder paths are measured from — the whole tree's origin
     /// (CODESYS primary project; TwinCAT PLC project root). A non-empty push <c>toFolder</c> is the FULL path
     /// from here, exactly as the walk emits it, so push placement is symmetric with fetch.</summary>

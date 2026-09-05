@@ -38,7 +38,7 @@ const prg = plcName.replace(".prg", "")
 
 await pushOps([{ op: "set", name: "ConvMatrix.fb", toFolder: plcFolder, sourceText: source, ifVersion: null }])
 await pushOps([
-  { op: "set", name: plcName, toFolder: "", sourceText: `PROGRAM ${prg}\nVAR\n  inst : ConvMatrix;\nEND_VAR\ninst();\nEND_PROGRAM\n`, ifVersion: await version(plcName) },
+  { op: "set", name: plcName, toFolder: null, sourceText: `PROGRAM ${prg}\nVAR\n  inst : ConvMatrix;\nEND_VAR\ninst();\nEND_PROGRAM\n`, ifVersion: await version(plcName) },
 ])
 const r = await call("build", { buildType: "incremental" })
 
@@ -75,5 +75,5 @@ if (disagreements.length) {
   for (const d of disagreements) console.log("  " + d)
 } else console.log("classifyConversion is severity-identical to the compiler over the full numeric matrix. ✓")
 
-await pushOps([{ op: "set", name: plcName, toFolder: "", sourceText: plcOriginal, ifVersion: await version(plcName) }])
+await pushOps([{ op: "set", name: plcName, toFolder: null, sourceText: plcOriginal, ifVersion: await version(plcName) }])
 await pushOps([{ op: "deleteItem", name: "ConvMatrix.fb", ifVersion: await version("ConvMatrix.fb") }])

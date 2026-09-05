@@ -12,15 +12,23 @@ namespace Volt.Engine.Ide;
 /// tree should not have to be a push to do it.</para></summary>
 internal static class TreeNav
 {
-    /// <summary>Resolve a TOP-LEVEL item's placement folder. A non-empty <paramref name="folder"/> is the FULL
-    /// tree path exactly as <see cref="IProjectTree.WalkItems"/> emits it (e.g. CODESYS
+    /// <summary>Resolve a TOP-LEVEL item's placement folder. <paramref name="folder"/> is the FULL tree path
+    /// exactly as <see cref="IProjectTree.WalkItems"/> emits it (e.g. CODESYS
     /// "Device/Plc Logic/Application/POUs/Sub"), so push placement is symmetric with fetch: descend from the same
     /// tree root the walk measures from, MATCHING each existing container (structural node OR user folder) by name
-    /// and only CREATING a user folder for a segment that does not yet exist. Empty ⇒ the default PLC-project root
-    /// (<paramref name="defaultParent"/>) so a bare create still lands in the Application / PLC project.</summary>
-    internal static ItemRef ResolveTopLevelFolder(IIdeDriver ide, ItemRef defaultParent, string? folder)
+    /// and only CREATING a user folder for a segment that does not yet exist.
+    ///
+    /// <para><b>EMPTY IS THE TREE ROOT, and it used to be the Application.</b> The walk measures every folder
+    /// from <see cref="IProjectTree.GetTreeRoot"/>, so an item it emits with an empty folder is one sitting AT
+    /// that root — on CODESYS the project's own POU pool, where `Lenze_MID-S100` keeps `GVL_Errorlists` and
+    /// `POE_SystemStart`. Resolving empty to a second root instead (the Application) made push placement
+    /// asymmetric with fetch for exactly those items: pushed into a fresh project they were CREATED INSIDE THE
+    /// APPLICATION, so the workspace got them back one folder deeper than it sent them and a round-trip moved
+    /// the engineer's files. On TwinCAT the two roots are the same node, so this is CODESYS-shaped and the
+    /// TwinCAT behaviour is unchanged.</para></summary>
+    internal static ItemRef ResolveTopLevelFolder(IIdeDriver ide, string? folder)
     {
-        if (string.IsNullOrEmpty(folder)) return defaultParent;
+        if (string.IsNullOrEmpty(folder)) return ide.GetTreeRoot();
         var node = ide.GetTreeRoot();
         foreach (var part in FolderPath.Segments(folder))   // decode each segment back to its real IDE name
             node = DescendOrCreateFolder(ide, node, part);

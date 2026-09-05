@@ -64,24 +64,61 @@ public static class PushService
             return PushResponse.RejectedResult(conflicts, currentProjectVersion);
         }
 
-        var parent = ide.GetPlcProjectRoot();
         var pushedDeclarations = DeclarationsIn(request.Ops);
+
+        // VALIDATE EVERY OP BEFORE APPLYING ANY OF THEM. Ops are applied in a loop and a throw returns
+        // immediately, so whatever had already been written STAYS written — a push of 174 items refused on the
+        // 158th left 157 objects in the project and a workspace that had pushed none of them. Measured on
+        // `Lenze_MID-S100`.
+        //
+        // Everything decidable from the SOURCE TEXT alone is decided here, where nothing has been touched yet:
+        // a malformed ST document, network text that does not parse or is not canonical, a duplicate child. That
+        // is the class a real push fails on, and it is exactly the class that needs no IDE to detect. It used to
+        // run per-op instead, just ahead of the rename inside `ApplySetItem` — which guarded that one step and
+        // nothing before it; hoisting it here subsumed that guard, so the local copy is gone rather than left
+        // as a call that can no longer throw.
+        //
+        // What this does NOT make atomic is a refusal that only the VENDOR can raise mid-write (a type the
+        // driver cannot resolve, a body the IDE rejects). Those stay possible, and the rejection below says so
+        // rather than implying nothing happened.
         var applied = new List<(string Action, string Name)>();  // what each op did, for the write receipt in the log
         var opTotal = request.Ops.Count;
+
+        // A refusal here reads EXACTLY like one from the apply loop below — same conflict shape, same codes. The
+        // client cannot tell which pass refused it, and should not have to: both mean "this op's text is not
+        // something Volt can write". The difference is only in what is left behind, and pre-flight leaves
+        // nothing.
+        PushResponse Reject(PushOp op, Exception ex)
+        {
+            var netEx = ex as NetworkTextException;
+            VoltLog.Info($"push {opTotal} ops — REJECTED ({op.Name}: {ex.Message}, {applied.Count} already applied) ({sw.ElapsedMilliseconds}ms)");
+            // NAME WHAT ALREADY LANDED. The ops before this one are written and are not rolled back (a delete
+            // cannot be undone, and a half-undone push is worse than a half-done one), so a rejection that reads
+            // as "nothing happened" is a lie the user acts on. Saying the count — and the one thing that
+            // reconciles it — is the difference between a confusing project and a recoverable one.
+            var reason = applied.Count == 0
+                ? ex.Message
+                : $"{ex.Message} — NOTE: {applied.Count} of {opTotal} item(s) were already written to the IDE " +
+                  "before this one failed, and are not rolled back. Run `volt pull` to take them into the " +
+                  "workspace, then push again.";
+            return PushResponse.RejectedResult(
+                new List<PushConflict> { new() { Name = op.Name, Reason = reason, Code = netEx?.Code, Line = netEx?.Line } },
+                currentProjectVersion);
+        }
+
+        foreach (var op in request.Ops)
+        {
+            if (op is not SetItemOp { SourceText: { } text } set) continue;
+            try { ValidateSourceOrThrow(text, Materializer.Bare(set.Name)); }
+            catch (Exception ex) { return Reject(op, ex); }
+        }
         onProgress?.Invoke(new ProgressFrame { Operation = Ops.Push, Done = 0, Total = opTotal, Phase = "applying" });
         foreach (var op in request.Ops)
         {
-            try { applied.Add((ApplyOp(ide, parent, itemCache, op, request.Force, pushedDeclarations), op.Name)); }
-            catch (Exception ex)
-            {
-                // A structured network-text diagnostic (parser / round-trip gate) carries a stable code + source line;
-                // any other throw is reason-only.
-                var netEx = ex as NetworkTextException;
-                VoltLog.Info($"push {request.Ops.Count} ops — REJECTED ({op.Name}: {ex.Message}) ({sw.ElapsedMilliseconds}ms)");
-                return PushResponse.RejectedResult(
-                    new List<PushConflict> { new() { Name = op.Name, Reason = ex.Message, Code = netEx?.Code, Line = netEx?.Line } },
-                    currentProjectVersion);
-            }
+            // A structured network-text diagnostic (parser / round-trip gate) carries a stable code + source
+            // line; any other throw is reason-only. `Reject` handles both, and is shared with the pre-flight.
+            try { applied.Add((ApplyOp(ide, itemCache, op, request.Force, pushedDeclarations), op.Name)); }
+            catch (Exception ex) { return Reject(op, ex); }
             // Report AFTER applying (like FetchService), so the final frame carries Done == Total (100%).
             onProgress?.Invoke(new ProgressFrame { Operation = Ops.Push, Done = applied.Count, Total = opTotal });
         }
@@ -155,7 +192,7 @@ public static class PushService
 
     /// <summary>Apply one op and return a short label of what it did (created/updated/renamed/moved/deleted),
     /// used only for the log receipt.</summary>
-    private static string ApplyOp(IIdeDriver ide, ItemRef parent,
+    private static string ApplyOp(IIdeDriver ide,
         Dictionary<string, (ItemRef Item, string Folder)> itemCache, PushOp op, bool force,
         IReadOnlyDictionary<string, string> pushedDeclarations)
     {
@@ -168,7 +205,7 @@ public static class PushService
         switch (op)
         {
             case SetItemOp set:
-                return ApplySetItem(ide, parent, name, existing, currentFolder, set, force, pushedDeclarations);
+                return ApplySetItem(ide, name, existing, currentFolder, set, force, pushedDeclarations);
             case DeleteItemOp when existing is { } del:
                 // `ide.Name(del)`, NOT the wire `name`: `del` is the already-resolved handle, so this is the item's
                 // ACTUAL IDE name. itemCache resolves case-INSENSITIVELY while the drivers' child scan matches
@@ -193,7 +230,7 @@ public static class PushService
     /// <summary>Apply one unified change. A rename uses the IDE's native rename (rewrites call-sites) and
     /// precedes a move; a move recreates in the new folder (name kept ⇒ name-based references survive); a
     /// content change goes through the shared full-fidelity writer. Each facet absent = unchanged.</summary>
-    private static string ApplySetItem(IIdeDriver ide, ItemRef parent, string name, ItemRef? existing,
+    private static string ApplySetItem(IIdeDriver ide, string name, ItemRef? existing,
                                    string currentFolder, SetItemOp op, bool force,
                                    IReadOnlyDictionary<string, string> pushedDeclarations)
     {
@@ -205,7 +242,7 @@ public static class PushService
         {
             if (op.SourceText is null)
                 throw new BridgeException(BridgeErrorCodes.BadRequest, $"set '{op.Name}': a new item needs sourceText");
-            WriteItemFromSource(ide, parent, name, existing: null, op.SourceText, op.ToFolder, pushedDeclarations);
+            WriteItemFromSource(ide, name, existing: null, op.SourceText, op.ToFolder, pushedDeclarations);
             return "created";
         }
 
@@ -225,20 +262,17 @@ public static class PushService
         // the IDE displays and what the workspace file is called.
         if (toName != null && !string.Equals(toName, currentName, StringComparison.Ordinal))
         {
-            // VALIDATE THE PUSHED TEXT FIRST. A native rename makes the IDE rewrite every reference to this POU
-            // across the project — it is the largest change in this method, and it used to run before anything
-            // that could refuse. A rename+edit whose edit was then rejected left the item renamed and its call
-            // sites rewritten while the push reported failure, with nothing to put it back.
+            // THE PUSHED TEXT IS ALREADY VALIDATED, by the batch pre-flight in `Handle` — nothing that could
+            // be refused on its text is still in flight by the time a rename runs. It used to be re-checked
+            // right here, because a native rename makes the IDE rewrite every reference to this POU across the
+            // project: the largest change in this method, and once the first thing a set op did. A rename+edit
+            // whose edit was then rejected left the item renamed and its call sites rewritten while the push
+            // reported failure, with nothing to put it back.
             //
-            // `MoveItem` already learned exactly this and says so: it used to move first, and "the push reported
-            // failure while the project had quietly half-changed". Same method, same lesson, one arm short.
-            //
-            // Parsing here is not a second guard: it is the SAME `StReader`/`NetworkCode` path the write runs,
-            // pulled ahead of the mutation. What it cannot pre-check is a refusal that depends on the item's live
-            // state (an unsupported body, a language change) — those are still caught by the write, which is why
-            // the ORDER below (content, then move) stays as it is.
-            if (op.SourceText is { } pre) ValidateSourceOrThrow(pre, name);
-
+            // Pre-flighting the WHOLE BATCH subsumes that guard and covers the ops before this one too, so the
+            // local re-parse became a call that could never throw. What neither can pre-check is a refusal that
+            // depends on the item's LIVE state (an unsupported body, a language change) — those are still
+            // caught by the write, which is why the ORDER below (content, then move) stays as it is.
             ide.Rename(item, toName);                  // native rename → IDE rewrites references
             currentName = toName;
             // Refresh the staled handle, and FAIL on a miss. The rename reported success, so the item MUST be
@@ -273,19 +307,27 @@ public static class PushService
             renamed = true;
         }
 
-        // A non-empty toFolder that differs from the item's current folder is a MOVE; empty (or omitted) means
-        // "keep the current folder" — never a move to the root — so an in-place edit that doesn't restate the
-        // full tree path isn't misread as a move (and a graphical item isn't spuriously refused).
-        if (op.ToFolder is { Length: > 0 } toFolder && !string.Equals(toFolder, currentFolder, StringComparison.OrdinalIgnoreCase))
+        // A toFolder that differs from the item's current folder is a MOVE. ABSENT (null) means “keep the
+        // current folder”, so an in-place edit that doesn't restate the full tree path isn't misread as a move.
+        //
+        // THE EMPTY STRING IS A DESTINATION, NOT AN ABSENCE — the tree root, which on CODESYS is the project's
+        // own POU pool. This read `{ Length: > 0 }`, folding the two together, and that contradicted the wire
+        // contract one file over (`SetItemOp`: “ToFolder ?? (current folder)”, each field ABSENT = unchanged).
+        // The cost was silent: dragging an item OUT of the Application and into the POU pool builds a rename
+        // op carrying `ToFolder = ""`, which was read as “no move” — so the push reported ACCEPTED, the IDE kept
+        // the item where it was, and the next pull put the file back. The engineer's move undone, with nothing
+        // anywhere saying so. `volt push` has always sent NULL for an unchanged folder (Commands.cs), so the
+        // distinction was already being made by the one client that matters.
+        if (op.ToFolder is { } toFolder && !string.Equals(toFolder, currentFolder, StringComparison.OrdinalIgnoreCase))
         {
-            MoveItem(ide, parent, currentName, item, toFolder, op.SourceText, pushedDeclarations);   // recreate in the new folder
+            MoveItem(ide, currentName, item, toFolder, op.SourceText, pushedDeclarations);   // recreate in the new folder
             return renamed ? "renamed+moved" : "moved";
         }
         if (op.SourceText is { } src)
         {
             // FORCE deliberately overrides a diverged IDE, so it skips the last-moment check too - passing
             // `ifVersion` through regardless made `volt push --force` refuse the very case it exists for.
-            WriteItemFromSource(ide, parent, currentName, item, src, currentFolder,
+            WriteItemFromSource(ide, currentName, item, src, currentFolder,
                                 pushedDeclarations, force ? null : op.IfVersion); // content update in place
             return renamed ? "renamed+updated" : "updated";
         }
@@ -300,7 +342,7 @@ public static class PushService
     /// admitted what it cost: it REFUSED a graphical move outright (a diagram cannot be rebuilt from text), and a
     /// delete whose re-create then failed left a DUPLICATE rather than a no-op. It was "the arm only TwinCAT
     /// takes", and TwinCAT has a move now (DIALECT D4f), so it models a driver that does not exist.</para></summary>
-    private static void MoveItem(IIdeDriver ide, ItemRef parent, string name, ItemRef item, string newFolder,
+    private static void MoveItem(IIdeDriver ide, string name, ItemRef item, string newFolder,
                                  string? sourceText, IReadOnlyDictionary<string, string> pushedDeclarations)
     {
         var kind = ItemKind.Map(ide.KindCode(item));
@@ -315,7 +357,7 @@ public static class PushService
         // the refusal atomic: the item has not moved, so there is nothing to undo.
         if (sourceText is { } edited)
         {
-            WriteItemFromSource(ide, parent, name, item, edited, newFolder, pushedDeclarations);
+            WriteItemFromSource(ide, name, item, edited, newFolder, pushedDeclarations);
             // RE-RESOLVE before moving. On TwinCAT the write is a document IMPORT, and an import invalidates every
             // handle into the item it replaced (DIALECT D4d) — so the handle this method was called with is dead
             // by the time the move needs it. That made a move+edit fail with "Item 'X' is deleted or invalidated
@@ -330,7 +372,7 @@ public static class PushService
                     $"'{name}' could not be found after its content was written — the write appears to have " +
                     "replaced it and the move cannot proceed.");
         }
-        ide.Move(item, TreeNav.ResolveTopLevelFolder(ide, parent, newFolder));
+        ide.Move(item, TreeNav.ResolveTopLevelFolder(ide, newFolder));
 
         // AND WRITE AGAIN, because a move can REPLACE the item rather than relocate it.
         //
@@ -351,13 +393,14 @@ public static class PushService
                 ?? throw new BridgeException(BridgeErrorCodes.NotFound,
                     $"'{name}' could not be found after being moved — the edit cannot be re-applied, so the " +
                     "push is failed rather than leaving the item holding its pre-edit content.");
-            WriteItemFromSource(ide, parent, name, moved, settle, newFolder, pushedDeclarations);
+            WriteItemFromSource(ide, name, moved, settle, newFolder, pushedDeclarations);
         }
     }
 
     /// <summary>Parse the pushed source the way the write will, and throw if it cannot be parsed — WITHOUT
-    /// touching the IDE. Used to move a text-level refusal ahead of a rename, which is otherwise the first thing
-    /// a set op does and the hardest to undo.</summary>
+    /// touching the IDE. This is the batch PRE-FLIGHT's worker (<see cref="Handle"/>): running it over every
+    /// op before the first write is what makes a push all-or-nothing for the class of refusal that is
+    /// decidable from the text alone, which is the class a real push fails on.</summary>
     private static void ValidateSourceOrThrow(string src, string name)
     {
         var split = StReader.Read(src);                       // throws InvalidSt on a malformed document
@@ -369,7 +412,7 @@ public static class PushService
 
     /// <summary>Create-or-update an item and its children from full canonical ST source. Shared by the
     /// set create/update path and the move recreate, so both apply identical full-fidelity write semantics.</summary>
-    private static void WriteItemFromSource(IIdeDriver ide, ItemRef parent, string name, ItemRef? existing,
+    private static void WriteItemFromSource(IIdeDriver ide, string name, ItemRef? existing,
                                         string src, string? folder,
                                         IReadOnlyDictionary<string, string> pushedDeclarations,
                                         string? ifVersion = null)
@@ -414,7 +457,7 @@ public static class PushService
         {
             // Placement is a CREATE-only concern: resolve (and if needed create) the target folder from the full
             // tree path here, so an in-place update never re-walks or accidentally materializes the spine.
-            var targetParent = TreeNav.ResolveTopLevelFolder(ide, parent, folder);
+            var targetParent = TreeNav.ResolveTopLevelFolder(ide, folder);
 
             // Validate a network-text body BEFORE creating the item - a refused push must not leave an orphaned,
             // unlisted stub POU behind that blocks the next create.

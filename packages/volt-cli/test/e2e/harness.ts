@@ -362,7 +362,7 @@ export async function fixPlcPrg(): Promise<void> {
 	const r = await pushOps([{
 		op: "set",
 		name: PLC_PRG,
-		toFolder: "",
+		toFolder: null,   // an in-place edit never restates placement
 		sourceText: newSrc,
 		ifVersion: item.version,
 	}])
@@ -383,7 +383,7 @@ export async function restorePlcPrg(): Promise<void> {
 	const r = await pushOps([{
 		op: "set",
 		name: PLC_PRG,
-		toFolder: "",
+		toFolder: null,   // an in-place edit never restates placement
 		sourceText: _plcPrgOriginal,
 		ifVersion: current.version,
 	}])
@@ -408,7 +408,7 @@ export async function instantiateInPlcPrg(fbName: string): Promise<void> {
 	const r = await pushOps([{
 		op: "set",
 		name: PLC_PRG,
-		toFolder: "",
+		toFolder: null,   // an in-place edit never restates placement
 		sourceText: lines.join("\n"),
 		ifVersion: item.version,
 	}])

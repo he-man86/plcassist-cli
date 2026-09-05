@@ -68,7 +68,9 @@ const plcFolder = plcItem0.folder ?? ""
 const plcOriginal: string = plcItem0.sourceText
 
 async function setPlcPrg(src: string): Promise<void> {
-  await pushOps([{ op: "set", name: plcName, toFolder: "", sourceText: src, ifVersion: await version(plcName) }])
+  // An UPDATE omits placement: `toFolder: ""` is the TREE ROOT, not "unchanged", so restating it here
+  // asked to move PLC_PRG into the POU pool (which CODESYS refuses outright).
+  await pushOps([{ op: "set", name: plcName, toFolder: null, sourceText: src, ifVersion: await version(plcName) }])
 }
 
 const tests: Record<string, { buildSuccess: boolean; durationMs: number; diagnostics: { severity: string; message: string; line: number }[] }> = {}

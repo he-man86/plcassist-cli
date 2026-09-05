@@ -45,7 +45,7 @@ async function roundTrip(c: PipeClient, name: string, src: string): Promise<any>
 	const refs = await c.refs()
 	const r = await c.push({
 		expectedProjectVersion: refs.projectVersion,
-		ops: [{ op: "set", name, toFolder: "", sourceText: src, ifVersion: refs.items[name] ?? null }],
+		ops: [{ op: "set", name, toFolder: refs.items[name] ? null : "", sourceText: src, ifVersion: refs.items[name] ?? null }],
 	})
 	expect(r.accepted).toBe(true)
 	const f = await c.fetch({ knownItems: {}, onlyItems: [name] })
@@ -131,10 +131,11 @@ describe.skipIf(!BOTH)("vendor parity — CODESYS vs TwinCAT, same source, same 
 				expect(rb.sourceText).toBe(ra.sourceText)
 				expect(rb.name).toBe(ra.name)
 
-				// Placement is compared RELATIVE to each vendor's own root, never absolutely. Measured: a push to
-				// `toFolder: ""` lands at "Device/Plc Logic/Application" on CODESYS and at "" on TwinCAT. That is
-				// the load-bearing asymmetry the architecture allows — the API layer is byte-identical, the TREE
-				// is not — so an equality here would be asserting the vendors are the same product.
+				// Placement is compared RELATIVE to each vendor's own root, never absolutely — the API layer is
+				// byte-identical, the TREE is not, so an absolute equality here would be asserting the vendors are
+				// the same product. (`toFolder: ""` used to land at "Device/Plc Logic/Application" on CODESYS and at
+				// "" on TwinCAT; empty now means the TREE ROOT on both, so the two agree here by construction. The
+				// roots are still MEASURED rather than hardcoded — that is what keeps this honest if they diverge.)
 				expect(rel(rb.folder, rootB)).toBe(rel(ra.folder, rootA))
 				expect(rel(ra.folder, rootA)).toBe("")            // both put a root push at their own root
 			} finally {

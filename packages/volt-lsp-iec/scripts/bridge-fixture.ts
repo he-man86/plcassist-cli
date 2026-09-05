@@ -29,7 +29,7 @@ export async function openFixture(): Promise<Fixture> {
   const set = async (name: string, src: string): Promise<void> => {
     touched.add(name)
     const v = (await call("refs")).items[name] ?? null
-    const r = await pushOps([{ op: "set", name, toFolder: "", sourceText: src, ifVersion: v }])
+    const r = await pushOps([{ op: "set", name, toFolder: v ? null : "", sourceText: src, ifVersion: v }])
     if (r.accepted) return
     // Rejected → the item is UNREADABLE (invisible in /refs but blocks re-create). Delete with the sentinel, recreate.
     await pushOps([{ op: "deleteItem", name, ifVersion: "UNREADABLE000000" }])

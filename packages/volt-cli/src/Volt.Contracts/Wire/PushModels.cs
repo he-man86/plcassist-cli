@@ -49,6 +49,13 @@ public class SetItemOp : PushOp
     [JsonPropertyName("toName")]
     public string? ToName { get; set; }
 
+    /// <summary>Where the item should end up: the FULL path from the tree root, exactly as the walk emits it.
+    ///
+    /// <para><b>Absent and empty are different, and treating them as the same lost a move.</b> <c>null</c> is
+    /// "keep the current folder" — what an in-place edit sends. The EMPTY STRING is a destination: the tree
+    /// root, which on CODESYS is the project's own POU pool. The engine read empty as absent for a while, so
+    /// dragging an item out of the Application and into the pool sent <c>ToFolder = ""</c>, the push reported
+    /// ACCEPTED, nothing moved, and the next pull put the file back where it started.</para></summary>
     [JsonPropertyName("toFolder")]
     public string? ToFolder { get; set; }
 

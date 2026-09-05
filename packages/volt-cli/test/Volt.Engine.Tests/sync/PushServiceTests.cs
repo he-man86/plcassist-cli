@@ -110,16 +110,70 @@ public class PushServiceTests
     }
 
     [Fact]
-    public void Set_update_in_place_with_empty_toFolder_does_not_move()
+    public void Create_with_an_empty_toFolder_lands_at_the_TREE_root_not_the_plc_project_root()
     {
-        // An in-place content edit that doesn't restate the full tree path (empty toFolder) must NOT be read as a
-        // move to the root — no delete/recreate, just a write.
+        // An item the walk emits with an EMPTY folder sits at the TREE root - on CODESYS the project's own POU
+        // pool, where `Lenze_MID-S100` keeps `GVL_Errorlists` and `POE_SystemStart`. Empty used to resolve to the
+        // PLC-project root (the Application) instead, one node BELOW: pushed into a fresh project both items were
+        // created inside the Application, so a pull-push-pull round trip came back with them one folder deeper
+        // than they went in. Measured live, and invisible here until the fake grew two DIFFERENT roots.
+        var ide = new FakeIde(
+            new FakeIde.Item("<root>", ItemKind.PlcFolder, "", false, null, null, null, null, Children: new[] { "App" }),
+            new FakeIde.Item("App", ItemKind.PlcFolder, "", false, null, null, null, null, Children: System.Array.Empty<string>()))
+        { PlcRootName = "App", TreeRootName = "<root>" };
+        var pv = RefsService.Handle(ide).ProjectVersion!;
+        var resp = Push(ide, pv, new SetItemOp { Name = "Pool.gvl", IfVersion = null, ToFolder = "", SourceText = "VAR_GLOBAL\nEND_VAR\n" });
+        Assert.True(resp.Accepted);
+        Assert.Equal("<root>", ide.CreatedParents["Pool"]);
+    }
+
+    [Fact]
+    public void Set_update_with_an_ABSENT_toFolder_does_not_move()
+    {
+        // An in-place content edit that doesn't restate the tree path must NOT be read as a move — no
+        // delete/recreate, just a write. ABSENT is how that is said: the wire contract is "ToFolder ?? (current
+        // folder)", so null means unchanged and the EMPTY STRING is a real destination (the tree root, below).
+        // This case passed `ToFolder = ""` and asserted no move, which read the two as the same thing and is
+        // what made a move INTO the POU pool inexpressible.
         var ide = OneProgram("PLC_PRG", folder: "Device/Plc Logic/Application");
         var (v, pv) = Ver(ide, "PLC_PRG.prg");
-        var resp = Push(ide, pv, new SetItemOp { Name = "PLC_PRG.prg", IfVersion = v, ToFolder = "", SourceText = "PROGRAM PLC_PRG\nVAR\n\tn : INT;\nEND_VAR\n\nn := n + 9;\n\nEND_PROGRAM\n" });
+        var resp = Push(ide, pv, new SetItemOp { Name = "PLC_PRG.prg", IfVersion = v, ToFolder = null, SourceText = "PROGRAM PLC_PRG\nVAR\n\tn : INT;\nEND_VAR\n\nn := n + 9;\n\nEND_PROGRAM\n" });
         Assert.True(resp.Accepted);
         Assert.Contains("writecontent:PLC_PRG", ide.Recorded);
         Assert.DoesNotContain(ide.Recorded, r => r.StartsWith("delete:") || r.StartsWith("create:")); // in place, not moved
+    }
+
+    [Fact]
+    public void Set_update_with_an_EMPTY_toFolder_moves_the_item_to_the_tree_root()
+    {
+        // The other half of the pair above, and the one an engineer actually performs: dragging an item out of
+        // the Application and into the project's POU pool. `volt push` builds that as a rename op whose
+        // ToFolder is "" — the destination's full path from the tree root, which for a root item is empty. Read
+        // as "unchanged" it was a silent no-op: the push reported ACCEPTED, the IDE never moved the item, and
+        // the next pull put the file back where it started.
+        var ide = OneProgram("PLC_PRG", folder: "Device/Plc Logic/Application");
+        var (v, pv) = Ver(ide, "PLC_PRG.prg");
+        var resp = Push(ide, pv, new SetItemOp { Name = "PLC_PRG.prg", IfVersion = v, ToFolder = "" });
+        Assert.True(resp.Accepted);
+        Assert.Contains("move:PLC_PRG-><root>", ide.Recorded);   // the TREE root, not the Application
+    }
+
+    [Fact]
+    public void A_batch_refused_on_a_LATER_op_writes_NONE_of_the_earlier_ones()
+    {
+        // Ops are applied in a loop and a throw returns immediately, so anything already written stays written.
+        // Measured live: a 174-item push refused on the 158th left 157 objects in the project while the
+        // workspace had pushed none of them. Everything decidable from the SOURCE TEXT is now decided before the
+        // first write, so the batch is all-or-nothing for the class a push actually fails on.
+        var ide = OneProgram();
+        var pv = RefsService.Handle(ide).ProjectVersion!;
+        var resp = Push(ide, pv,
+            new SetItemOp { Name = "Good.prg", IfVersion = null, ToFolder = "", SourceText = "PROGRAM Good\nEND_PROGRAM\n" },
+            new SetItemOp { Name = "Bad.prg", IfVersion = null, ToFolder = "", SourceText = "not a POU at all" });
+
+        Assert.False(resp.Accepted);
+        Assert.DoesNotContain("create:Good", ide.Recorded);   // the VALID op ahead of the bad one never ran
+        Assert.Empty(ide.Recorded);
     }
 
     [Fact]

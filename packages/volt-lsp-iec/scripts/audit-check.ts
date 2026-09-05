@@ -41,12 +41,28 @@ const plcName = ["PLC_PRG.prg", "MAIN.prg"].find((n) => refs0.items[n])!
 const plcOrig = (await call("fetch", { knownItems: {}, onlyItems: [plcName] })).changed.find((i: any) => i.name === plcName).sourceText
 const base = new Set(((await call("build", { buildType: "incremental" })).diagnostics ?? []).map(key))
 
-if (!(await pushOps([{ op: "set", name: wire, toFolder: "", sourceText: source, ifVersion: null }, { op: "set", name: plcName, toFolder: "", sourceText: `PROGRAM PLC_PRG\nVAR\n\tinst_audit : ${unitName};\nEND_VAR\nEND_PROGRAM\n`, ifVersion: await ver(plcName) }]))) {
+// VOLT_NO_INSTANTIATE=1 pushes the POU and does NOT reference it from the main program - which is how you
+// ask the OTHER question: is this object compiled AT ALL? CODESYS generates code only for what it can reach,
+// so an FB nobody instantiates is skipped and answers with silence no matter what is wrong inside it. That
+// distinction is the difference between "the LSP is wrong" and "the compiler never looked", and it is what
+// separates a real false positive from `Mach1_MIDS`/`AHWF` in Lenze_MID-S100 building clean around four
+// `???` markers the LSP (correctly) reports.
+const instantiate = process.env.VOLT_NO_INSTANTIATE !== "1"
+const ops: unknown[] = [{ op: "set", name: wire, toFolder: "", sourceText: source, ifVersion: null }]
+if (instantiate)
+  ops.push({
+    op: "set",
+    name: plcName,
+    toFolder: null,
+    sourceText: `PROGRAM PLC_PRG\nVAR\n\tinst_audit : ${unitName};\nEND_VAR\nEND_PROGRAM\n`,
+    ifVersion: await ver(plcName),
+  })
+if (!(await pushOps(ops))) {
   console.error("push rejected"); process.exit(1)
 }
 const r = await call("build", { buildType: "incremental" })
 const ide = (r.diagnostics ?? []).filter((d: any) => d.severity === "error" || d.severity === "warning").map(key).filter((m: string) => !base.has(m)).sort()
-await pushOps([{ op: "deleteItem", name: wire, ifVersion: await ver(wire) }, { op: "set", name: plcName, toFolder: "", sourceText: plcOrig, ifVersion: await ver(plcName) }])
+await pushOps([{ op: "deleteItem", name: wire, ifVersion: await ver(wire) }, { op: "set", name: plcName, toFolder: null, sourceText: plcOrig, ifVersion: await ver(plcName) }])
 
 console.log(`\nLSP(${VENDOR}):  ${lsp.join(" | ") || "(none)"}`)
 console.log(`IDE(${VENDOR}): ${ide.join(" | ") || "(none)"}  success=${r.success}`)

@@ -433,6 +433,19 @@ namespace Volt.Ide.Codesys
         /// wrongly conclude the vendor has no move; enumerate <c>GetInterfaces()</c> too.</para></summary>
         public void Move(object node, object target)
         {
+            // THE PROJECT ROOT CANNOT BE A MOVE TARGET, and saying so beats a raw type error. `move` takes an
+            // `IExtendedObject<IScriptObject>`, and the project is not an `IScriptObject` at all - it implements
+            // `IScriptProject`/`IScriptTreeObject` and nothing else (measured, scripts/probe-project-container.py).
+            // So the vendor exposes no way to move an existing object INTO the POU pool, and the attempt used to
+            // surface as "Object of type 'ScriptProject' cannot be converted to type '...IScriptObject'".
+            // CREATING there works (a separate container exists for it - see CodesysObjectModel.IecContainer);
+            // only relocating an existing item does not.
+            if (IsScriptProject(Unwrap(target)))
+                throw new NotSupportedException(
+                    "CODESYS: an item cannot be MOVED to the project root (the POU pool) - the scripting API's " +
+                    "`move` takes an object parent and the project is not one. Creating an item there works; " +
+                    "moving one already in the tree has to be done in the IDE.");
+
             var obj = Unwrap(node)!;
             var t = obj.GetType();
             var found = new List<string>();

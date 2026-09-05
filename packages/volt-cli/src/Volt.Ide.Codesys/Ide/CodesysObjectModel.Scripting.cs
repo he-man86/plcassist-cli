@@ -74,9 +74,27 @@ namespace Volt.Ide.Codesys
             throw new MissingMethodException($"No '{method}' overload exposing [{string.Join(", ", Array.ConvertAll(args, a => a.Name))}] on {container.GetType().FullName}");
         }
 
-        /// <summary>Container for top-level objects (POU/DUT/GVL/interface) under the
-        /// parent.</summary>
-        private object IecContainer(object parent) => Container(parent, "ScriptIecLanguageObjectContainerObject");
+        /// <summary>Container for top-level objects (POU/DUT/GVL/interface) under the parent.
+        ///
+        /// <para><b>THE PROJECT ROOT HAS ITS OWN CONTAINER, and using the object one on it throws.</b> CODESYS
+        /// ships two siblings over the same <c>AbstractIecLanguageContainer</c> base — measured on SP21
+        /// (<c>scripts/probe-project-container.py</c>):
+        /// <c>ScriptIecLanguageObjectContainerObject(ScriptObject baseObject)</c> for a node inside the tree, and
+        /// <c>ScriptIecLanguageObjectContainerRoot(ScriptProject project)</c> for the project itself. The project
+        /// object is a <c>ScriptProject</c>, not a <c>ScriptObject</c>, so constructing the object container over
+        /// it failed with "Constructor on type '…ScriptIecLanguageObjectContainerObject' not found" — which is
+        /// what made an item at the PROJECT ROOT (CODESYS's POU pool, where <c>Lenze_MID-S100</c> keeps
+        /// <c>GVL_Errorlists</c> and <c>POE_SystemStart</c>) impossible to create. Both containers expose the same
+        /// <c>create_*</c> surface, so nothing above this line changes.</para></summary>
+        private object IecContainer(object parent) =>
+            Container(parent, IsScriptProject(Unwrap(parent))
+                                  ? "ScriptIecLanguageObjectContainerRoot"
+                                  : "ScriptIecLanguageObjectContainerObject");
+
+        private static bool IsScriptProject(object? node) =>
+            node is not null
+            && Reflection.FindType("_3S.CoDeSys.ScriptDriverProjects.ScriptProject") is { } t
+            && t.IsInstanceOfType(node);
 
         /// <summary>Container for inline POU members (method/action/property/transition)
         /// under the parent POU — distinct from <see cref="IecContainer"/>; this is the

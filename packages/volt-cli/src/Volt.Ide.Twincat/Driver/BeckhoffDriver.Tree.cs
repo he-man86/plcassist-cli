@@ -16,7 +16,6 @@ namespace Volt.Ide.Twincat;
 /// here). The per-node try/catch is the walk's own defence against a COM node that faults mid-walk.</summary>
 public sealed partial class BeckhoffDriver
 {
-    public ItemRef GetPlcProjectRoot() => new(_om.PlcRoot());
 
     // TwinCAT's walk starts AT the PLC project root (folder paths are relative to it), so the tree root and the
     // PLC-project root are the same node — full and relative toFolder coincide, and this stays a no-op vs CODESYS.

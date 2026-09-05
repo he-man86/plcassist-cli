@@ -94,9 +94,6 @@ public sealed partial class CodesysDriver
         }
     }
 
-    public ItemRef GetPlcProjectRoot() =>
-        new(_om.FindApplication() ?? throw new InvalidOperationException("CODESYS: no Application found in project"));
-
     // The walk starts here (PrimaryProject), so a full toFolder like "Device/Plc Logic/Application/POUs" resolves
     // by descending from the same origin — the structural nodes (Device/Plc Logic/Application) are matched, not
     // re-created as user folders under the Application (which doubled the path).
