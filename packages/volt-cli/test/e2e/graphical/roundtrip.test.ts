@@ -3,7 +3,7 @@
  * CFC/SFC are unsupported (declaration-only, never created) — see BodyCodec.UnsupportedCodec.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, setDefaultTimeout } from "bun:test"
-import { bridge, id, fid, cleanup, createItem, fetchItem, ensureCompiles, expectNoOperandsLost, requireHealthy, savePlcPrg, restorePlcPrg, fixPlcPrg, plcFolder, FOLDER, BASE } from "../harness"
+import { bridge, id, fid, cleanup, createItem, fetchItem, ensureCompiles, expectNoOperandsLost, requireHealthy, savePlcPrg, restorePlcPrg, fixPlcPrg, plcFolder, FOLDER, BASE, VENDOR } from "../harness"
 
 // A TwinCAT full build is ~9s — past bun's 5s default. The build-verification test compiles the project, so
 // give every test headroom (the round-trip tests are fast; this only matters for the build check).
@@ -217,6 +217,24 @@ describe(`graphical / round-trip (${BASE})`, () => {
 
 		const refs = await bridge.refs()
 		const r = await bridge.push({ expectedProjectVersion: refs.projectVersion, ops: [{ op: "set", name: fullName, toFolder: "", sourceText: executeProgram(name), ifVersion: null }] })
+
+		// A TRACKED gap, not a vendor difference: `openspec/changes/twincat-graphical-create-parity`.
+		// Delete this branch when it lands.
+		//
+		// An Execute box is ST INSIDE an FBD box, and PLCopen has no element for one — so TwinCAT, which accepts
+		// a new graphical body only through its importer, cannot create it and says so. The refusal is asserted
+		// rather than skipped: it is the difference between a shape one vendor cannot build and a shape Volt
+		// forgot to send, and only an assertion tells them apart when the next person reads a red suite.
+		if (VENDOR === "twincat") {
+			expect(r.accepted, "TwinCAT accepted an Execute box its importer cannot build").toBe(false)
+			// TWO of the tracked gaps are in this one fixture, and the EN one is hit FIRST: the box is
+			// EN-guarded (`LET en1 := bRun; IF en1 THEN EXECUTE …`), so the enable is refused before the Execute
+			// box is ever reached. Worth knowing when closing them — fixing Execute alone will not turn this
+			// green, and the message says which wall it hit.
+			expect(JSON.stringify(r.conflicts)).toMatch(/Execute box|wires a box's EN input/)
+			return
+		}
+
 		expect(r.accepted).toBe(true)
 
 		const after = (await bridge.fetch({ knownItems: {}, onlyItems: [fullName] })).changed.find((i: any) => i.name === fullName)

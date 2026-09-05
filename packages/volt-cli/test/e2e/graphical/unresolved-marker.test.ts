@@ -24,7 +24,7 @@
  * dropping it would hide their drawing.
  */
 import { describe, it, expect, beforeAll, setDefaultTimeout } from "bun:test"
-import { bridge, id, fid, pushOps, fetchItem, requireHealthy, BASE } from "../harness"
+import { bridge, id, fid, pushOps, fetchItem, requireHealthy, BASE, VENDOR } from "../harness"
 
 describe(`graphical / the ??? marker (${BASE})`, () => {
 	setDefaultTimeout(180_000)
@@ -43,13 +43,33 @@ describe(`graphical / the ??? marker (${BASE})`, () => {
 	 * THE INVARIANT: create the body, pull it back, and get the same bytes. Not "the push was accepted" — an
 	 * accepted push that reshapes the drawing is the failure this file exists to catch.
 	 */
-	async function roundTrips(slug: string, body: string, vars: string): Promise<void> {
+	async function roundTrips(slug: string, body: string, vars: string, tcCannotCreate?: string): Promise<void> {
 		const name = id(slug)
 		const item = fid(slug, "prg")
 		await clean(item)
 		const src = `PROGRAM ${name}\nVAR\n${vars}END_VAR\n\n${body}\nEND_PROGRAM\n`
 
 		const created = await pushOps([{ op: "set", name: item, toFolder: "", sourceText: src, ifVersion: null }])
+
+		// A SHAPE TWINCAT'S IMPORTER CANNOT BUILD **YET** IS REFUSED, and the refusal is ASSERTED rather than
+		// skipped. These are TRACKED GAPS, not vendor differences to respect — `openspec/changes/
+		// twincat-graphical-create-parity`, whose definition of done is that no branch like this one is left in
+		// `test/e2e/graphical/`. This suite is one suite run against either vendor, and its own README says a
+		// pass on one and a fail on the other is a real parity bug.
+		//
+		// They are limits of the CREATE path alone — PLCopen is the one form TwinCAT accepts a body it does not
+		// already have — and never limits of the marker: `???` round-trips on both vendors in every position that
+		// can be created at all, and a body that already carries one of these shapes edits fine on both.
+		//
+		// Asserting the refusal is what stops a silent DROP passing here again. An embedded output pin did
+		// exactly that until 2026-09-05: the importer left the slot empty, the repair for its own empty-operand
+		// artifact took the pin with it, and the refusal that followed was swallowed as "nothing to lose".
+		if (tcCannotCreate !== undefined && VENDOR === "twincat") {
+			expect(created.accepted, "TwinCAT accepted a shape its importer cannot build").toBe(false)
+			expect(JSON.stringify(created.conflicts)).toContain(tcCannotCreate)
+			return
+		}
+
 		expect(created.accepted, `create refused: ${JSON.stringify(created.conflicts)}`).toBe(true)
 
 		const back = (await fetchItem(item)).sourceText
@@ -77,6 +97,9 @@ describe(`graphical / the ??? marker (${BASE})`, () => {
 			"qmark_lib",
 			"NETWORK 0 FBD\n  ??? : L_TT1P_FlexCamBase(xEnable := , Axis := );\nEND_NETWORK\n",
 			BOOLS,
+			// TwinCAT: an UNCONNECTED input pin (`xEnable := ,`) lowers to a rung terminator its importer has no
+			// PLCopen form for. It is the empty pin it refuses, not the marker.
+			"ladder rung terminator",
 		)
 	})
 
@@ -88,14 +111,27 @@ describe(`graphical / the ??? marker (${BASE})`, () => {
 
 	/** AN OUTPUT PIN, spelled with ST's own output-parameter operator. */
 	it("`???` on a named OUTPUT pin", async () => {
-		await roundTrips("qmark_out", "NETWORK 0 FBD\n  t1(IN := a, PT := pt, ET => ???);\nEND_NETWORK\n", BOOLS)
+		await roundTrips(
+			"qmark_out",
+			"NETWORK 0 FBD\n  t1(IN := a, PT := pt, ET => ???);\nEND_NETWORK\n",
+			BOOLS,
+			// TwinCAT: the importer honours the wire and lowers it to a SEPARATE assignment rather than a pin on
+			// the box, so what came back would not be what was pushed (DIALECT C20). Editing one that already
+			// exists works on both vendors — it is the CREATE that has no route.
+			"output pin straight to a variable",
+		)
 	})
 
 	/** BOTH AT ONCE, on one box. The two pins are read and written by different arms of the reader/writer
 	 *  (`Inputs` vs `Outputs`), so a box carrying the marker on both is the case where one arm dropping it
 	 *  cannot hide behind the other. */
 	it("`???` on an input AND an output pin of the SAME box", async () => {
-		await roundTrips("qmark_both", "NETWORK 0 FBD\n  t1(IN := ???, PT := pt, ET => ???);\nEND_NETWORK\n", BOOLS)
+		await roundTrips(
+			"qmark_both",
+			"NETWORK 0 FBD\n  t1(IN := ???, PT := pt, ET => ???);\nEND_NETWORK\n",
+			BOOLS,
+			"output pin straight to a variable", // TwinCAT: the same C20 limit, reached through the output arm
+		)
 	})
 
 	/** THE BOX'S RESULT PIN — the unnamed output, which network text spells by assigning the call. */
@@ -116,6 +152,9 @@ describe(`graphical / the ??? marker (${BASE})`, () => {
 			"qmark_coilen",
 			"NETWORK 0 LD\n  LET en1 := ;\n  IF en1 THEN ??? := NOT(a); END_IF\nEND_NETWORK\n",
 			BOOLS,
+			// TwinCAT: the importer folds an enable into the box as an ordinary input, which changes what the
+			// program does — a long-standing, deliberate refusal with nothing to do with `???`.
+			"wires a box's EN input",
 		)
 	})
 

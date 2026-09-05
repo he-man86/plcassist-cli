@@ -451,19 +451,28 @@ public sealed partial class BeckhoffDriver
     /// the very thing the engineer wrote.</para></summary>
     private static string Stamp(string built, NetworkBody model)
     {
-        // The importer hangs an EMPTY output operand off every box, which the compiler reads as the box's
-        // result going nowhere — see TcNetworkWriter.DropImporterBoxOutputs. Repaired before the values are
-        // stamped, so the change gate below compares against an archive that is already right.
-        built = TcNetworkWriter.DropImporterBoxOutputs(built);
-
         try
         {
-            return TcNetworkWriter.Apply(built, model) ?? built;
+            // VALUES FIRST, THEN THE REPAIR — and the order is the whole of a data-loss bug.
+            //
+            // The importer hangs an EMPTY output operand off every box, which the compiler reads as the box's
+            // result going nowhere (TcNetworkWriter.DropImporterBoxOutputs). This used to drop those operands
+            // BEFORE stamping, and an empty operand is exactly what the importer also leaves for an output pin
+            // it could not resolve — `t1(… ET => ???)`, where `???` is not a variable it can bind. The two are
+            // indistinguishable in the archive, so the repair took the engineer's pin with the artifact,
+            // `WriteBoxOutputs` then refused ("names an output pin the IDE has no slot for"), and the catch
+            // below swallowed the refusal on the premise that there was nothing to lose. The push reported
+            // success over a body missing a pin the engineer wrote.
+            //
+            // Stamping first removes the ambiguity instead of guessing at it: every slot the MODEL names gets
+            // its operand written, so an operand still empty afterwards can only be the importer's.
+            var applied = TcNetworkWriter.Apply(built, model) ?? built;
+            return TcNetworkWriter.DropImporterBoxOutputs(applied);
         }
         catch (NotSupportedException) when (!CarriesDetail(model) && !LostNetworks(built, model))
         {
             // Nothing to lose: the body is exactly what was pushed, grouped the way the IDE groups it.
-            return built;
+            return TcNetworkWriter.DropImporterBoxOutputs(built);
         }
     }
 
@@ -496,7 +505,12 @@ public sealed partial class BeckhoffDriver
         {
             Leaf l => l.Operand.Flags is { IsNone: false },
             Assign a => a.Targets.Any(t => t.Flags is { IsNone: false }) || (a.Value is { } v && HasFlags(v)),
-            Box b => b.Instance?.Flags is { IsNone: false }
+            // AN OUTPUT PIN IS CONTENT, NOT DECORATION. This asked only whether a pin carried FLAGS, so a box
+            // whose `ET => x` the import failed to place counted as "nothing to lose" and the refusal that said
+            // so was swallowed. Whatever else the catch above is willing to shrug at, it must not be a pin the
+            // engineer wired: the body would come back missing it, and the push would say it worked.
+            Box b => b.Outputs.Count > 0
+                     || b.Instance?.Flags is { IsNone: false }
                      || b.Outputs.Any(o => o.Value.Flags is { IsNone: false })
                      || b.Inputs.Any(i => !i.Flags.IsNone || HasFlags(i.Value))
                      || (b.Enable is { } e && HasFlags(e)),

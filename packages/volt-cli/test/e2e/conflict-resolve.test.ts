@@ -19,7 +19,11 @@ import { requireHealthy, createItem, updateItem, cleanup, fid, id, BASE, VENDOR,
 // Point @volt/control at a built volt.exe; skip the suite if none is present (nothing to drive the CLI with). Pick
 // the NEWEST of the candidates — a stale `dist/Cli/volt.exe` (an old shipped build) must not mask a fresh source
 // build, or init fails against the current bridge wire for a reason that isn't the code under test.
-const CLI_ROOT = resolve(import.meta.dir, "../..", "..") // packages/volt-cli
+// packages/volt-cli. This was `resolve(dir, "../..", "..")`, which is THREE levels from `test/e2e` and lands on
+// `packages/` — so no `dist/Cli/volt.exe` was ever found, `CLI` stayed undefined, and this entire suite
+// `describe.skipIf`'d itself out of every run since it was written. It reported as 12 skips beside three
+// deliberately opt-in suites, which is exactly where a silent one hides.
+const CLI_ROOT = resolve(import.meta.dir, "..", "..")
 const CLI = ["dist/Cli/volt.exe", "src/Volt.Cli/bin/Release/net8.0/volt.exe", "src/Volt.Cli/bin/Debug/net8.0/volt.exe"]
 	.map((p) => join(CLI_ROOT, p))
 	.filter(existsSync)

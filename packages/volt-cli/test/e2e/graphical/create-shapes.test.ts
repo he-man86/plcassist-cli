@@ -17,7 +17,7 @@
  * XML — they assert what came back through the vendor's own resolution, which is the only thing that matters.
  */
 import { describe, it, expect, beforeAll, setDefaultTimeout } from "bun:test"
-import { id, fid, bridge, pushOps, requireHealthy, BASE } from "../harness"
+import { id, fid, bridge, pushOps, requireHealthy, BASE, VENDOR } from "../harness"
 
 describe(`graphical / create shapes (${BASE})`, () => {
 	setDefaultTimeout(120_000)
@@ -61,6 +61,51 @@ describe(`graphical / create shapes (${BASE})`, () => {
 		expect(v1.sourceText).toMatch(/out2 := \(b OR c\);/)
 
 		// …and the whole thing is a FIXED POINT, which is what proves the ids the IDE minted are consistent.
+		const refs = await bridge.refs()
+		const again = await pushOps([{ op: "set", name: item, sourceText: v1.sourceText, ifVersion: refs.items[item] }])
+		expect(again.accepted, `re-push refused: ${JSON.stringify(again.conflicts)}`).toBe(true)
+		expect((await pull(item)).sourceText).toBe(v1.sourceText)
+
+		await clean(item)
+	})
+
+	/**
+	 * A box's EMBEDDED OUTPUT PIN — `ET => elapsed` — written straight to a variable rather than read back off
+	 * the instance. Nothing in this suite covered one on CREATE, which is how a whole class of loss stayed
+	 * invisible: the TwinCAT importer emits an empty `OutputItems` for a box it wires nothing to, the repair
+	 * that strips the importer's own empty operand had nothing to distinguish it from a real pin, and the
+	 * refusal that followed was swallowed as "nothing to lose". A resolvable pin is the baseline case; if this
+	 * fails, the `???` variants are a symptom rather than the disease.
+	 */
+	it("a box's embedded OUTPUT pin survives a create", async () => {
+		const name = id("boxout")
+		const item = fid("boxout", "prg")
+		await clean(item)
+
+		const src =
+			`PROGRAM ${name}\nVAR\n\tt1 : TON;\n\ta : BOOL;\n\tpt : TIME;\n\tel : TIME;\nEND_VAR\n\n` +
+			`NETWORK 0 FBD\n  t1(IN := a, PT := pt, ET => el);\nEND_NETWORK\n\nEND_PROGRAM\n`
+
+		const created = await pushOps([{ op: "set", name: item, toFolder: "", sourceText: src, ifVersion: null }])
+
+		// TwinCAT REFUSES **for now** - a TRACKED gap, not a vendor difference:
+		// `openspec/changes/twincat-graphical-create-parity`. Delete this branch when it lands.
+		//
+		// The refusal is the whole finding. Its importer honours an `outVariable` wired to a named
+		// pin by lowering it to a SEPARATE assignment rather than an output on the box, so the body would not be
+		// the one pushed (DIALECT C20). Until this test existed the pin was DROPPED instead and the push said it
+		// worked — for a fully resolvable `ET => el`, not only for the `???` cases that first exposed it.
+		if (VENDOR === "twincat") {
+			expect(created.accepted, "TwinCAT accepted an embedded output pin its importer cannot place").toBe(false)
+			expect(JSON.stringify(created.conflicts)).toContain("output pin straight to a variable")
+			return
+		}
+
+		expect(created.accepted, `create refused: ${JSON.stringify(created.conflicts)}`).toBe(true)
+
+		const v1 = await pull(item)
+		expect(v1.sourceText, "the ET pin did not survive the create").toContain("ET => el")
+
 		const refs = await bridge.refs()
 		const again = await pushOps([{ op: "set", name: item, sourceText: v1.sourceText, ifVersion: refs.items[item] }])
 		expect(again.accepted, `re-push refused: ${JSON.stringify(again.conflicts)}`).toBe(true)

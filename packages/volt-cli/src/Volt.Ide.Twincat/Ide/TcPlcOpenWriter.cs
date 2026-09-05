@@ -239,6 +239,30 @@ internal static class TcPlcOpenWriter
                     "`out := (en AND a AND b)`. Creating it would silently change what the program does. Draw the " +
                     "enable in the IDE and pull it.");
             if (box.StCode != null) throw Refuse("contains an Execute box");
+            // AN EMBEDDED OUTPUT PIN CANNOT BE CREATED HERE, and until today it was DROPPED instead.
+            //
+            // `t1(IN := a, PT := pt, ET => el)` writes a box's ET pin straight to a variable. This writer emitted
+            // one output pin, `Out1`, and never looked at `box.Outputs` - on the stated grounds that "a
+            // text-derived Box.Outputs is always empty", which stopped being true when the format learned to
+            // spell one. The importer wired nothing, the archive came back with an empty `OutputItems`, the
+            // in-place writer's refusal was swallowed as "nothing to lose", and the push reported success over a
+            // body missing the pin. Measured for a fully RESOLVABLE pin, not just `???`
+            // (`test/e2e/graphical/create-shapes.test.ts`).
+            //
+            // Emitting it properly was then measured too: an `<outVariable>` wired to the pin by
+            // `formalParameter` IS honoured - and the importer lowers it to a separate `BoxTreeAssign` item
+            // rather than an output on the box. That is a different body from the one pushed, so accepting it
+            // would rewrite the engineer's text on a create. Editing an embedded output that already exists
+            // still works (`TcNetworkWriter.WriteBoxOutputs`); only creating one is out of reach. DIALECT C20.
+            if (box.Outputs.Any(o => o.Formal is { Length: > 0 }))
+                throw new NotSupportedException(
+                    "TwinCAT: this graphical body writes a box's output pin straight to a variable " +
+                    "(`" + box.Type + "(… " + (box.Outputs.First(o => o.Formal is { Length: > 0 }).Formal) +
+                    " => …)`). PLCopen can state it and TwinCAT's importer does honour the wire - but it " +
+                    "lowers it to a SEPARATE assignment rather than an output on the box, so the body that came " +
+                    "back would not be the one pushed. Draw the pin in the IDE and pull it; editing one that " +
+                    "already exists works.");
+
             var wired = box.Inputs.Select(i => (Input: i, From: Emit(i.Value))).ToList();
 
             var id = Id();
@@ -265,15 +289,14 @@ internal static class TcPlcOpenWriter
             }
 
             // ONE output pin, named `Out1` - the name the vendor's own exporter gives an operator's single
-            // output. It is not taken from `box.Outputs`: those are the operands WIRED to the pin, not the
-            // pin's formal name, and network text carries neither (a text-derived `Box.Outputs` is always
-            // empty). A box with several distinct named outputs has no network-text form at all, so the model
-            // cannot present one here.
+            // unnamed result. A box that names EMBEDDED OUTPUTS (`t1(… ET => el)`) is refused above rather than
+            // lowered here: measured, TwinCAT's importer honours an `outVariable` wired to a named pin by
+            // turning it into a SEPARATE assignment item, not an output on the box, so what came back was a
+            // different body from the one pushed.
             var outputs = new XElement(Namespaces.Tc6 + "outputVariables",
                 new XElement(Namespaces.Tc6 + "variable",
                     new XAttribute("formalParameter", "Out1"),
                     new XElement(Namespaces.Tc6 + "connectionPointOut")));
-
             block.Add(inputs, new XElement(Namespaces.Tc6 + "inOutVariables"), outputs,
                 new XElement(Namespaces.Tc6 + "addData",
                     new XElement(Namespaces.Tc6 + "data",
@@ -281,6 +304,7 @@ internal static class TcPlcOpenWriter
                         new XAttribute("handleUnknown", "implementation"),
                         new XElement("CallType", CallTypeName(box.Kind)))));
             _root.Add(block);
+
             return id;
         }
 
