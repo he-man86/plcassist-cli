@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Xml.Linq;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,16 +22,10 @@ public sealed partial class BeckhoffDriver
     // PLC-project root are the same node — full and relative toFolder coincide, and this stays a no-op vs CODESYS.
     public ItemRef GetTreeRoot() => new(_om.PlcRoot());
 
-    /// <summary>REFUSED on TwinCAT, and the refusal is the honest answer rather than a gap left to trip over.
-    /// This vendor renders a `.task` as `Name=` / `linked-task=` — a different shape from the CODESYS
-    /// scheduling descriptor (the parity gap `docs/ITEM_KINDS.md` records) — so there is nothing here for the
-    /// shared <c>TaskSettings</c> to map onto. Writing one would mean inventing a mapping no live XAE has ever
-    /// confirmed, which is exactly the class of guess DIALECT.md exists to keep out.</summary>
-    public void WriteTask(ItemRef task, TaskSettings settings) =>
-        throw new BridgeException(BridgeErrorCodes.Unsupported,
-            "TwinCAT: a task's settings cannot be pushed. This vendor's `.task` descriptor is a different " +
-            "shape (Name= / linked-task=) from the CODESYS scheduling fields, and no mapping between them has " +
-            "been measured. Edit the task in the IDE.");
+    /// <summary>Apply a task's settings — the mirror of the `.task` descriptor <c>ReadManifest</c> renders, so
+    /// the pair cannot drift. The two tree items involved, and the fields TwinCAT cannot express (which are
+    /// REFUSED, never dropped), are <see cref="TcTaskSchedule"/>'s subject.</summary>
+    public void WriteTask(ItemRef task, TaskSettings settings) => _om.WriteTask(task.Native, settings);
 
     public WalkResult WalkItems()
     {

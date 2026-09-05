@@ -6,6 +6,7 @@ using System.Xml.Linq;
 using Volt.Contracts;
 using Volt.Engine;
 using Volt.Engine.Format.Body;
+using Volt.Engine.Format.Task;
 using Volt.Engine.Format.Network;
 using Volt.Engine.Format.St;
 using Volt.Engine.Ide;
@@ -681,13 +682,14 @@ public sealed partial class BeckhoffDriver
             ?? throw new InvalidOperationException(
                 $"twincat: item metadata for kind '{kind}' carries neither <ItemName> nor <LibItemName> — " +
                 "cannot build a manifest whose name is the version-hash input");
+        // A `.task` → the SHARED scheduling descriptor, the same six labels CODESYS writes. It used to render as
+        // `Name=` / `linked-task=`, which described Volt's difficulty rather than the task: `TIRT^PlcTask` is a
+        // tree path, and the cycle time and POU calls an engineer actually wants were nowhere in the file.
+        // Assembling it means reading the linked system task too — see TcTaskSchedule.
+        if (kind == ItemKind.Kinds.Task) return TaskDescriptorFormat.Write(_om.ReadTask(item.Native));
+
         var sb = new StringBuilder();
         sb.Append("Name=").Append(name).Append('\n');
-        if (kind == ItemKind.Kinds.Task)
-        {
-            var linked = ExtractTag(xml, "LinkedTask");
-            if (linked != null) sb.Append("linked-task=").Append(linked).Append('\n');
-        }
         return sb.ToString();
     }
 

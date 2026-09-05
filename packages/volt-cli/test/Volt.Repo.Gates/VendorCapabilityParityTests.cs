@@ -40,14 +40,12 @@ public class VendorCapabilityParityTests
     private static readonly IReadOnlyDictionary<string, VendorSupport> Writable =
         new Dictionary<string, VendorSupport>(StringComparer.Ordinal)
         {
-            // A task's schedule is writable on CODESYS — every field is a live setter (DIALECT C19). TwinCAT
-            // keeps the same information in a different shape (`Name=` / `linked-task=`, the PLC task being a
-            // REFERENCE to a system task that holds the schedule), and which of the two copies the runtime
-            // actually honours has not been measured on hardware. Its driver refuses rather than guess, and a
-            // write that looked right and scheduled nothing would be the worst of the three outcomes.
-            ["task"] = new(Codesys: true, Twincat: false,
-                           Why: "TwinCAT's PLC task is a reference to a SYSTEM task; which copy the runtime " +
-                                "honours is unmeasured, so its driver refuses the write (ITEM_KINDS.md, DIALECT C19)"),
+            // A task's schedule is writable on BOTH, by routes that share nothing below the format: CODESYS
+            // sets live properties on `ScriptTaskObject` (DIALECT C19), TwinCAT patches the SYSTEM task its PLC
+            // task links to and rebuilds the call children (C19b). This row was one-sided for a day, which is
+            // what the gate is for — it made closing the gap a build failure rather than a nice-to-have.
+            ["task"] = new(Codesys: true, Twincat: true,
+                           Why: "both vendors write a task's schedule and call list (DIALECT C19, C19b)"),
         };
 
     private sealed record VendorSupport(bool Codesys, bool Twincat, string Why);
@@ -90,6 +88,65 @@ public class VendorCapabilityParityTests
                 "BridgeErrorCodes.Unsupported — a capability the driver neither implements nor refuses is one " +
                 "that fails somewhere the user cannot read.");
         }
+    }
+
+    /// <summary>A vendor this table says CAN write a kind must actually write it — its driver's `Write&lt;Kind&gt;`
+    /// may not be a bare refusal.
+    ///
+    /// <para>This gate's own summary promised exactly this ("a row claiming a vendor supports a write while its
+    /// driver still refuses fails too") and did not enforce it, which mattered the moment a row went two-sided:
+    /// every other test here only inspects the REFUSING side, so flipping a flag to `true` was enough to make the
+    /// whole file agree that a gap was closed. A claim nothing checks is worse than no claim, because it reads
+    /// like one that is checked.</para></summary>
+    [Fact]
+    public void A_vendor_declared_able_to_write_a_kind_does_not_refuse_it()
+    {
+        foreach (var (kind, support) in Writable)
+        foreach (var (vendor, dir, supported) in new[]
+                 {
+                     ("CODESYS", CodesysDriverDir(), support.Codesys),
+                     ("TwinCAT", TwincatDriverDir(), support.Twincat),
+                 })
+        {
+            if (!supported) continue;
+            var method = "Write" + char.ToUpperInvariant(kind[0]) + kind.Substring(1);   // task -> WriteTask
+            var body = MethodBody(dir, method)
+                ?? throw new Xunit.Sdk.XunitException(
+                    $"this table says {vendor} can write '{kind}', but no `{method}(` exists in its driver.");
+            Assert.False(body.Contains("BridgeErrorCodes.Unsupported", StringComparison.Ordinal),
+                $"this table says {vendor} can write '{kind}', but its `{method}` still refuses with " +
+                "BridgeErrorCodes.Unsupported. Flip the row back, or finish the driver.");
+        }
+    }
+
+    /// <summary>The text of the first `public void &lt;name&gt;(...)` in a driver, up to the end of its
+    /// statement — enough to tell an implementation from a refusal, without parsing C#. An expression-bodied
+    /// member ends at its `;`, a block member at the first line that closes at method indentation.
+    ///
+    /// <para>Scoped to the vendor's `Driver/` directory ON PURPOSE. That is where each vendor's
+    /// <c>ICodeStore</c>/<c>IProjectTree</c> facets live — the methods the ENGINE actually calls — and it is the
+    /// only place a refusal reaches a user. The object models beside them (<c>TcObjectModel</c>,
+    /// <c>CodesysObjectModel</c>) carry same-named helpers that legitimately raise Unsupported for a vendor that
+    /// declined a write at runtime, and letting the scan reach those would make this gate's verdict depend on
+    /// file enumeration order.</para></summary>
+    private static string? MethodBody(string vendorDir, string name)
+    {
+        var driverDir = Path.Combine(vendorDir, "Driver");
+        Assert.True(Directory.Exists(driverDir), $"no Driver/ directory under {vendorDir}");
+        foreach (var file in Directory.EnumerateFiles(driverDir, "*.cs", SearchOption.AllDirectories).Where(NotBuildOutput))
+        {
+            var text = File.ReadAllText(file);
+            var at = text.IndexOf($"public void {name}(", StringComparison.Ordinal);
+            if (at < 0) continue;
+            var arrow = text.IndexOf("=>", at, StringComparison.Ordinal);
+            var brace = text.IndexOf('{', at);
+            // Expression-bodied: everything to the `;`. Block-bodied: to the closing brace at method indent.
+            if (arrow >= 0 && (brace < 0 || arrow < brace))
+                return text.Substring(at, text.IndexOf(';', arrow) - at + 1);
+            var end = text.IndexOf("\n    }", brace, StringComparison.Ordinal);
+            return end < 0 ? text.Substring(at) : text.Substring(at, end - at);
+        }
+        return null;
     }
 
     /// <summary>The one-sided kinds are named in `docs/ITEM_KINDS.md`, which is where someone asking "can I edit

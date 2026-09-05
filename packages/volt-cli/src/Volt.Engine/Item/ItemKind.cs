@@ -339,9 +339,11 @@ public static class ItemKind
     /// measured live: `scripts/probe-task-writable.py`). Keeping it OUT of the source list is also what leaves
     /// the four SOURCE_EXTENSIONS manifests (`scripts/check-wiring.ts`) untouched.</para>
     ///
-    /// <para>CODESYS ONLY today. TwinCAT renders a different `.task` shape (`Name=` / `linked-task=`, the
-    /// parity gap ITEM_KINDS.md already records), so its driver refuses the write rather than guessing at a
-    /// format nobody has measured.</para></summary>
+    /// <para>BOTH VENDORS, by routes that share nothing below this format. TwinCAT assembles the same six
+    /// fields from two tree items — the PLC task's `LinkedTask` names the SYSTEM task carrying priority and
+    /// cycle time, while the ordered calls are the PLC item's own children — and reads every write back,
+    /// because it accepts a schedule it has no intention of applying (DIALECT C19b). Which vendors implement
+    /// which writable kind is gated: `test/Volt.Repo.Gates/VendorCapabilityParityTests.cs`.</para></summary>
     public static readonly IReadOnlyList<string> WritableReferenceKinds = new[] { Kinds.Task };
 
     private static readonly HashSet<string> WritableReferenceSet =

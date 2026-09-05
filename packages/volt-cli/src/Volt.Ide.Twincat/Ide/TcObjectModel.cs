@@ -200,6 +200,10 @@ internal sealed partial class TcObjectModel
             ItemKind.PlcPouFunc => System.Type.Missing,
             ItemKind.PlcDutStruct or ItemKind.PlcDutEnum or ItemKind.PlcDutUnion => System.Type.Missing,
             ItemKind.PlcItf => null,
+            // A task's POU call is a REFERENCE, not code: the name IS the whole of it, and there is no body to
+            // give a language to. Read back by WriteCallList, so a wrong vInfo here fails loudly rather than
+            // leaving a task calling nothing.
+            ItemKind.PlcProgRef => System.Type.Missing,
             // Interface method/property: TC wants the return/data type as a STRING vInfo (carried in the
             // `language` arg by PushService, null when untyped) — NOT a body language. Matches the working
             // Beckhoff sample (BuildChildVInfo): method→returnType, property→dataType, else null.
