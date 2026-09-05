@@ -73,14 +73,30 @@ your live IDE). Two modes:
 ```powershell
 # headless (fast dev/CI-ish loop) — no window, --noUI
 pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up
-# GUI — production-like: the real IDE, the same in-proc host a user activates via "Activate in CODESYS"
+# GUI — the real IDE, still driven by the HARNESS script (it opens the fixture and pumps the loop)
 pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up -Ui
+# PRODUCTION — the SHIPPED start_volt_codesys.py, in a normal GUI IDE (implies -Ui)
+pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up -Production
 # multiple instances (per-pid pipes): -Instance a / -Instance b
 pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up -Instance a
 pwsh packages/volt-cli/scripts/codesys-pipe.ps1 down          # (add -Instance a to stop that one)
 
 bun run test:e2e:codesys   # discovers the live codesys pipe + runs the suite
 ```
+
+**`-Production` is the one that matches what users do**, and the difference from `-Ui` is not cosmetic.
+`run_pipe_headless.py` is a test harness: it loads the bridge straight from the build output and PUMPS the
+message loop itself, because a headless IDE has none. `start_volt_codesys.py` — the script that ships, run
+verbatim by `run_pipe_production.py` — stages the bridge into a **per-session temp copy** (which is what
+lets an install update while the IDE is open) and returns immediately, leaving the **IDE's own message loop**
+to serve the pipe. Measured 2026-09-05: 189 pass / 0 fail on both, so the harness was not hiding anything —
+but only `-Production` proves the path an engineer actually takes. Stop it the way they do, from the IDE:
+`stop_volt_codesys.py`.
+
+> SP21's scripting engine is **Python 3**. Several comments in the shipped scripts still say "IronPython
+> 2.7" — true of SP18, not of SP21. It matters: `execfile()` does not exist there, and the
+> `DeprecationWarning` it raises lands in CODESYS's message store, which `build` reads — so a script-level
+> mistake surfaces as two phantom *build errors* in every test that compiles.
 
 ## TwinCAT
 

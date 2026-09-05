@@ -27,8 +27,30 @@ import { fb, prog, func, METHOD, ACTION, PROPERTY, structDut, enumDut, gvl } fro
 
 setDefaultTimeout(60000)
 
-const cs = livePipesFor("codesys")[0]
-const tc = livePipesFor("twincat")[0]
+/**
+ * The pipe to use for a vendor. `VOLT_PIPE_CODESYS` / `VOLT_PIPE_TWINCAT` name one explicitly; otherwise the
+ * single live one is taken.
+ *
+ * <p>This was `livePipesFor(v)[0]`, and with two instances of a vendor up it picks ARBITRARILY. Measured: with
+ * a second headless CODESYS serving the 9.9 MB `Pro2193…` fixture (the deliberately SLOW instance
+ * `parallel-instances` needs), this suite bound to THAT one and every case timed out at 60s — a five-minute red
+ * whose message was "timeout" and whose cause was the environment. An ambiguous pick now SAYS it is ambiguous
+ * instead of guessing.</p>
+ */
+function pipeFor(vendor: "codesys" | "twincat"): string | undefined {
+	const explicit = process.env[`VOLT_PIPE_${vendor.toUpperCase()}`]
+	const live = livePipesFor(vendor)
+	if (explicit) return live.includes(explicit) ? explicit : undefined
+	if (live.length > 1)
+		console.log(
+			`vendor-parity: ${live.length} live ${vendor} bridges (${live.join(", ")}). Set ` +
+				`VOLT_PIPE_${vendor.toUpperCase()} to pick one — guessing risks binding the slow instance.`,
+		)
+	return live.length === 1 ? live[0] : undefined
+}
+
+const cs = pipeFor("codesys")
+const tc = pipeFor("twincat")
 const BOTH = cs !== undefined && tc !== undefined
 
 // Not a capability claim, and not permanent: this is the one suite that needs BOTH IDEs, and a normal run has

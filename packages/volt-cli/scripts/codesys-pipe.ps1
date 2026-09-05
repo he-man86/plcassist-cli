@@ -22,13 +22,20 @@ param(
     # host inside the real IDE via "Activate in CODESYS". The runscript still opens the fixture + serves the pipe;
     # the primary-thread pump keeps the UI responsive. Headless (default) stays the fast CI/dev loop.
     [switch]$Ui,
+    # -Production runs the SHIPPED start_volt_codesys.py inside a normal GUI CODESYS (implies -Ui) instead of
+    # the headless harness script. That is the path a user takes, and it differs where it matters: the bridge
+    # is loaded from a per-session TEMP COPY (so an install can update while the IDE is open) and the IDE's
+    # OWN message loop serves the pipe, rather than the script pumping it. Use it to prove the e2e against
+    # what ships; stop it from the IDE with stop_volt_codesys.py.
+    [switch]$Production,
     # -NoBuild skips the pre-launch bridge rebuild (fast re-launch when you KNOW the DLL is current).
     [switch]$NoBuild
 )
 $ErrorActionPreference = "Stop"
 
 $dll      = Join-Path $PSScriptRoot "..\src\Volt.Ide.Codesys\bin\Release\net48\Volt.Ide.Codesys.dll"
-$scriptPy = Join-Path $PSScriptRoot "run_pipe_headless.py"
+$scriptPy = Join-Path $PSScriptRoot $(if ($Production) { "run_pipe_production.py" } else { "run_pipe_headless.py" })
+if ($Production) { $Ui = $true }   # the production script does not pump; without a UI loop nothing serves the pipe
 $install  = if ($Version -eq "21") { "C:\Program Files\CODESYS 3.5.21.40" } else { "C:\Program Files\CODESYS 3.5.18.30" }
 $exe      = Join-Path $install "CODESYS\Common\CODESYS.exe"
 
