@@ -68,26 +68,56 @@ public class VendorCapabilityParityTests
     }
 
     /// <summary>A one-sided capability must be VISIBLE where a reader would look: the kind table names it, and
-    /// the refusing driver says why in the refusal itself.</summary>
+    /// the refusing driver says why in the refusal itself.
+    ///
+    /// <para><b>The check is a method, not a loop body, because the loop can legitimately be EMPTY.</b> On
+    /// 2026-09-05 `task` went two-sided, every row became symmetric, and this test plus the doc test below went
+    /// on passing having executed no assertion at all — the precise "a gate that matches nothing still passes"
+    /// failure this file was written to prevent, reproduced inside the file itself. <see
+    /// cref="The_one_sided_checks_can_themselves_fail"/> now exercises the logic against a synthetic row, so it
+    /// stays honest no matter what the live table holds.</para></summary>
     [Fact]
     public void A_one_sided_capability_is_recorded_where_a_reader_looks()
     {
-        foreach (var (kind, support) in Writable.Where(x => x.Value.Codesys != x.Value.Twincat))
-        {
-            Assert.False(string.IsNullOrWhiteSpace(support.Why),
-                $"'{kind}' is writable on one vendor only and the table gives no reason.");
+        foreach (var (kind, support) in OneSided()) AssertRefusalIsVisible(kind, support);
+    }
 
-            // The refusing driver must REFUSE — not silently accept and do nothing, which is the failure mode a
-            // capability gap actually produces in the field.
-            var refusing = support.Codesys ? TwincatDriverDir() : CodesysDriverDir();
-            var vendorName = support.Codesys ? "TwinCAT" : "CODESYS";
-            var sources = string.Join("\n", Directory.EnumerateFiles(refusing, "*.cs", SearchOption.AllDirectories)
-                .Where(NotBuildOutput).Select(File.ReadAllText));
-            Assert.True(Regex.IsMatch(sources, @"BridgeErrorCodes\.Unsupported"),
-                $"'{kind}' is not supported on {vendorName}, but nothing in its driver refuses with " +
-                "BridgeErrorCodes.Unsupported — a capability the driver neither implements nor refuses is one " +
-                "that fails somewhere the user cannot read.");
-        }
+    /// <summary>The one-sided rows, if any. Empty is a legitimate state — it means both vendors do everything.</summary>
+    private static IEnumerable<KeyValuePair<string, VendorSupport>> OneSided() =>
+        Writable.Where(x => x.Value.Codesys != x.Value.Twincat);
+
+    /// <summary>A one-sided row states its reason, and the driver that lacks the capability REFUSES rather than
+    /// silently accepting and doing nothing — the failure mode a capability gap actually produces in the field.</summary>
+    private static void AssertRefusalIsVisible(string kind, VendorSupport support)
+    {
+        Assert.False(string.IsNullOrWhiteSpace(support.Why),
+            $"'{kind}' is writable on one vendor only and the table gives no reason.");
+
+        var refusing = support.Codesys ? TwincatDriverDir() : CodesysDriverDir();
+        var vendorName = support.Codesys ? "TwinCAT" : "CODESYS";
+        var sources = string.Join("\n", Directory.EnumerateFiles(refusing, "*.cs", SearchOption.AllDirectories)
+            .Where(NotBuildOutput).Select(File.ReadAllText));
+        Assert.True(Regex.IsMatch(sources, @"BridgeErrorCodes\.Unsupported"),
+            $"'{kind}' is not supported on {vendorName}, but nothing in its driver refuses with " +
+            "BridgeErrorCodes.Unsupported — a capability the driver neither implements nor refuses is one " +
+            "that fails somewhere the user cannot read.");
+    }
+
+    /// <summary>The one-sided checks can FAIL — proven against synthetic rows, so they keep their teeth on the
+    /// days the real table has no asymmetric row to feed them.</summary>
+    [Fact]
+    public void The_one_sided_checks_can_themselves_fail()
+    {
+        // A one-sided row with no stated reason is refused.
+        Assert.ThrowsAny<Exception>(() =>
+            AssertRefusalIsVisible("synthetic", new VendorSupport(Codesys: true, Twincat: false, Why: "   ")));
+
+        // A kind the docs do not mention is refused.
+        Assert.ThrowsAny<Exception>(() => AssertKindIsDocumented("a-kind-no-doc-will-ever-name"));
+
+        // ...and the same checks PASS for a well-formed row, so they are not simply always-throwing.
+        AssertRefusalIsVisible("synthetic", new VendorSupport(Codesys: true, Twincat: false, Why: "measured; see DIALECT"));
+        AssertKindIsDocumented("task");
     }
 
     /// <summary>A vendor this table says CAN write a kind must actually write it — its driver's `Write&lt;Kind&gt;`
@@ -154,10 +184,14 @@ public class VendorCapabilityParityTests
     [Fact]
     public void The_kind_table_documents_every_one_sided_capability()
     {
+        foreach (var (kind, _) in OneSided()) AssertKindIsDocumented(kind);
+    }
+
+    private static void AssertKindIsDocumented(string kind)
+    {
         var doc = File.ReadAllText(Path.Combine(RepoRoot(), "packages", "volt-cli", "docs", "ITEM_KINDS.md"));
-        foreach (var (kind, _) in Writable.Where(x => x.Value.Codesys != x.Value.Twincat))
-            Assert.True(doc.Contains($"`{kind}`", StringComparison.Ordinal),
-                $"docs/ITEM_KINDS.md does not mention the '{kind}' kind, whose write support differs per vendor.");
+        Assert.True(doc.Contains($"`{kind}`", StringComparison.Ordinal),
+            $"docs/ITEM_KINDS.md does not mention the '{kind}' kind, whose write support differs per vendor.");
     }
 
     // ── reading the declaration out of the engine ────────────────────────────────────────────────────────

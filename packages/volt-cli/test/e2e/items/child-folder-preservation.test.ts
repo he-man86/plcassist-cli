@@ -67,17 +67,16 @@ describe(`lifecycle / child folder preservation (${BASE})`, () => {
 		const edited = await fetchItem(wire)
 		expect(edited.sourceText).toContain("x := 2")       // the edit landed
 		expect(folderPaths(edited.sourceText)).toEqual(before) // ...and the child folders are untouched
-	})
 
-	it("a child at the POU root stays at the root, and the members all survive", async () => {
-		const wire = fid("cf_keep")
-		const fetched = await fetchItem(wire)
-
-		// All four members still present after the edit above.
-		for (const member of ["Shallow", "Deep", "AtRoot", "Speed"]) expect(fetched.sourceText).toContain(member)
-
-		// Exactly two children declare a folder; AtRoot and the property do not — a flattening would show up
-		// as fewer directives, and a spurious folder as more.
-		expect(folderPaths(fetched.sourceText).length).toBe(2)
+		// EVERY member survived, and the two that are at the POU root stayed there.
+		//
+		// This was a second `it()` that created nothing and re-fetched the item THIS test had made — so it only
+		// ever "passed" as a byproduct of running second, and in isolation (`bun test -t "root"`) it threw
+		// instead of proving anything. The assertions are real and belong to this state; the separate block was
+		// not a test, it was a continuation.
+		for (const member of ["Shallow", "Deep", "AtRoot", "Speed"]) expect(edited.sourceText).toContain(member)
+		// Exactly two children declare a folder; AtRoot and the property do not — a flattening shows up as fewer
+		// directives, a spurious folder as more.
+		expect(folderPaths(edited.sourceText).length).toBe(2)
 	})
 })

@@ -5,10 +5,15 @@
  * an emptied body/method/accessor kept its OLD content (silent data loss; CODESYS cleared correctly). The
  * fix writes on `implementation != null`, and PushService passes null only for slot-less kinds. These cases
  * lock that behaviour in on BOTH bridges (the POU-body case lives in endpoints/fetch.test.ts).
+ *
+ * <p>SCOPE: emptying content, not REMOVING a child. Two tests here deleted a METHOD and a property SET accessor
+ * on fixtures identical to `children-cycle.test.ts`'s, with strictly weaker assertions (regex instead of
+ * substring, and no compile check). Child deletion is that file's subject; this one is about what happens when
+ * the child STAYS and its body goes to empty.</p>
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, setDefaultTimeout } from "bun:test"
 import { id, fid, cleanup, requireHealthy, createItem, updateItem, fetchSource, savePlcPrg, restorePlcPrg, fixPlcPrg, BASE } from "../harness"
-import { fb, METHOD, ACTION, PROPERTY } from "../fixtures"
+import { fb, METHOD, ACTION } from "../fixtures"
 
 describe(`lifecycle / clear-on-empty (${BASE})`, () => {
 	setDefaultTimeout(60_000)
@@ -29,24 +34,6 @@ describe(`lifecycle / clear-on-empty (${BASE})`, () => {
 		await createItem(fid("c_act"), fb(n, { children: ACTION("Act", "x := 9;") }))
 		await updateItem(fid("c_act"), fb(n, { children: ACTION("Act", "") }))
 		expect(await fetchSource(fid("c_act"))).not.toMatch(/x := 9/)
-	})
-
-	it("removing a METHOD child deletes it in the IDE", async () => {
-		const n = id("c_rmmeth")
-		await createItem(fid("c_rmmeth"), fb(n, { children: METHOD("Keep") + METHOD("Gone") }))
-		await updateItem(fid("c_rmmeth"), fb(n, { children: METHOD("Keep") }))
-		const s = await fetchSource(fid("c_rmmeth"))
-		expect(s).toMatch(/METHOD Keep/)
-		expect(s).not.toMatch(/METHOD Gone/)
-	})
-
-	it("removing a property SET accessor deletes it (GET+SET → GET only)", async () => {
-		const n = id("c_rmset")
-		await createItem(fid("c_rmset"), fb(n, { children: PROPERTY("Val", true, true) }))
-		await updateItem(fid("c_rmset"), fb(n, { children: PROPERTY("Val", true, false) }))
-		const s = await fetchSource(fid("c_rmset"))
-		expect(s).toMatch(/\bGET\b/)
-		expect(s).not.toMatch(/\bSET\b/)
 	})
 
 	it("removing a variable from the VAR section clears it from the declaration", async () => {

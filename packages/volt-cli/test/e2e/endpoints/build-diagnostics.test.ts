@@ -1,11 +1,21 @@
-/** /build — compile errors produce diagnostics with correct line numbers. */
-import { describe, it, expect, beforeAll, afterAll, setDefaultTimeout } from "bun:test"
+/**
+ * `build` — a compile error becomes a diagnostic, with a usable location.
+ *
+ * <p><b>Cleanup is PER TEST, and that is not a style choice.</b> This file used to set up once in `beforeAll`,
+ * so every test's deliberately-broken FB stayed instantiated in the main program for the rest of the file. The
+ * first test asserts the project builds CLEAN — and it passed only because it happened to run first. Run it
+ * alone after the others, or reorder the file, and it fails. A test whose result depends on its position is not
+ * evidence of anything.</p>
+ */
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll, setDefaultTimeout } from "bun:test"
 import { bridge, id, fid, cleanup, requireHealthy, createItem, savePlcPrg, restorePlcPrg, instantiateInPlcPrg, fixPlcPrg, BASE } from "../harness"
 
 describe(`endpoints / build diagnostics (${BASE})`, () => {
 	setDefaultTimeout(60_000)
-	beforeAll(async () => { await requireHealthy(); await fixPlcPrg(); await cleanup(); await savePlcPrg() })
-	afterAll(async () => { await restorePlcPrg(); await cleanup() })
+	beforeAll(async () => { await requireHealthy() })
+	beforeEach(async () => { await fixPlcPrg(); await cleanup(); await savePlcPrg() })
+	afterEach(async () => { await restorePlcPrg() })
+	afterAll(cleanup)
 
 	it("healthy project builds successfully", async () => {
 		const name = id("b_ok")
@@ -13,8 +23,8 @@ describe(`endpoints / build diagnostics (${BASE})`, () => {
 		await instantiateInPlcPrg(name)
 
 		const r = await bridge.build()
-		expect(r.success).toBe(true)
-		expect(Array.isArray(r.diagnostics)).toBe(true)
+		expect(r.success, "a project holding only a valid FB must build clean").toBe(true)
+		expect(r.diagnostics.filter((d: any) => d.severity === "error")).toEqual([])
 	})
 
 	it("detects undeclared variable", async () => {

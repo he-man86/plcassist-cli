@@ -26,10 +26,17 @@ describe(`kinds / top-level (${BASE})`, () => {
 		expect(item.sourceText).toContain("DWORD")
 	})
 
-	it("creates an empty interface", async () => {
+	it("creates an empty interface, named and closed", async () => {
 		const name = id("k_iface"), wire = fid("k_iface", "itf")
 		await createItem(wire, iface(name))
-		expect(await fetchSource(wire)).toContain("INTERFACE")
+
+		// This asserted only `toContain("INTERFACE")` — a word present verbatim in the string just pushed, so
+		// it survived any mangling that left the keyword anywhere in the body. The interface is identified by
+		// its NAME and closed by END_INTERFACE, and it is enumerable under the name the push used.
+		const back = await fetchSource(wire)
+		expect(back).toContain(`INTERFACE ${name}`)
+		expect(back).toContain("END_INTERFACE")
+		expect(Object.keys((await bridge.refs()).items)).toContain(wire)
 	})
 
 	// Interface members test declaration-only method + property create + round-trip. The property is

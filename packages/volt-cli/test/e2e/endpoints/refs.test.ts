@@ -14,8 +14,15 @@ describe(`endpoints / refs (${BASE})`, () => {
 		const r = await bridge.refs()
 		expect(typeof r.projectVersion).toBe("string")
 		expect(typeof r.structureVersion).toBe("string")
-		expect(typeof r.items).toBe("object")
-		expect(typeof r.folders).toBe("object")
+
+		// NOT `typeof r.items === "object"` — which is what this said, and `typeof null` is "object", so the
+		// assertion passed for a bridge that returned no maps at all. A project the suite is running against has
+		// items; both maps are real objects, and `unreadable` is part of the contract too (an item the walk could
+		// not materialize is reported, never silently absent — absence is what a pull turns into a DELETION).
+		expect(r.items, "refs.items must be a map, not null").toBeInstanceOf(Object)
+		expect(r.folders, "refs.folders must be a map, not null").toBeInstanceOf(Object)
+		expect(Object.keys(r.items).length, "the project under test has items").toBeGreaterThan(0)
+		expect(Array.isArray(r.unreadable), "refs must report unreadable items").toBe(true)
 	})
 
 	it("is deterministic — two calls with no edits return identical versions", async () => {
