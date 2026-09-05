@@ -1,69 +1,63 @@
-# Probe: can a TwinCAT task be WRITTEN? (needs a machine with TwinCAT XAE)
+# TwinCAT tasks: where the schedule really lives (and what a write would have to touch)
 
 `.task` is writable on CODESYS and read-only on TwinCAT. That asymmetry is declared and gated
-(`test/Volt.Repo.Gates/VendorCapabilityParityTests.cs`), and it exists for ONE unanswered question, not because
-the write looks hard. This is that question, and the run that settles it.
+(`test/Volt.Repo.Gates/VendorCapabilityParityTests.cs`). This is what is known about closing it.
 
-## What is already known (no hardware needed)
+## Measured on a live TwinCAT (2026-09-05, TcXaeShell 15.0, `TwinCAT Project14`, read-only)
 
-* TwinCAT keeps a PLC task's schedule **in the PLC project**, in the `.TcTTO` beside the POUs — committed
-  fixture `test/fixtures/TwinCAT Project13/TwinCAT Project13/Untitled1/PlcTask.TcTTO`:
+Volt materializes that project's only task as:
 
-  ```xml
-  <Task Name="PlcTask" Id="{…}">
-    <!--CycleTime in micro seconds.-->
-    <CycleTime>10000</CycleTime>
-    <Priority>20</Priority>
-    <PouCall><Name>PLC_PRG</Name></PouCall>
-  </Task>
-  ```
+```
+PlcTask.task    folder="PlcTask"
+    Name=PlcTask
+    linked-task=TIRT^PlcTask
+```
 
-* The **same task is written again** in the system configuration (`TwinCAT Project13.tsproj`) as
-  `<Task Id="3" Priority="20" CycleTime="100000">` — 100ns ticks, not µs. Both say 10 ms. Two copies, two units.
-* The driver already has the write mechanism: `TcItemArchive.RoundTrip` exports an item, hands the archive to a
-  `rewrite` callback and re-imports it — `SetMemberBodies` uses exactly that to rewrite XML inside a `.TcPOU`.
+Three things follow, and together they redirect the obvious implementation:
 
-So the machinery exists and the data is reachable. What is NOT known is whether writing it means anything.
+1. **`TIRT^PlcTask` is a SYSTEM-MANAGER PATH.** `TIRT` is the real-time/task tree — the same kind of path the
+   driver already resolves for the I/O tree (`_om.LookupTreeItem("TIID")`, `BeckhoffDriver.Tree.cs`). So the
+   PLC-side task really is a *reference*, and the schedule it points at is a system object.
+2. **The PLC project's `.TcTTO` is not what the bridge reads.** `ProduceXml` on the task node returns item
+   METADATA (the two lines above), not the task document. The `.TcTTO` on disk does carry `<CycleTime>` /
+   `<Priority>` / `<PouCall>` (committed fixture `TwinCAT Project13/…/Untitled1/PlcTask.TcTTO`), but it is the
+   PLC-side copy, and the system tree holds the same task again with a *different unit* — `CycleTime="100000"`
+   in 100ns ticks against the document's `10000` µs.
+3. **The call list is not on the wire as children.** `task_call_reference` (PLCPROGREF, 650) items: none. The
+   system task carries its POUs as `<TaskPouOid Prio="20" OTCID="#x08502001"/>` — by OBJECT ID, not by name.
 
-## The question
+## What that means for a shared `.task`
 
-**Which copy does the runtime honour — the PLC document, or the system tree?**
+A reader written against the `.TcTTO` would read the wrong copy. One was written on 2026-09-05 and **reverted
+before shipping** for exactly the reason this file now documents: it looked right, parsed the committed fixture
+correctly, and would have described a schedule the runtime may not use.
 
-If the system tree is authoritative, rewriting the `.TcTTO` produces a file that looks right in git, reads back
-correctly through Volt, and changes nothing about what the PLC actually runs. That is the exact failure this
-project has already been bitten by twice: CODESYS's task call list accepts `remove()` and silently ignores it
-(DIALECT C19), and `???` on a box output pin looked like a diagnosable error for months (C18). A write that
-reports success and schedules nothing is worse than no write at all.
+The route that matches the vendor's own model is: follow `linked-task` → `LookupTreeItem("TIRT^<name>")` →
+read that system object. The driver already has `_sysManager` and does this for `TIID`, so the mechanism exists;
+what does not exist is any measurement of what the system task's XML looks like, or of whether writing it takes.
 
-Two smaller unknowns ride along:
+Rendering a `Calls:` line of POU NAMES additionally needs OTCID → name resolution, which CODESYS does not need
+because it keeps the call list as names on the task itself. That is a real asymmetry, not a formatting one.
 
-* does `ExportChild` accept a **task** node? It refuses POU MEMBERS outright — *"The tree item 'Deep' cannot be
-  exported seperately because it has no document file"* — so the same refusal is plausible here.
-* does `ImportChild` preserve the task's link to its system task, or re-create an unlinked one?
+## The run that would settle a WRITE
 
-## The run
+On a machine with XAE, against **a copy** of a project — never an original:
 
-On a machine with XAE, against **a copy** of a project (never an original):
+1. Read `TIRT^<task>` and record its XML. That alone answers "can we even see the schedule?" and is read-only.
+2. Change `Priority` there, and check the XAE task editor reflects it.
+3. **Activate the configuration** and confirm the runtime cycle actually changed — the only proof that the copy
+   written is the copy that runs.
+4. Separately: does writing the PLC-side `.TcTTO` change the system entry, or is it ignored? If ignored, that
+   settles that the `.TcTTO` route is a dead end for writes as well as reads.
 
-1. Bring the bridge up on the copy and confirm `volt status` is clean.
-2. Note the task's current cycle time in the XAE task editor.
-3. Export the task node through `TcItemArchive`-style export. **If it refuses, stop — that is the answer**, and
-   the write needs a different route (the system tree, or the automation interface's task object).
-4. Rewrite `<Priority>` and `<CycleTime>` in the archive, re-import.
-5. Then the three things that matter, in order:
-   * does the **XAE task editor** show the new values?
-   * does the **`.tsproj` system entry** show them (converted: µs × 10 = 100ns ticks)?
-   * **activate the configuration** and confirm the runtime cycle actually changed.
+If the system tree turns out to be authoritative and writable, the engine side needs nothing new:
+`TaskDescriptorFormat` is shared, `PushService` routes by kind, and `ICodeStore.WriteTask` already takes typed
+settings. TwinCAT needs the system-task reader/writer, and
+`VendorCapabilityParityTests.Writable["task"]` flips to `Twincat: true` — the gate fails until it does, which is
+deliberate.
 
-Answer (5) and the gap either closes or gets a documented reason it cannot. Either way, update
-`VendorCapabilityParityTests.Writable["task"]` — the gate will fail until it is, which is deliberate.
+## Why the caution
 
-## If it works
-
-The engine side is already vendor-neutral and needs nothing: `TaskDescriptorFormat` is shared, `PushService`
-routes by kind, and `ICodeStore.WriteTask` takes typed settings. TwinCAT needs the `.TcTTO` reader (translating
-`CycleTime`/µs and `PouCall` into `TaskSettings`) plus the archive rewrite — and the parity row flips to
-`Twincat: true`.
-
-A reader was written and then **reverted** on 2026-09-05 rather than shipped unverified; the shape it had is in
-this file's history if it is useful, but re-deriving it from the fixture above is a short job.
+A write that reports success and schedules nothing is worse than no write. This project has been bitten twice by
+exactly that: CODESYS's task call list accepts `remove()` and silently ignores it (DIALECT C19), and `???` on a
+box output pin read as a diagnosable error for months (C18). Both were found by measuring, not by reasoning.
