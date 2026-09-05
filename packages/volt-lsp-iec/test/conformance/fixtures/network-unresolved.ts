@@ -29,27 +29,30 @@
  * messages are parse-recovery noise, and one of them names an implicit temp (`__FB__ImpVar15`) whose number
  * cannot be reproduced offline. These were in `KNOWN_DIVERGENCES` while the LSP answered every position with
  * one invented sentence; they are not any more.
- * * WHAT THIS DOES NOT COVER, and what measuring it established. `Lenze_MID-S100` builds with ZERO errors
- * while four of these markers sit in two of its POUs (`Mach1_MIDS`, `AHWF`) that Volt's reachability calls
- * LIVE. The LSP reports them; the compiler does not; and the reason is NOT that either is wrong about the
- * marker — it is that the compiler never looked.
+ * * WHAT THIS DOES NOT COVER, and it is not what it looked like. `Lenze_MID-S100` builds with ZERO errors
+ * while four markers sit in POUs the LSP reports on. Two explanations were proposed and BOTH are false,
+ * each killed by a measurement rather than an argument:
  *
- * MEASURED (SP21, scripts/audit-check.ts with VOLT_NO_INSTANTIATE): the SAME POU, `??? := a;`, answers
- * `The assignment target is not specified.` when it is instantiated in PLC_PRG and answers NOTHING when it
- * is not — build success and all. CODESYS generates code only for what it can reach, so an object nothing
- * reaches is not checked at all, whatever is wrong inside it.
+ *   "the objects are excluded from build"  —  planting an undeclared identifier in `Mach1_MIDS`, `AHWF`,
+ *                                             `General` and `BasicMovement` makes the compiler report every
+ *                                             one (scripts/probe-is-it-compiled.ts). They ARE compiled.
+ *   "nothing reaches them"                 —  same experiment, same answer. (The MECHANISM is real — an
+ *                                             uninstantiated FB is skipped whatever is wrong inside it — it
+ *                                             simply is not what is happening here.)
  *
- * That mechanism is proven; which instance of it applies to those two POUs is NOT yet settled, and the
- * evidence cuts both ways: `AHWF` is called behind an UNCONNECTED enable (`LET en1 := ; IF en1 THEN AHWF();
- * END_IF`), so that call plainly generates nothing — but `Mach1_MIDS` is called from `General`, a real task
- * root, with a WIRED enable, which should compile it. What tips it is where the build's own six warnings
- * come from: `MotionControl/Lenze/` only, and not one from the `A70_MachineModuleSources` subtree that holds
- * all four markers. So that whole subtree looks unbuilt, which points back at exclude-from-build (CODESYS
- * has a FOLDER-level control — `ScriptBuildProperties.FolderController`) rather than at reachability.
+ * The truth is a FORMAT ambiguity, and the vendor model shows it plainly (probe-nwl-dump.py, `AHWF`
+ * network 6): the marker there is a genuine `'???'` operand on a BOX OUTPUT PIN whose result nobody wired
+ * (`BoxType='SideCorrection'`, `out[0] = <null>`, `out[1] = '???'`). CODESYS compiles an unwired result pin
+ * without complaint. An unnamed COIL is a different shape — a `BoxTreeAssign` with a `???` target — and IS
+ * an error, which is exactly what `network_unnamed_assignment_target` below records.
  *
- * Either way the conclusion for the LSP is the same, and it is why these fixtures matter: the four are a
- * MEASUREMENT gap, not a precision one. Volt cannot see what the compiler skipped, so `build-conformance`
- * cannot subset against it. See `packages/volt-cli/scripts/probe-exclude-from-build.py`.
+ * Network text writes BOTH as `??? := <value>;`, so nothing downstream can tell them apart and the LSP
+ * reports the pin case as the coil case. That is the whole of the remaining build-conformance gap.
+ *
+ * FIDELITY IS NOT AFFECTED: pushing those items' own bytes back into the real project and rebuilding adds
+ * no error, so the push rebuilds the pin rather than a coil. The ambiguity costs ANALYSIS, not data. Closing
+ * it means giving an unwired box result a spelling of its own — a format decision (DIALECT C18), not
+ * another resolver: "the RHS is a call" is the only discriminator available today, and it is a guess.
  */
 import type { LanguageTest } from "../types.js"
 

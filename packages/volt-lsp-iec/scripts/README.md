@@ -24,6 +24,7 @@ it serves `volt.bridge.codesys.<pid>` — pass `VOLT_PIPE=volt.bridge.codesys.<p
 | `verify-catalog.ts` | verifies implemented C-code wording vs the IDE → `error-catalog.json` verified flags |
 | `record-gaps.ts` | probes unverified compiler-warning gap codes for their real trigger/wording |
 | `audit-check.ts` | ad-hoc "is this check right?" — LSP vs `/build`; touches no test data |
+| `probe-is-it-compiled.ts` | is an object actually COMPILED? plants an error, builds, restores — point at a COPY |
 | `conversion-matrix.ts` | calibrates `classifyConversion` against the live compiler |
 
 ## Offline tools (pure, run under `bun`)
