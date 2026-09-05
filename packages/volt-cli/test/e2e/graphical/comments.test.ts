@@ -35,7 +35,7 @@ describe(`graphical / titles and comments (${BASE})`, () => {
 		// mixes annotated and bare networks is covered in one go.
 		const src =
 			`PROGRAM ${name}\nVAR\n\ta : BOOL;\n\tb : BOOL;\n\tout1 : BOOL;\n\tout2 : BOOL;\nEND_VAR\n\n` +
-			`NETWORK 0 FBD "the interlock"\n` +
+			`NETWORK 0 FBD TITLE: "the interlock"\n` +
 			`  // holds the drive off while the guard is open\n` +
 			`  // second line of the same comment\n` +
 			`  out1 := (a AND b);\n` +
@@ -49,7 +49,7 @@ describe(`graphical / titles and comments (${BASE})`, () => {
 		expect(v1, "the item vanished after its create").toBeDefined()
 
 		// The title stays on ONE line - an embedded newline here is the bug this test exists for.
-		expect(v1.sourceText, "the network title was dropped").toContain(`NETWORK 0 FBD "the interlock"`)
+		expect(v1.sourceText, "the network title was dropped").toContain(`NETWORK 0 FBD TITLE: "the interlock"`)
 		expect(v1.sourceText, "the comment was dropped").toContain("// holds the drive off while the guard is open")
 		expect(v1.sourceText, "the comment's second line was dropped").toContain("// second line of the same comment")
 

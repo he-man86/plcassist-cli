@@ -183,8 +183,7 @@ END_VAR
 			// the other way round until this suite made the cost obvious: the reader takes them in either
 			// order, so a network typed the way the IDE displays it parsed fine and was then re-emitted
 			// swapped and refused as "not in canonical form".
-			`NETWORK 0 LD "interlock"
-  Guard:
+			`NETWORK 0 LD LABEL: Guard TITLE: "interlock"
   // holds the drive off while the guard is open
   // second line of the same comment
   out := (a AND b);
@@ -197,7 +196,7 @@ END_FUNCTION_BLOCK
 		await createItem(fid("rb_meta"), src, "")
 		const before = (await fetchItem(full)).sourceText
 		expect(before, "the title was dropped on create").toContain(`"interlock"`)
-		expect(before, "the label was dropped on create").toContain("Guard:")
+		expect(before, "the label was dropped on create").toContain("LABEL: Guard")
 		expect(before, "the comment was dropped on create").toContain("// holds the drive off")
 
 		// Change the LOGIC, which is what forces the rebuild. A title-only edit would leave the trees
@@ -212,7 +211,7 @@ END_FUNCTION_BLOCK
 		const after = (await fetchItem(full)).sourceText
 		expect(after, "the network metadata did not survive the rebuild").toBe(edited)
 		expect(after).toContain(`"interlock"`)
-		expect(after).toContain("Guard:")
+		expect(after).toContain("LABEL: Guard")
 		expect(after).toContain("// holds the drive off while the guard is open")
 		expect(after).toContain("// second line of the same comment")
 	})

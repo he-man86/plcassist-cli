@@ -49,14 +49,14 @@ describe(`graphical / labels and jumps (${BASE})`, () => {
 		const src =
 			`PROGRAM ${name}\nVAR\n\ta : BOOL;\n\tb : BOOL;\n\tout1 : BOOL;\n\tout2 : BOOL;\nEND_VAR\n\n` +
 			`NETWORK 0 FBD\n  out1 := (a AND b);\nEND_NETWORK\n` +
-			`NETWORK 1 FBD\n  Done:\n  out2 := (a OR b);\nEND_NETWORK\n\nEND_PROGRAM\n`
+			`NETWORK 1 FBD LABEL: Done\n  out2 := (a OR b);\nEND_NETWORK\n\nEND_PROGRAM\n`
 
 		const created = await pushOps([{ op: "set", name: item, toFolder: "", sourceText: src, ifVersion: null }])
 		expect(created.accepted, `create refused: ${JSON.stringify(created.conflicts)}`).toBe(true)
 
 		const v1 = await pull(item)
 		expect(v1, "the item vanished after its create").toBeDefined()
-		expect(v1.sourceText, "the network label was dropped").toContain("Done:")
+		expect(v1.sourceText, "the network label was dropped").toContain("LABEL: Done")
 
 		const refs = await bridge.refs()
 		const again = await pushOps([{ op: "set", name: item, sourceText: v1.sourceText, ifVersion: refs.items[item] }])
@@ -86,7 +86,7 @@ describe(`graphical / labels and jumps (${BASE})`, () => {
 		const src =
 			`PROGRAM ${name}\nVAR\n\ta : BOOL;\n\tb : BOOL;\n\tout : BOOL;\nEND_VAR\n\n` +
 			`NETWORK 0 FBD\n  IF a THEN JMP Done; END_IF\nEND_NETWORK\n` +
-			`NETWORK 1 FBD\n  Done:\n  out := (a OR b);\nEND_NETWORK\n\nEND_PROGRAM\n`
+			`NETWORK 1 FBD LABEL: Done\n  out := (a OR b);\nEND_NETWORK\n\nEND_PROGRAM\n`
 
 		const created = await pushOps([{ op: "set", name: item, toFolder: "", sourceText: src, ifVersion: null }])
 		expect(created.accepted, `create refused: ${JSON.stringify(created.conflicts)}`).toBe(true)
@@ -94,7 +94,7 @@ describe(`graphical / labels and jumps (${BASE})`, () => {
 		const v1 = await pull(item)
 		expect(v1).toBeDefined()
 		expect(v1.sourceText, "the jump was dropped").toMatch(/JMP\s+Done/i)
-		expect(v1.sourceText, "the jump's target label was dropped").toContain("Done:")
+		expect(v1.sourceText, "the jump's target label was dropped").toContain("LABEL: Done")
 
 		const refs = await bridge.refs()
 		const again = await pushOps([{ op: "set", name: item, sourceText: v1.sourceText, ifVersion: refs.items[item] }])
@@ -193,7 +193,7 @@ describe(`graphical / labels and jumps (${BASE})`, () => {
 		const src =
 			`PROGRAM ${name}\nVAR\n\ta : BOOL;\n\tb : BOOL;\n\tout : BOOL;\nEND_VAR\n\n` +
 			`NETWORK 0 FBD\n  JMP Done;\nEND_NETWORK\n` +
-			`NETWORK 1 FBD\n  Done:\n  out := (a AND b);\nEND_NETWORK\n\nEND_PROGRAM\n`
+			`NETWORK 1 FBD LABEL: Done\n  out := (a AND b);\nEND_NETWORK\n\nEND_PROGRAM\n`
 
 		const created = await pushOps([{ op: "set", name: item, toFolder: "", sourceText: src, ifVersion: null }])
 		if (!created.accepted) {

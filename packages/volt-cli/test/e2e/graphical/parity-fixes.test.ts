@@ -20,7 +20,7 @@ async function roundTrip(fullName: string, src: string): Promise<string> {
 	const refs = await bridge.refs()
 	const r = await bridge.push({
 		expectedProjectVersion: refs.projectVersion,
-		ops: [{ op: "set", name: fullName, toFolder: "", sourceText: src, ifVersion: refs.items[fullName] ?? null }],
+		ops: [{ op: "set", name: fullName, toFolder: refs.items[fullName] ? null : "", sourceText: src, ifVersion: refs.items[fullName] ?? null }],
 	})
 	expect(r.accepted, `push refused: ${JSON.stringify(r.conflicts)}`).toBe(true)
 	return (await fetchItem(fullName)).sourceText
@@ -61,7 +61,7 @@ describe(`graphical / parity fixes (${BASE})`, () => {
 		const refs = await bridge.refs()
 		const r = await bridge.push({
 			expectedProjectVersion: refs.projectVersion,
-			ops: [{ op: "set", name: full, toFolder: "", sourceText: src, ifVersion: refs.items[full] ?? null }],
+			ops: [{ op: "set", name: full, toFolder: refs.items[full] ? null : "", sourceText: src, ifVersion: refs.items[full] ?? null }],
 		})
 
 		if (!r.accepted) {
@@ -164,12 +164,12 @@ describe(`graphical / parity fixes (${BASE})`, () => {
 		const full = fid("pf_set", "prg")
 		const src =
 			`PROGRAM ${name}\nVAR\n\ta : BOOL;\n\tout : BOOL;\nEND_VAR\n\n` +
-			`NETWORK 0 LD\n  out := a SET;\nEND_NETWORK\n\n` +
+			`NETWORK 0 LD\n  out S= a;\nEND_NETWORK\n\n` +
 			`END_PROGRAM\n`
 
 		const back = await roundTrip(full, src)
 
-		expect(back).toContain("SET")
+		expect(back).toContain("S=")
 		expect(back).toBe(src)
 	})
 
@@ -183,7 +183,7 @@ describe(`graphical / parity fixes (${BASE})`, () => {
 		const full = fid("pf_fix", "prg")
 		const src =
 			`PROGRAM ${name}\nVAR\n\ta : BOOL;\n\tb : BOOL;\n\tout : BOOL;\nEND_VAR\n\n` +
-			`NETWORK 0 LD\n  out := (NOT a AND b) SET;\nEND_NETWORK\n\n` +
+			`NETWORK 0 LD\n  out S= (NOT a AND b);\nEND_NETWORK\n\n` +
 			`END_PROGRAM\n`
 
 		const once = await roundTrip(full, src)

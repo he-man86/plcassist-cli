@@ -109,7 +109,7 @@ VAR
 END_VAR
 
 NETWORK 0 LD
-  out := a SET;
+  out S= a;
 END_NETWORK
 
 END_PROGRAM
@@ -229,9 +229,10 @@ describe(`graphical / round-trip (${BASE})`, () => {
 		expect(after.sourceText).toContain("the answer")                      // …comments and all
 		expectNoOperandsLost(executeProgram(name), after.sourceText)
 
-		// Fixed point: re-pushing the fetched body is byte-identical (the round-trip is stable). An UPDATE omits
-		// toFolder (folder unchanged) — matching how `volt push` builds an update; a `toFolder: ""` here would
-		// read as "move to root" against the Device/Plc Logic/Application structure and be refused as a move.
+		// Fixed point: re-pushing the fetched body is byte-identical (the round-trip is stable). An UPDATE OMITS
+		// toFolder — matching how `volt push` builds one. That is not cosmetic: absent means "keep the current
+		// folder", while `toFolder: ""` is a real destination (the tree root) and would MOVE this item out of
+		// Device/Plc Logic/Application.
 		const refs2 = await bridge.refs()
 		const r2 = await bridge.push({ expectedProjectVersion: refs2.projectVersion, ops: [{ op: "set", name: fullName, sourceText: after.sourceText, ifVersion: refs2.items[fullName] }] })
 		expect(r2.accepted).toBe(true)

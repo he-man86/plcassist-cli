@@ -31,7 +31,7 @@ async function roundTrip(fullName: string, src: string): Promise<string> {
 	const refs = await bridge.refs()
 	const r = await bridge.push({
 		expectedProjectVersion: refs.projectVersion,
-		ops: [{ op: "set", name: fullName, toFolder: "", sourceText: src, ifVersion: refs.items[fullName] ?? null }],
+		ops: [{ op: "set", name: fullName, toFolder: refs.items[fullName] ? null : "", sourceText: src, ifVersion: refs.items[fullName] ?? null }],
 	})
 	expect(r.accepted, `push refused: ${JSON.stringify(r.conflicts)}`).toBe(true)
 	return (await fetchItem(fullName)).sourceText
@@ -45,7 +45,7 @@ async function survivesOrIsRefused(fullName: string, src: string): Promise<"roun
 	const refs = await bridge.refs()
 	const r = await bridge.push({
 		expectedProjectVersion: refs.projectVersion,
-		ops: [{ op: "set", name: fullName, toFolder: "", sourceText: src, ifVersion: refs.items[fullName] ?? null }],
+		ops: [{ op: "set", name: fullName, toFolder: refs.items[fullName] ? null : "", sourceText: src, ifVersion: refs.items[fullName] ?? null }],
 	})
 
 	if (!r.accepted) {
@@ -151,7 +151,7 @@ describe(`graphical / real-project shapes (${BASE})`, () => {
 		const full = fid("rp_text", "prg")
 		const src = program(
 			id("rp_text"),
-			`NETWORK 0 LD "Muting of alarm ""No bunch"""\n  //     aligned on purpose\n  out := (a AND b);\nEND_NETWORK\n`,
+			`NETWORK 0 LD TITLE: "Muting of alarm ""No bunch"""\n  //     aligned on purpose\n  out := (a AND b);\nEND_NETWORK\n`,
 		)
 
 		expect(await roundTrip(full, src)).toBe(src)
@@ -173,7 +173,7 @@ describe(`graphical / real-project shapes (${BASE})`, () => {
 		const full = fid("rp_fix", "prg")
 		const src = program(
 			id("rp_fix"),
-			`NETWORK 0 LD "a rung"\n  LET g0 := (a AND b);\n  out := g0;\n  out2 := g0;\nEND_NETWORK\n` +
+			`NETWORK 0 LD TITLE: "a rung"\n  LET g0 := (a AND b);\n  out := g0;\n  out2 := g0;\nEND_NETWORK\n` +
 				`NETWORK 1 LD\n  MOVE(a, b);\nEND_NETWORK\n`,
 		)
 
