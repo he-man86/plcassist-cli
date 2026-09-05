@@ -48,7 +48,7 @@ const RECORDINGS: ReadonlyArray<{ vendor: Vendor; filename: string; floor: numbe
   // divergences (parse cascades, app-config warnings, op_sys_* / __-system constructs) — not reproducible
   // offline; the subset (no-FP) gate stays green on them.
   { vendor: "twincat", filename: "expected-tc.json", floor: 253 },
-  { vendor: "codesys", filename: "expected-codesys.json", floor: 255 },   // +4: the `???` slots now match on text
+  { vendor: "codesys", filename: "expected-codesys.json", floor: 257 },   // the `???` slots match on text
 ]
 
 /** Fixtures that legitimately do NOT match, each with a documented reason. Empty until a real divergence

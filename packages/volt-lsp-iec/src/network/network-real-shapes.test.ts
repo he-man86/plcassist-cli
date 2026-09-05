@@ -109,21 +109,26 @@ const unresolved = (src: string) => diags(src).filter((d) => d.code === "NETWORK
 // answered every position with one invented sentence - "a box whose INSTANCE the IDE could not resolve" -
 // which is simply false on an input pin or a coil, where no instance exists.
 const OPERAND_MSG = "Expression expected instead of '?'"
+const OPERAND_TOKEN_MSG = "Unexpected token '?' found"
 const TARGET_MSG = "The assignment target is not specified."
 
-test("an unresolved box operand is an error, in the compiler's words", () => {
-  const got = unresolved(wrap("NETWORK 0 FBD\n  out := (??? AND a);\nEND_NETWORK"))
-  expect(got.length).toBe(1)
-  expect(got[0]!.severity).toBe("error")
-  expect(got[0]!.message).toBe(OPERAND_MSG)
+// AN OPERAND MARKER CARRIES BOTH OF THE COMPILER'S MESSAGES. CODESYS answers one `???` in an operand slot
+// with two errors - the position and the token - and both are reproducible, so the LSP emits both and the
+// conformance replay matches those fixtures EXACTLY rather than as a subset. Their spans differ (the whole
+// marker vs the `?` it choked on), which is also what keeps the corpus no-duplicate-(range,code) rule happy.
+const messagesOf = (src: string): string[] => unresolved(src).map((d) => d.message).sort()
+
+test("an unresolved box operand gets BOTH of the compiler's messages", () => {
+  const src = wrap("NETWORK 0 FBD\n  out := (??? AND a);\nEND_NETWORK")
+  expect(unresolved(src).every((d) => d.severity === "error")).toBe(true)
+  expect(messagesOf(src)).toEqual([OPERAND_MSG, OPERAND_TOKEN_MSG].sort())
 })
 
 test("an unresolved box on an INPUT PIN reads as an operand too", () => {
-  const got = unresolved(wrap("NETWORK 0 FBD\n  ctu(CU := ???, RESET := , PV := );\nEND_NETWORK"))
-  expect(got.length).toBe(1)
-  expect(got[0]!.message).toBe(OPERAND_MSG)
+  expect(messagesOf(wrap("NETWORK 0 FBD\n  ctu(CU := ???, RESET := , PV := );\nEND_NETWORK"))).toEqual(
+    [OPERAND_MSG, OPERAND_TOKEN_MSG].sort(),
+  )
 })
-
 test("an unresolved box as an ASSIGNMENT TARGET gets the TARGET message", () => {
   // The shape a real project actually carried: `??? := ioAxis.xVirtual;`
   const got = unresolved(wrap("NETWORK 0 FBD\n  ??? := a;\nEND_NETWORK"))
@@ -147,8 +152,10 @@ test("the span covers all three marks, so the squiggle sits on the marker", () =
   expect(src.slice(d.span.start, d.span.end)).toBe("???")
 })
 
-test("two unresolved boxes are two diagnostics, not six", () => {
-  expect(unresolved(wrap("NETWORK 0 FBD\n  out := (??? AND ???);\nEND_NETWORK")).length).toBe(2)
+test("two markers are two markers, not six tokens", () => {
+  // The marker is THREE `?` tokens and the walk must not report each one. Two operand markers = two
+  // markers x the compiler's two messages = 4, never 6 (or 12).
+  expect(unresolved(wrap("NETWORK 0 FBD\n  out := (??? AND ???);\nEND_NETWORK")).length).toBe(4)
 })
 
 test("a `???` inside a network TITLE is not reported", () => {
@@ -240,6 +247,7 @@ test("`??? : TYPE(PIN := v)` parses as a call, so the box's pins are still resol
   // what keeps the PINS analyzed — read as an unknown statement, an undeclared operand inside one would go
   // unreported.
   const got = diags(wrap("NETWORK 0 FBD\n  ??? : TON(IN := notDeclaredAnywhere, PT := );\nEND_NETWORK"))
-  expect(got.filter((d) => d.code === "NETWORK_UNRESOLVED_BOX").length).toBe(1)
+  // two: the instance marker sits in an operand slot, so it carries both compiler messages (above).
+  expect(got.filter((d) => d.code === "NETWORK_UNRESOLVED_BOX").length).toBe(2)
   expect(got.some((d) => d.message.includes("notDeclaredAnywhere"))).toBe(true)
 })

@@ -57,6 +57,14 @@ export interface Messages {
    *
    * PROVISIONAL ON TWINCAT, for the same reason as {@link unresolvedOperand}.
    */
+  /**
+   * The SECOND message CODESYS emits for a `???` in an operand position, about the TOKEN rather than the
+   * position. Both are emitted for the same marker, so the LSP emits both too — a marker in an operand slot
+   * is one of the few places the compiler's answer can be reproduced EXACTLY rather than as a subset.
+   *
+   * PROVISIONAL ON TWINCAT, as {@link unresolvedOperand}.
+   */
+  unresolvedOperandToken(): string
   unresolvedAssignTarget(): string
   undefinedIdentifier(name: string): string
   /** A bare global declared in 2+ GVLs — ambiguous unqualified reference (C0136). verified both vendors. */
@@ -363,6 +371,7 @@ export function messagesFor(vendor: Vendor): Messages {
     // Both MEASURED on live CODESYS SP21; unverified on TwinCAT (see the interface docs), so the CODESYS
     // wording stands for both rather than a guessed TC spelling.
     unresolvedOperand: () => "Expression expected instead of '?'",
+    unresolvedOperandToken: () => "Unexpected token '?' found",
     unresolvedAssignTarget: () => "The assignment target is not specified.",
     undefinedIdentifier: (name) => `Identifier '${name}' not defined`,
     // Live-verified both vendors (2026-07-11): CODESYS capital "Ambiguous", TwinCAT lowercase "ambiguous".

@@ -292,13 +292,41 @@ function checkUnresolvedBoxes(body: BodySpan, messages: Messages, out: Diagnosti
     while (n < toks.length && isTrivia(toks[n]!.kind)) n++
     const next = toks[n]
     const isTarget = next !== undefined && ASSIGN_OPS.has(next.text)
-    out.push({
-      severity: "error",
-      span: { ...a.span, end: c.span.end },
-      source: SOURCE,
-      code: "NETWORK_UNRESOLVED_BOX",
-      message: isTarget ? messages.unresolvedAssignTarget() : messages.unresolvedOperand(),
-    })
+    const marker = { ...a.span, end: c.span.end }
+
+    // AN OPERAND MARKER GETS BOTH OF THE COMPILER'S MESSAGES, because it emits both for the one marker and
+    // both are reproducible: they name the position and the token, and neither embeds anything invented.
+    // The spans differ so they say WHICH is which (and so the corpus gate's no-duplicate-(range,code) rule
+    // is satisfied): the position message covers `???`, the token message the `?` it choked on.
+    //
+    // The other positions stay a SUBSET on purpose. An unnamed INSTANCE answers with four, one of them a
+    // duplicate and one spelling a placeholder (`!!!'ERROR'!!!`); a target behind an unconnected enable
+    // answers with three, two of which name a temp the compiler invents (`__FB__ImpVar15`) whose number no
+    // offline check can reproduce. Emitting those would be imitating parser recovery, not matching a fact.
+    if (isTarget) {
+      out.push({
+        severity: "error",
+        span: marker,
+        source: SOURCE,
+        code: "NETWORK_UNRESOLVED_BOX",
+        message: messages.unresolvedAssignTarget(),
+      })
+    } else {
+      out.push({
+        severity: "error",
+        span: marker,
+        source: SOURCE,
+        code: "NETWORK_UNRESOLVED_BOX",
+        message: messages.unresolvedOperand(),
+      })
+      out.push({
+        severity: "error",
+        span: { ...a.span },
+        source: SOURCE,
+        code: "NETWORK_UNRESOLVED_BOX",
+        message: messages.unresolvedOperandToken(),
+      })
+    }
     i += 2 // one diagnostic per marker, not three overlapping ones
   }
 }
