@@ -19,7 +19,7 @@ public static class Extensions
     public const string FolderMarker = ".gitkeep";
 
     private static readonly ExtensionDef[] All =
-        ItemKind.FileExtensions.Select(x => new ExtensionDef(x.Ext, x.IsSource ? Access.Rw : Access.R)).ToArray();
+        ItemKind.FileExtensions.Select(x => new ExtensionDef(x.Ext, x.IsWritable ? Access.Rw : Access.R)).ToArray();
 
     private static readonly Dictionary<string, ExtensionDef> ByExt =
         All.ToDictionary(d => "." + d.Ext, StringComparer.OrdinalIgnoreCase);

@@ -7,6 +7,7 @@ using Volt.Contracts;
 using Volt.Engine.Library;
 using Volt.Engine.Format.Body;
 using Volt.Engine.Format.St;
+using Volt.Engine.Format.Task;
 
 namespace Volt.Ide.Codesys
 {
@@ -132,39 +133,49 @@ namespace Volt.Ide.Codesys
         /// priority, watchdog, and the POUs it calls each cycle. Read from the `ScriptTaskObject` facet (whose
         /// `watchdog` is a nested object and `pous` yields the called-POU names). The `.task` file body; not
         /// referenced by source, so the LSP carries it as project context ("PLC_PRG runs on MainTask @ t#20ms").</summary>
-        public string TaskDescriptor(object node)
+        public string TaskDescriptor(object node) => TaskDescriptorFormat.Write(ReadTask(node));
+
+        /// <summary>A task's settings, as data. The vendor half — which facet, which member name — is
+        /// irreducible and lives here; the FILE LAYOUT is the engine's
+        /// (<see cref="TaskDescriptorFormat"/>), which is what lets the read and the write share one
+        /// definition instead of two that agree by inspection.
+        ///
+        /// <para>An event task carries its trigger in one of two members and the vendor uses whichever suits
+        /// the task kind, so both are read and the first non-empty wins.</para>
+        ///
+        /// <para>A DISABLED watchdog is reported as ABSENT rather than as its numbers: the vendor keeps stale
+        /// values behind the flag, and rendering them would show a watchdog that does not run — then write
+        /// them back on the next push as if it did.</para></summary>
+        private TaskSettings ReadTask(object node)
         {
             var f = Facet(node, "ScriptTaskObject");
-            var d = new Descriptor(11)
-                .Add("Type", System.Convert.ToString(GetMember(f, "kind_of_task")))
-                .Add("Interval", Unitize(GetMember(f, "interval"), GetMember(f, "interval_unit")))
-                .Add("Priority", System.Convert.ToString(GetMember(f, "priority")));
-
-            // Event-triggered tasks carry the triggering (external) event variable; empty for cyclic/freewheeling.
             var ev = System.Convert.ToString(GetMember(f, "event"));
             if (string.IsNullOrWhiteSpace(ev)) ev = System.Convert.ToString(GetMember(f, "external_event"));
-            d.Add("Event", ev);
 
-            var wd = GetMember(f, "watchdog");
-            d.Add("Watchdog", wd != null && GetMember(wd, "enabled") is bool on && on
-                ? $"{Unitize(GetMember(wd, "time"), GetMember(wd, "time_unit"))} (sensitivity {System.Convert.ToString(GetMember(wd, "sensitivity"))?.Trim()})"
-                : "off");
+            TaskWatchdog? watchdog = null;
+            if (GetMember(f, "watchdog") is { } wd && GetMember(wd, "enabled") is bool on && on)
+                watchdog = new TaskWatchdog(
+                    Str(GetMember(wd, "time")), Str(GetMember(wd, "time_unit")), Str(GetMember(wd, "sensitivity")));
 
-            // The POUs this task calls each cycle (ScriptPouObjectList yields the POU names, in call order).
+            var calls = new List<string>();
             if (GetMember(f, "pous") is IEnumerable pous)
-            {
-                var names = new List<string>();
-                foreach (var p in pous) { var n = System.Convert.ToString(p)?.Trim(); if (!string.IsNullOrEmpty(n)) names.Add(n!); }
-                if (names.Count > 0) d.Add("Calls", string.Join(", ", names));
-            }
-            return d.ToString();
+                foreach (var p in pous)
+                {
+                    var n = System.Convert.ToString(p)?.Trim();
+                    if (!string.IsNullOrEmpty(n)) calls.Add(n!);
+                }
+
+            return new TaskSettings(
+                Str(GetMember(f, "kind_of_task")),
+                Str(GetMember(f, "interval")),
+                Str(GetMember(f, "interval_unit")),
+                Str(GetMember(f, "priority")),
+                string.IsNullOrWhiteSpace(ev) ? null : ev!.Trim(),
+                watchdog,
+                calls);
         }
 
-        // The rule is Engine's (Text/Descriptor.Unitize, where it has tests); this only turns the facet's
-        // boxed values into strings first.
-        private static string Unitize(object? value, object? unit) =>
-            Descriptor.Unitize(System.Convert.ToString(value), System.Convert.ToString(unit));
-
+        private static string Str(object? o) => System.Convert.ToString(o)?.Trim() ?? "";
         /// <summary>The symbol-configuration flags (`.symbols`): which access features a project exposes
         /// (OPC UA, direct I/O, attribute filter). The resolved exposed-symbol LIST is compiled-model state,
         /// not in the scripting facet — this captures the configuration.</summary>
@@ -208,6 +219,104 @@ namespace Volt.Ide.Codesys
 
         /// <summary>A named scripting facet of a node — device / project-info APIs live on the Extender's DLR
         /// extension list, not the base ScriptObject. Throws if the facet is absent (fail loud, no fallback).</summary>
+        /// <summary>Apply a task's settings to the vendor — the mirror of <see cref="TaskDescriptor"/>,
+        /// member for member, so the pair cannot drift.
+        ///
+        /// <para>Every field written here is a real setter, MEASURED rather than assumed
+        /// (`scripts/probe-task-writable.py`, live SP21). Two carry a trap worth naming: <c>priority</c> is a
+        /// STRING even though it reads as a number — handing it an int raises `TypeError: expected str, got
+        /// int`, which looks exactly like a read-only property and is not — and <c>interval</c> /
+        /// <c>interval_unit</c> are separate, so a TIME literal (`t#4ms`) carries no unit and writing one back
+        /// would double it. The engine's format keeps the two apart for that reason.</para>
+        ///
+        /// <para>The CALL LIST is REBUILT rather than diffed. `ScriptPouObjectList` offers add/insert/remove/
+        /// replace, and a positional diff would have to preserve per-entry comments Volt does not carry in the
+        /// descriptor; rebuilding keeps the file the single source of truth for what runs and in what ORDER,
+        /// which is the whole of what the `Calls:` line encodes.</para></summary>
+        public void WriteTask(object node, TaskSettings t)
+        {
+            var f = Facet(node, "ScriptTaskObject");
+            SetMember(f, "priority", t.Priority);
+            SetMember(f, "interval", t.Interval);
+            if (t.IntervalUnit.Length > 0) SetMember(f, "interval_unit", t.IntervalUnit);
+            SetMember(f, "event", t.Event ?? "");
+
+            // A disabled watchdog keeps stale numbers behind the flag, so the values are written only when it
+            // is ON — writing them for an `off` watchdog would resurrect numbers the file does not show.
+            if (GetMember(f, "watchdog") is { } wd)
+            {
+                SetMember(wd, "enabled", t.Watchdog != null);
+                if (t.Watchdog is { } w)
+                {
+                    SetMember(wd, "time", w.Time);
+                    if (w.Unit.Length > 0) SetMember(wd, "time_unit", w.Unit);
+                    SetMember(wd, "sensitivity", w.Sensitivity);
+                }
+            }
+
+            if (GetMember(f, "pous") is { } pous) WriteCallList(f, pous, t.Calls);
+        }
+
+        /// <summary>Replace a task's call list with exactly the POUs named, in order.
+        ///
+        /// <para><b>The list `pous` hands out is a VIEW, and mutating it is not an error — it is a NO-OP.</b>
+        /// Measured on live SP21 (`scripts/probe-task-calllist.py`): `remove(name)` returns happily and the
+        /// list is unchanged afterwards, `remove(index)` throws "Cannot remove the specified item because it
+        /// was not found in the specified Collection" (it is remove-by-VALUE, not by position), and `add` DOES
+        /// take. A rebuild written against that surface drains nothing and appends forever — the probe that
+        /// found this hung doing exactly that.</para>
+        ///
+        /// <para>The mutation therefore goes through <c>PerformWithWriteableCopy</c>, which is the vendor
+        /// saying so out loud. Two things about it are not guessable and were measured: it takes an
+        /// <c>Action&lt;T&gt;</c> whose T is a vendor type not referenced at compile time (so the callback is
+        /// built as an expression tree, the one place reflection alone cannot express the call), and the object
+        /// it hands back is the RAW <c>_3S.CoDeSys.TaskObject.PouObjectList</c> — NOT the
+        /// <c>ScriptPouObjectList</c> wrapper, so none of that wrapper's `add`/`remove`/`__len__` exists on it.
+        /// It is an ordinary <see cref="System.Collections.IList"/> of vendor POU objects, and a new entry is
+        /// minted by the task facet's own <c>CreatePouObject(name)</c>.</para>
+        ///
+        /// <para>Rebuilding rather than diffing is deliberate: an entry carries a per-entry COMMENT the
+        /// descriptor does not, so a positional diff would have to preserve something Volt cannot see. The
+        /// `Calls:` line means "these POUs, in this order", and that is exactly what gets written.</para></summary>
+        private static void WriteCallList(object taskFacet, object pous,
+                                          System.Collections.Generic.IReadOnlyList<string> calls)
+        {
+            var perform = pous.GetType().GetMethod("PerformWithWriteableCopy", BF)
+                ?? throw new InvalidOperationException(
+                    $"CODESYS: no PerformWithWriteableCopy on {pous.GetType().FullName} — a task's call list " +
+                    "cannot be rebuilt, and mutating the read-only view would silently do nothing.");
+
+            var actionType = perform.GetParameters()[0].ParameterType;      // Action<TWriteable>
+            var param = System.Linq.Expressions.Expression.Parameter(actionType.GetGenericArguments()[0], "list");
+            var body = System.Linq.Expressions.Expression.Call(
+                typeof(CodesysObjectModel).GetMethod(nameof(RebuildCallList), BindingFlags.NonPublic | BindingFlags.Static)!,
+                System.Linq.Expressions.Expression.Convert(param, typeof(object)),
+                System.Linq.Expressions.Expression.Constant(taskFacet),
+                System.Linq.Expressions.Expression.Constant(calls, typeof(System.Collections.Generic.IReadOnlyList<string>)));
+            var callback = System.Linq.Expressions.Expression.Lambda(actionType, body, param).Compile();
+
+            try { perform.Invoke(pous, new object?[] { callback }); }
+            catch (TargetInvocationException tie)
+            {
+                var inner = tie.InnerException ?? tie;
+                throw new InvalidOperationException($"CODESYS refused a task call-list rebuild: {inner.Message}", inner);
+            }
+        }
+
+        /// <summary>The mutation itself, against the WRITEABLE copy: clear, then append in call order.</summary>
+        private static void RebuildCallList(object writeable, object taskFacet,
+                                            System.Collections.Generic.IReadOnlyList<string> calls)
+        {
+            if (writeable is not System.Collections.IList list)
+                throw new InvalidOperationException(
+                    $"CODESYS: the writeable call list is a {writeable.GetType().FullName}, which is not an IList " +
+                    $"— it offers: {string.Join(", ", writeable.GetType().GetMethods(BF).Select(m => m.Name).Distinct().OrderBy(n => n))}");
+
+            list.Clear();
+            foreach (var name in calls)
+                list.Add(InvokeMethod(taskFacet, "CreatePouObject", name)
+                         ?? throw new InvalidOperationException($"CODESYS: CreatePouObject('{name}') returned nothing"));
+        }
         private object Facet(object node, string facetTypeName)
         {
             var ext = GetMember(Unwrap(node), "Extender");

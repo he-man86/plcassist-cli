@@ -6,6 +6,7 @@ using Volt.Engine;
 using Volt.Contracts;
 using Volt.Engine.Ide;
 using Volt.Engine.Format.Body;
+using Volt.Engine.Format.Task;
 using Volt.Engine.Item;
 
 namespace Volt.Ide.Twincat;
@@ -20,6 +21,17 @@ public sealed partial class BeckhoffDriver
     // TwinCAT's walk starts AT the PLC project root (folder paths are relative to it), so the tree root and the
     // PLC-project root are the same node — full and relative toFolder coincide, and this stays a no-op vs CODESYS.
     public ItemRef GetTreeRoot() => new(_om.PlcRoot());
+
+    /// <summary>REFUSED on TwinCAT, and the refusal is the honest answer rather than a gap left to trip over.
+    /// This vendor renders a `.task` as `Name=` / `linked-task=` — a different shape from the CODESYS
+    /// scheduling descriptor (the parity gap `docs/ITEM_KINDS.md` records) — so there is nothing here for the
+    /// shared <c>TaskSettings</c> to map onto. Writing one would mean inventing a mapping no live XAE has ever
+    /// confirmed, which is exactly the class of guess DIALECT.md exists to keep out.</summary>
+    public void WriteTask(ItemRef task, TaskSettings settings) =>
+        throw new BridgeException(BridgeErrorCodes.Unsupported,
+            "TwinCAT: a task's settings cannot be pushed. This vendor's `.task` descriptor is a different " +
+            "shape (Name= / linked-task=) from the CODESYS scheduling fields, and no mapping between them has " +
+            "been measured. Edit the task in the IDE.");
 
     public WalkResult WalkItems()
     {

@@ -7,6 +7,7 @@ using Volt.Engine.Format.Network;
 using Volt.Engine.Format.St;
 using Volt.Engine;
 using Volt.Engine.Ide;
+using Volt.Engine.Format.Task;
 using Volt.Engine.Item;
 
 namespace Volt.Ide.Codesys;
@@ -440,6 +441,10 @@ public sealed partial class CodesysDriver
     /// static: the DLL outlives a PipeHost.Stop()/Start() inside a running IDE, and a support session that
     /// restarts the bridge must get the warning again rather than inherit a silenced process.</summary>
     private readonly HashSet<string> _kindsWithoutReader = new HashSet<string>(StringComparer.Ordinal);
+
+    /// <summary>Write a task's settings back. The engine has already PARSED and GATED the descriptor, so
+    /// what arrives is data this driver cannot misread — all that is left is the vendor call.</summary>
+    public void WriteTask(ItemRef task, TaskSettings settings) => _om.WriteTask(task.Native, settings);
 
     public string ReadManifest(ItemRef item, string kind) =>
         item.Native is LibRefNode lib ? lib.Manifest

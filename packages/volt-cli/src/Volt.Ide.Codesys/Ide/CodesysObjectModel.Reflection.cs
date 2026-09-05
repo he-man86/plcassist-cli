@@ -30,15 +30,19 @@ namespace Volt.Ide.Codesys
             return m?.Invoke(o, null);
         }
 
+        /// <summary>Set a member, UNWRAPPING the reflection wrapper on failure. A vendor setter that rejects a
+        /// value throws inside `SetValue`, and reflection re-wraps it as "Exception has been thrown by the
+        /// target of an invocation" - which reaches the user as a push refusal saying nothing at all about what
+        /// they wrote. `InvokeMethod` has always unwrapped; this did not.</summary>
         private static void SetMember(object o, string name, object? value)
         {
             var t = o.GetType();
             var p = t.GetProperty(name, BF);
-            if (p != null && p.CanWrite) { p.SetValue(o, value); return; }
+            if (p != null && p.CanWrite) { Set(p, o, value, name); return; }
             foreach (var i in t.GetInterfaces())
             {
                 var ip = i.GetProperty(name);
-                if (ip != null && ip.CanWrite) { ip.SetValue(o, value); return; }
+                if (ip != null && ip.CanWrite) { Set(ip, o, value, name); return; }
             }
             throw new InvalidOperationException($"no writable '{name}' on {t.FullName}");
         }
@@ -49,6 +53,17 @@ namespace Volt.Ide.Codesys
         /// source-text write COMMITS, so a missed match made `push` report success while the edit never
         /// reached the project — and the build that followed saw no errors precisely because nothing changed.
         /// Use <see cref="TryInvokeMethod"/> where absence is a legitimate answer.</summary>
+        private static void Set(PropertyInfo p, object o, object? value, string name)
+        {
+            try { p.SetValue(o, value); }
+            catch (TargetInvocationException tie)
+            {
+                var inner = tie.InnerException ?? tie;
+                throw new InvalidOperationException(
+                    $"CODESYS refused '{name}' = {(value is null ? "null" : $"'{value}'")}: {inner.Message}", inner);
+            }
+        }
+
         private static object? InvokeMethod(object? o, string name, params object?[] args)
         {
             if (o == null) return null;

@@ -203,6 +203,18 @@ public static class ItemKind
         code is PlcPouProg or PlcPouFunc or PlcPouFb or PlcGvl or PlcItf
               or PlcDut or PlcDutEnum or PlcDutStruct or PlcDutUnion;
 
+    /// <summary>An item the WIRE ADDRESSES BY NAME at top level: every top-level source kind, plus the
+    /// writable reference kinds. This is what a lookup and the push's item cache want.
+    ///
+    /// <para><b>Deliberately NOT the same predicate as <see cref="IsTopLevelCrud"/></b>, which now means only
+    /// "is assembled ST". The two questions were the same until a descriptor became writable, and they read
+    /// alike — but <c>IsTopLevelCrud</c> also decides TwinCAT's hybrid-node detection (a node with children
+    /// that is not a top-level item) and whether a tree walk may descend past a name. A TwinCAT task HAS
+    /// children (its call references), so widening that one predicate would have quietly changed how the
+    /// TwinCAT walk classifies every task — on a vendor where tasks are not even writable.</para></summary>
+    public static bool IsAddressableItem(int code) =>
+        IsTopLevelCrud(code) || (Map(code) is { } kind && WritableReferenceSet.Contains(kind));
+
     /// <summary>Whether a kind string is a source kind (assembled ST text, not a manifest).</summary>
     public static bool IsSourceKind(string kind) => SourceKinds.Contains(kind);
 
@@ -316,6 +328,42 @@ public static class ItemKind
         (Kinds.ClassDiagram, "class_diagram"), (Kinds.ExternalTypes, "external_types"), (Kinds.TmcFile, "tmc"),
     };
 
+    /// <summary>Reference kinds that are nonetheless WRITABLE — a descriptor Volt can push back, not just
+    /// render.
+    ///
+    /// <para><b>Writable is not the same as SOURCE, and conflating the two is what kept this list from
+    /// existing.</b> Access used to be derived straight from "did this kind come from the source list", which
+    /// is right for everything that is assembled ST and wrong for a descriptor: a `.task` is not structured
+    /// text, the LSP must not parse it as such, and `volt init` must not colour it as ST — yet its fields are
+    /// perfectly writable on the vendor (interval, priority, watchdog and the call list, every one a setter
+    /// measured live: `scripts/probe-task-writable.py`). Keeping it OUT of the source list is also what leaves
+    /// the four SOURCE_EXTENSIONS manifests (`scripts/check-wiring.ts`) untouched.</para>
+    ///
+    /// <para>CODESYS ONLY today. TwinCAT renders a different `.task` shape (`Name=` / `linked-task=`, the
+    /// parity gap ITEM_KINDS.md already records), so its driver refuses the write rather than guessing at a
+    /// format nobody has measured.</para></summary>
+    public static readonly IReadOnlyList<string> WritableReferenceKinds = new[] { Kinds.Task };
+
+    private static readonly HashSet<string> WritableReferenceSet =
+        new(WritableReferenceKinds, StringComparer.Ordinal);
+
+    private static readonly Dictionary<string, string> KindByFileExt =
+        SourceKindExtensions.Concat(ReferenceKindExtensions)
+            .ToDictionary(x => x.Ext, x => x.Kind, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The kind a WIRE NAME denotes, read off its extension (`MainTask.task` — `task`).
+    ///
+    /// <para>The wire is keyed by the FULL name and the extension IS the kind on it, so this is a lookup
+    /// rather than an inference. It exists because a push has to route BEFORE it has an item: a create has no
+    /// existing handle to ask, and the pre-flight runs before anything is resolved — and routing a `.task`
+    /// through the ST reader would refuse every one of them as a malformed document.</para></summary>
+    public static string? KindForWireName(string wireName)
+    {
+        var dot = (wireName ?? "").LastIndexOf('.');
+        return dot < 0 ? null
+             : KindByFileExt.TryGetValue(wireName!.Substring(dot + 1), out var kind) ? kind : null;
+    }
+
     private static readonly HashSet<string> SourceKinds =
         new(SourceKindExtensions.Select(x => x.Kind), StringComparer.Ordinal);
 
@@ -323,18 +371,21 @@ public static class ItemKind
         SourceKindExtensions.Concat(ReferenceKindExtensions)
             .ToDictionary(x => x.Kind, x => x.Ext, StringComparer.Ordinal);
 
-    /// <summary>Every workspace file extension paired with whether it is writable source (<c>true</c>) vs a
-    /// read-only reference (<c>false</c>) — the CLI's <c>Volt.Cli.Sync.Extensions</c> registry is built from
-    /// this, so access and the extension list live in ONE place.
+    /// <summary>Every workspace file extension with TWO flags: whether it is ST SOURCE (the LSP parses it,
+    /// `volt init` colours it) and whether a push may WRITE it. Those are different questions — see
+    /// <see cref="WritableReferenceKinds"/> — and the CLI's <c>Volt.Cli.Sync.Extensions</c> registry is built
+    /// from this, so access and the extension list live in ONE place.
     ///
     /// <para>A DUT contributes its FOUR subtype extensions and <c>dut</c> is NOT among them: no path writes a
     /// <c>.dut</c> file — not the materializer, not the library-signature renderer — so recognizing one would
     /// advertise a file Volt never produces. <c>dut</c> remains the WIRE kind (see <see cref="WireExtFor"/>),
     /// which is a different name in a different place.</para></summary>
-    public static IEnumerable<(string Ext, bool IsSource)> FileExtensions =>
-        SourceKindExtensions.Where(x => x.Kind != Kinds.Dut).Select(x => (x.Ext, true))
-            .Concat(DutFileExtensions.Select(ext => (ext, true)))
-            .Concat(ReferenceKindExtensions.Select(x => (x.Ext, false)));
+    public static IEnumerable<(string Ext, bool IsSource, bool IsWritable)> FileExtensions =>
+        SourceKindExtensions.Where(x => x.Kind != Kinds.Dut)
+            .Select(x => (Ext: x.Ext, IsSource: true, IsWritable: true))
+            .Concat(DutFileExtensions.Select(ext => (Ext: ext, IsSource: true, IsWritable: true)))
+            .Concat(ReferenceKindExtensions.Select(
+                x => (Ext: x.Ext, IsSource: false, IsWritable: WritableReferenceSet.Contains(x.Kind))));
 
     /// <summary>Workspace file extension for a kind string (lowercase). No silent fallback — an unmapped kind
     /// throws so a new kind is caught, not dropped. That includes <see cref="Kinds.Folder"/>: a folder is a PATH

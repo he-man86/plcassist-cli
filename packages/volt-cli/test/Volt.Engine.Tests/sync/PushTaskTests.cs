@@ -1,0 +1,172 @@
+using System.Linq;
+using Xunit;
+using Volt.Contracts;
+using Volt.Engine.Format.Task;
+using Volt.Engine.Ide;
+using Volt.Engine.Item;
+using Volt.Engine.Sync;
+using Volt.Tests.Shared;
+
+namespace Volt.Engine.Tests;
+
+/// <summary>
+/// Pushing a `.task`, which is the first NON-SOURCE kind a push may write.
+///
+/// <para>Everything else reaching <c>ApplySetItem</c> is assembled ST, and a task is not: routing it through
+/// the ST reader would refuse every task push as a malformed document, in the PRE-FLIGHT, before the item is
+/// even resolved. So the ROUTING is what these pin (the descriptor's own layout has its own tests), along
+/// with the two structural edits a workspace can express for a task that it cannot for a POU: one ADDED, and
+/// one DELETED.</para>
+/// </summary>
+public class PushTaskTests
+{
+    private const string Body =
+        "Type:      Cyclic\n" +
+        "Interval:  20 ms\n" +
+        "Priority:  5\n" +
+        "Watchdog:  16 ms (sensitivity 2)\n" +
+        "Calls:     PLC_PRG\n";
+
+    private static FakeIde WithTask(string name = "MainTask") =>
+        new(new FakeIde.Item(name, ItemKind.PlcTask, "Device/Plc Logic/Application/Task Configuration",
+                             true, null, null, null, null));
+
+    private static (string Version, string ProjectVersion) Ver(FakeIde ide, string full)
+    {
+        var refs = RefsService.Handle(ide);
+        return (refs.Items[full], refs.ProjectVersion!);
+    }
+
+    private static PushResponse Push(FakeIde ide, string projectVersion, params PushOp[] ops) =>
+        PushService.Handle(ide, new PushRequest { ExpectedProjectVersion = projectVersion, Ops = ops.ToList() });
+
+    [Fact]
+    public void A_task_is_PUSHABLE_at_all()
+    {
+        // `.task` used to be read-only by virtue of not being ST — access was derived from "is this a source
+        // kind", so a descriptor could never be written however writable the vendor made it.
+        var task = ItemKind.FileExtensions.Single(x => x.Ext == ItemKind.ExtFor(ItemKind.Kinds.Task));
+        Assert.True(task.IsWritable);
+        // …and it is still NOT source: not ST, never parsed as ST, and absent from the four
+        // SOURCE_EXTENSIONS manifests the wiring check compares.
+        Assert.False(task.IsSource);
+        Assert.False(ItemKind.IsSourceKind(ItemKind.Kinds.Task));
+    }
+
+    [Fact]
+    public void An_edited_task_reaches_the_driver_as_DATA_not_text()
+    {
+        var ide = WithTask();
+        var (v, pv) = Ver(ide, "MainTask.task");
+        var resp = Push(ide, pv, new SetItemOp { Name = "MainTask.task", IfVersion = v, SourceText = Body });
+
+        Assert.True(resp.Accepted);
+        Assert.Contains("writetask:MainTask", ide.Recorded);
+        // The engine parsed and gated it, so the driver never sees the file layout.
+        var written = ide.WrittenTasks["MainTask"];
+        Assert.Equal("5", written.Priority);
+        Assert.Equal("20", written.Interval);
+        Assert.Equal("ms", written.IntervalUnit);
+        Assert.Equal("16", written.Watchdog!.Time);
+        Assert.Equal(new[] { "PLC_PRG" }, written.Calls);
+    }
+
+    [Fact]
+    public void A_task_never_goes_through_the_ST_writer()
+    {
+        var ide = WithTask();
+        var (v, pv) = Ver(ide, "MainTask.task");
+        Push(ide, pv, new SetItemOp { Name = "MainTask.task", IfVersion = v, SourceText = Body });
+        // `writecontent:` is the ST path. A descriptor taking it would mean the body was spliced as a POU.
+        Assert.DoesNotContain(ide.Recorded, r => r.StartsWith("writecontent:"));
+    }
+
+    [Fact]
+    public void A_NEW_task_file_creates_a_real_task()
+    {
+        // The workspace can express a task that did not exist. Nothing else in the push had to learn about it:
+        // the create resolves the Task Configuration folder like any other placement.
+        var ide = WithTask();
+        var pv = RefsService.Handle(ide).ProjectVersion!;
+        var resp = Push(ide, pv, new SetItemOp
+        {
+            Name = "FastTask.task",
+            IfVersion = null,
+            ToFolder = "Device/Plc Logic/Application/Task Configuration",
+            SourceText = Body,
+        });
+
+        Assert.True(resp.Accepted);
+        Assert.Contains("create:FastTask", ide.Recorded);
+        Assert.Equal(ItemKind.PlcTask, ide.CreatedKinds["FastTask"]);
+        Assert.Contains("writetask:FastTask", ide.Recorded);
+    }
+
+    [Fact]
+    public void A_DELETED_task_file_removes_the_task()
+    {
+        // This needed no task-specific code at all — it falls out of `.task` being pushable, which is the point:
+        // a delete op was always generic, it just could never be BUILT for a read-only kind.
+        var ide = WithTask();
+        var (v, pv) = Ver(ide, "MainTask.task");
+        var resp = Push(ide, pv, new DeleteItemOp { Name = "MainTask.task", IfVersion = v });
+
+        Assert.True(resp.Accepted);
+        Assert.Contains("delete:MainTask", ide.Recorded);
+    }
+
+    [Fact]
+    public void A_RENAMED_task_file_renames_the_task_in_the_IDE()
+    {
+        var ide = WithTask();
+        var (v, pv) = Ver(ide, "MainTask.task");
+        var resp = Push(ide, pv, new SetItemOp
+        {
+            Name = "MainTask.task",
+            ToName = "SlowTask.task",
+            IfVersion = v,
+            SourceText = Body,
+        });
+
+        Assert.True(resp.Accepted);
+        // The IDE's own rename, so whatever references the task follows it.
+        Assert.Contains("rename:MainTask->SlowTask", ide.Recorded);
+        Assert.Contains("writetask:SlowTask", ide.Recorded);
+    }
+
+    [Fact]
+    public void A_BODY_THAT_IS_NOT_CANONICAL_IS_REFUSED_before_anything_is_written()
+    {
+        // Hand-typed spacing parses but would be rewritten by the next pull. The refusal carries the exact text
+        // to use, and — because it happens in the pre-flight — nothing was touched.
+        var ide = WithTask();
+        var (v, pv) = Ver(ide, "MainTask.task");
+        var resp = Push(ide, pv, new SetItemOp
+        {
+            Name = "MainTask.task",
+            IfVersion = v,
+            SourceText = "Type: Cyclic\nPriority: 5\nWatchdog: off\n",
+        });
+
+        Assert.False(resp.Accepted);
+        Assert.Contains("Type:      Cyclic", resp.Conflicts![0].Reason);
+        Assert.Empty(ide.Recorded);
+    }
+
+    [Fact]
+    public void A_FIELD_VOLT_CANNOT_ROUND_TRIP_stops_the_push()
+    {
+        var ide = WithTask();
+        var (v, pv) = Ver(ide, "MainTask.task");
+        var resp = Push(ide, pv, new SetItemOp
+        {
+            Name = "MainTask.task",
+            IfVersion = v,
+            SourceText = Body.TrimEnd('\n') + "\nCoreBinding: 2\n",
+        });
+
+        Assert.False(resp.Accepted);
+        Assert.Contains("CoreBinding", resp.Conflicts![0].Reason);
+        Assert.Empty(ide.Recorded);
+    }
+}

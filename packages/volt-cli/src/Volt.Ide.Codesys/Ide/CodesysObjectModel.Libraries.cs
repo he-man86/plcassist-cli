@@ -364,6 +364,14 @@ namespace Volt.Ide.Codesys
                 // chosen by Volt.
                 case ItemKind.PlcDut: return Create(c, "create_dut", name, EnumValue("DutType", "Structure"));
                 case ItemKind.PlcGvl: return Create(c, "create_gvl", name);
+                // A TASK is created on the TASK CONFIGURATION, not on the IEC language container - a
+                // different facet with a single `create_task(name)` (measured: scripts/probe-task-create.py).
+                // The parent here IS the Task Configuration node, because that is the folder the walk emits
+                // a task under and therefore the folder a new `.task` file resolves to.
+                case ItemKind.PlcTask:
+                    return InvokeMethod(Facet(parent, "ScriptTaskConfigObject"), "create_task", name)
+                        ?? throw new InvalidOperationException(
+                            $"CODESYS: create_task('{name}') returned nothing");
                 case ItemKind.PlcItf: return Create(c, "create_interface", name);
                 // Inline POU children (method/action/property) live on a DIFFERENT
                 // container — ScriptIecLanguageMemberContainer — whose create_* methods

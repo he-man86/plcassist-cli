@@ -7,6 +7,7 @@ using Volt.Contracts;
 using Volt.Engine;
 using Volt.Engine.Item;
 using Volt.Engine.Format.Network;
+using Volt.Engine.Format.Task;
 using Volt.Engine.Ide;
 using Volt.Engine.Library;
 using Volt.Engine.Format.St;
@@ -53,7 +54,7 @@ public static class PushService
             // BARE on purpose: that is the IDE's OWN lookup key, one rung below the wire.
             currentVersions[v.Identity] = version;
             if (ProjectSnapshot.IsTracked(it.KindCode)) gatedVersions[v.Identity] = version;
-            if (ItemKind.IsTopLevelCrud(it.KindCode)) itemCache[it.Name] = (it.Item, it.Folder);
+            if (ItemKind.IsAddressableItem(it.KindCode)) itemCache[it.Name] = (it.Item, it.Folder);
         }
 
         var currentProjectVersion = Hasher.ComputeProjectVersion(gatedVersions);
@@ -109,7 +110,13 @@ public static class PushService
         foreach (var op in request.Ops)
         {
             if (op is not SetItemOp { SourceText: { } text } set) continue;
-            try { ValidateSourceOrThrow(text, Materializer.Bare(set.Name)); }
+            // A `.task` is a DESCRIPTOR, not assembled ST, so it is gated by its own format. Routing it
+            // through `ValidateSourceOrThrow` would refuse every task push as a malformed document.
+            try
+            {
+                if (IsTask(set.Name)) TaskDescriptorFormat.Gate(text);
+                else ValidateSourceOrThrow(text, Materializer.Bare(set.Name));
+            }
             catch (Exception ex) { return Reject(op, ex); }
         }
         onProgress?.Invoke(new ProgressFrame { Operation = Ops.Push, Done = 0, Total = opTotal, Phase = "applying" });
@@ -204,6 +211,8 @@ public static class PushService
 
         switch (op)
         {
+            case SetItemOp set when IsTask(set.Name):
+                return ApplySetTask(ide, name, existing, set);
             case SetItemOp set:
                 return ApplySetItem(ide, name, existing, currentFolder, set, force, pushedDeclarations);
             case DeleteItemOp when existing is { } del:
@@ -225,6 +234,54 @@ public static class PushService
                     $"push op for '{name}' has no recognised 'op' discriminator — expected \"set\" or " +
                     "\"deleteItem\" (lower-camel, exactly). The op was ignored rather than applied.");
         }
+    }
+
+    /// <summary>Is this wire name a TASK? Read off the extension, because routing happens before the item is
+    /// resolved — a create has no handle to ask, and the pre-flight runs earlier still.</summary>
+    private static bool IsTask(string wireName) => ItemKind.KindForWireName(wireName) == ItemKind.Kinds.Task;
+
+    /// <summary>Create or update a TASK from its descriptor — the one non-source kind a push may write.
+    ///
+    /// <para>The body was already GATED in the pre-flight, and is gated again here for the same reason every
+    /// other write re-checks: this method is reachable on its own and a silent reshape of a schedule is worse
+    /// than a refusal. Gating is a parse, not an IDE call, so it costs nothing worth saving.</para>
+    ///
+    /// <para>DELETING a task needs nothing here: `.task` is pushable now, so a removed file becomes an
+    /// ordinary <c>deleteItem</c> op and the generic delete removes the object. What a task does NOT get is
+    /// the move path — <c>MoveItem</c> refuses a non-source kind, and a task lives in the Task Configuration
+    /// by definition, so there is nowhere for it to move to.</para></summary>
+    private static string ApplySetTask(IIdeDriver ide, string name, ItemRef? existing, SetItemOp op)
+    {
+        if (op.SourceText is not { } src)
+            throw new BridgeException(BridgeErrorCodes.BadRequest,
+                $"set '{op.Name}': a task carries all of its state in its descriptor, so a push over one must " +
+                "send sourceText (there is no separate body to leave unchanged).");
+        var settings = TaskDescriptorFormat.Gate(src);
+
+        ItemRef task;
+        var action = "updated";
+        if (existing is { } found)
+        {
+            task = found;
+            // A renamed `.task` file is a renamed TASK. The IDE's own rename runs first so anything that
+            // references the task by name is rewritten by the IDE rather than left dangling by Volt.
+            if (op.ToName is { } toName && !string.Equals(Materializer.Bare(toName), name, StringComparison.Ordinal))
+            {
+                ide.Rename(task, Materializer.Bare(toName));
+                task = ItemLookup.Find(ide, Materializer.Bare(toName))
+                    ?? throw new BridgeException(BridgeErrorCodes.NotFound,
+                        $"task '{name}' could not be found after being renamed to '{toName}'");
+                action = "renamed+updated";
+            }
+        }
+        else
+        {
+            task = ide.CreateChild(TreeNav.ResolveTopLevelFolder(ide, op.ToFolder), name, ItemKind.PlcTask);
+            action = "created";
+        }
+
+        ide.WriteTask(task, settings);
+        return action;
     }
 
     /// <summary>Apply one unified change. A rename uses the IDE's native rename (rewrites call-sites) and

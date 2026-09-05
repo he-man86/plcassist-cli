@@ -1,3 +1,4 @@
+using Volt.Engine.Format.Task;
 using Volt.Engine.Item;
 
 namespace Volt.Engine.Ide;
@@ -64,4 +65,17 @@ public interface ICodeStore
     /// kind-stamped body <c>ItemKind.EmptyManifest(kind)</c> — never null, never empty, so the version basis
     /// stays stable. Throws on real IDE failure; there is no silent fallback.</summary>
     string ReadManifest(ItemRef item, string kind);
+
+    /// <summary>Write a TASK's settings back — the one descriptor kind that is not read-only.
+    ///
+    /// <para>Typed rather than textual, unlike the textual manifests it sits beside: the `.task`
+    /// FORMAT is shared (<c>Volt.Engine.Format.Task.TaskDescriptorFormat</c>) and is parsed and GATED once in
+    /// the engine, so a driver receives data it cannot misread and never re-implements the file layout. That
+    /// is the same seam <c>ICodeStore</c> keeps everywhere else — the engine owns the representation, the
+    /// driver owns the vendor call.</para>
+    ///
+    /// <para>CODESYS only. Every field is a live setter there (`scripts/probe-task-writable.py`); TwinCAT
+    /// renders a different `.task` shape entirely and REFUSES rather than guess at one nobody has
+    /// measured.</para></summary>
+    void WriteTask(ItemRef task, TaskSettings settings);
 }

@@ -73,7 +73,7 @@ public static class ItemLookup
                     $"({ex.Message}). Refusing to report it as absent.");
             }
 
-            if (ItemKind.IsTopLevelCrud(kind) &&
+            if (ItemKind.IsAddressableItem(kind) &&
                 string.Equals(childName, name, System.StringComparison.OrdinalIgnoreCase))
                 return child;
 
@@ -82,7 +82,7 @@ public static class ItemLookup
             // folders, which is why "recurse only into folders" would never have found anything there).
             // Stopping AT a top-level item is what keeps this off a POU's methods — the walk that made TwinCAT's
             // version cheap, generalized.
-            if (ItemKind.IsTopLevelCrud(kind)) continue;
+            if (ItemKind.IsAddressableItem(kind)) continue;
             if (Find(tree, child, name, depth + 1) is { } hit) return hit;
         }
         return null;

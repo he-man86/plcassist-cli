@@ -7,6 +7,7 @@ using Volt.Contracts;
 using Volt.Engine.Ide;
 using Volt.Engine.Library;
 using Volt.Engine.Format.Body;
+using Volt.Engine.Format.Task;
 using Volt.Engine.Host;
 using Volt.Engine.Item;
 
@@ -285,6 +286,16 @@ public sealed class FakeIde : DriverBase, IIdeDriver
     /// empty `toFolder` resolving to the Application instead of the tree root stayed invisible offline.</summary>
     public Dictionary<string, string> CreatedParents { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Task settings pushed, by item name. Recorded rather than applied, like every other mutation
+    /// here - the point is which call the engine made, and with what.</summary>
+    public Dictionary<string, TaskSettings> WrittenTasks { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public void WriteTask(ItemRef task, TaskSettings settings)
+    {
+        Recorded.Add($"writetask:{NameOf(task)}");
+        WrittenTasks[NameOf(task)] = settings;
+    }
+
     public ItemRef CreateChild(ItemRef parent, string name, int kindCode, string? seed = null)
     {
         Recorded.Add($"create:{name}");
@@ -296,7 +307,7 @@ public sealed class FakeIde : DriverBase, IIdeDriver
         // <InterfaceAsPlainText> and a <body>. The fake used to record the call and nothing more, so a create
         // followed by a read threw "sequence contains no matching element" — which made the single-document
         // CREATE path (CreateChild, then splice the new item's own export) impossible to test here at all.
-        if (ItemKind.IsTopLevelCrud(kindCode) && !_items.Any(i => i.Name == name))
+        if (ItemKind.IsAddressableItem(kindCode) && !_items.Any(i => i.Name == name))
             _items.Add(new Item(name, kindCode, "", true, DefaultDeclaration(kindCode, name), "", null, null));
 
         // A CREATED MEMBER IS FINDABLE UNDER ITS PARENT, and a created FOLDER is not an item. Both halves
