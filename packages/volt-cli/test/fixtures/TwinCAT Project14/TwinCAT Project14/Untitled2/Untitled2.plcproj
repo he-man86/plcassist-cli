@@ -48,6 +48,9 @@
     <Compile Include="POUs\VltFixtureSfc.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="VltE2E_boxout.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="DUTs" />
