@@ -104,16 +104,41 @@ test("an opaque leaf binding is not reported as an undeclared call", () => {
 
 const unresolved = (src: string) => diags(src).filter((d) => d.code === "NETWORK_UNRESOLVED_BOX")
 
-test("an unresolved box operand is an error", () => {
+// THE MESSAGE IS THE COMPILER'S, AND IT DEPENDS ON THE SLOT. Both strings below are CODESYS's own, recorded
+// live and held byte-for-byte by `test/conformance/fixtures/network-unresolved.ts`. Until 2026-09-05 the LSP
+// answered every position with one invented sentence - "a box whose INSTANCE the IDE could not resolve" -
+// which is simply false on an input pin or a coil, where no instance exists.
+const OPERAND_MSG = "Expression expected instead of '?'"
+const TARGET_MSG = "The assignment target is not specified."
+
+test("an unresolved box operand is an error, in the compiler's words", () => {
   const got = unresolved(wrap("NETWORK 0 FBD\n  out := (??? AND a);\nEND_NETWORK"))
   expect(got.length).toBe(1)
   expect(got[0]!.severity).toBe("error")
-  expect(got[0]!.message).toContain("will not compile")
+  expect(got[0]!.message).toBe(OPERAND_MSG)
 })
 
-test("an unresolved box as an ASSIGNMENT TARGET is an error too", () => {
+test("an unresolved box on an INPUT PIN reads as an operand too", () => {
+  const got = unresolved(wrap("NETWORK 0 FBD\n  ctu(CU := ???, RESET := , PV := );\nEND_NETWORK"))
+  expect(got.length).toBe(1)
+  expect(got[0]!.message).toBe(OPERAND_MSG)
+})
+
+test("an unresolved box as an ASSIGNMENT TARGET gets the TARGET message", () => {
   // The shape a real project actually carried: `??? := ioAxis.xVirtual;`
-  expect(unresolved(wrap("NETWORK 0 FBD\n  ??? := a;\nEND_NETWORK")).length).toBe(1)
+  const got = unresolved(wrap("NETWORK 0 FBD\n  ??? := a;\nEND_NETWORK"))
+  expect(got.length).toBe(1)
+  expect(got[0]!.message).toBe(TARGET_MSG)
+})
+
+test("a coil's STORAGE operator marks a target as surely as `:=`", () => {
+  // `S=`/`R=` are the coil-kind spelling, so they end a target just like `:=` - reading only `:=` would send
+  // a SET coil down the operand arm and print the wrong compiler message.
+  for (const op of ["S=", "R="]) {
+    const got = unresolved(wrap(`NETWORK 0 LD\n  ??? ${op} a;\nEND_NETWORK`))
+    expect(got.length, op).toBe(1)
+    expect(got[0]!.message, op).toBe(TARGET_MSG)
+  }
 })
 
 test("the span covers all three marks, so the squiggle sits on the marker", () => {
@@ -205,4 +230,16 @@ test("the label/comment ordering question no longer exists", () => {
   const titleFirst = wrap('NETWORK 0 LD TITLE: "t" LABEL: Guard\n  // why\n  out := a;\nEND_NETWORK')
   expect(diags(labelFirst).map((d) => d.code)).toEqual([])
   expect(diags(titleFirst).map((d) => d.code)).toEqual([])
+})
+
+// ── §2.2 an unnamed instance carries its TYPE ────────────────────────────────────────────────
+
+test("`??? : TYPE(PIN := v)` parses as a call, so the box's pins are still resolved", () => {
+  // The format spells the type inline for exactly this instance: `???` is declared nowhere, so the push has
+  // no declaration to read the type off (Lenze_MID-S100 `POU.prg`, four such boxes). Parsing it as a call is
+  // what keeps the PINS analyzed — read as an unknown statement, an undeclared operand inside one would go
+  // unreported.
+  const got = diags(wrap("NETWORK 0 FBD\n  ??? : TON(IN := notDeclaredAnywhere, PT := );\nEND_NETWORK"))
+  expect(got.filter((d) => d.code === "NETWORK_UNRESOLVED_BOX").length).toBe(1)
+  expect(got.some((d) => d.message.includes("notDeclaredAnywhere"))).toBe(true)
 })

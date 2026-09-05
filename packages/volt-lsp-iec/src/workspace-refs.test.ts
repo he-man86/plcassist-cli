@@ -8,6 +8,9 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { loadTaskRoots, loadLibraryNamespaces, loadDeviceInstances, loadWorkspaceRefs, scanWorkspace } from "./workspace-refs.js"
+import { WorkspaceStore } from "./server/workspace-store.js"
+import { documentDiagnostics } from "./server/diagnostics.js"
+import { messagesFor, resolveConfig } from "./analysis/index.js"
 
 let root: string
 
@@ -86,6 +89,47 @@ test("the workspace scan picks up the project's .projectsettings", () => {
     const scan = scanWorkspace(dir)
     expect(scan.projectDiagnostics).toEqual({ "inout-own-access": "off" })
     expect(scan.sources.length).toBe(1) // the settings file is NOT a source unit
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+/**
+ * THE SETTINGS HAVE TO REACH THE ANALYSIS, not merely be parsed out of the file.
+ *
+ * Everything around this was already covered — `projectDiagnosticsFrom` parses the lines (config.test.ts),
+ * `scanWorkspace` finds the file (above), and `resolveConfig` gives the project the last word — and a chain
+ * of green links is still not a connected chain. `projectDiagnostics` rides on the SCAN, beside `refs` rather
+ * than inside it, so a consumer holding only `loadWorkspaceRefs(dir)` gets a workspace where the project's
+ * compiler settings silently do nothing. Every test above passes in that world.
+ *
+ * So this asks the only question that matters end to end: with the file on disk, is the diagnostic GONE?
+ * Measured against the real corpus when this was written, pro2193's single `Disabled warnings: C0371` line
+ * suppresses 1242 diagnostics — the size of what a broken link would quietly restore.
+ */
+test("a disabled warning in .projectsettings actually suppresses the diagnostic, end to end", () => {
+  const dir = mkdtempSync(join(tmpdir(), "volt-ps-"))
+  // `n;` is a bare expression statement: C0139, one of the codes the compiler-warnings dialog can switch off.
+  const noOpCount = (): number => {
+    const scan = scanWorkspace(dir)
+    const store = new WorkspaceStore(resolveConfig({ vendor: "codesys", diagnostics: scan.projectDiagnostics }))
+    store.workspaceRefs = loadWorkspaceRefs(dir)
+    store.taskRoots = loadTaskRoots(dir)
+    store.seedDisk(scan.sources.map((f) => ({ uri: f.path, source: f.source })))
+    let n = 0
+    for (const d of store.workspace())
+      for (const diag of documentDiagnostics(store, messagesFor("codesys"), d))
+        // the WIRE code, which is what a client sees: `documentDiagnostics` stamps the catalog `Cnnnn`
+        // over the internal slug, so filtering on "no-op-statement" here matches nothing and passes vacuously.
+        if (String(diag.code) === "C0139") n++
+    return n
+  }
+  try {
+    writeFileSync(join(dir, "Main.prg"), "PROGRAM Main\nVAR\n  n : INT;\nEND_VAR\nn;\nEND_PROGRAM\n")
+    expect(noOpCount(), "without settings it must fire, or this test proves nothing").toBe(1)
+
+    writeFileSync(join(dir, "Project.projectsettings"), "Disabled warnings:     C0139\n")
+    expect(noOpCount(), "the project switched it off").toBe(0)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

@@ -12,6 +12,7 @@ import { CONDITIONAL_PRAGMA_TESTS } from "./conditional-pragma.js"
 import { CONVERSION_TESTS } from "./conversion.js"
 import { DATA_TYPE_TESTS } from "./data-type.js"
 import { IDENTIFIER_TESTS } from "./identifier.js"
+import { NETWORK_UNRESOLVED_TESTS } from "./network-unresolved.js"
 import { INIT_SLOT_TESTS } from "./init-slot.js"
 import { INTERFACE_TESTS } from "./interface.js"
 import { KEYWORD_TESTS } from "./keyword.js"
@@ -41,6 +42,7 @@ export const CATEGORIES: readonly CategoryGroup[] = [
   { name: "pragma-tc", tests: PRAGMA_TC_TESTS },
   { name: "lifecycle", tests: LIFECYCLE_TESTS },
   { name: "identifier", tests: IDENTIFIER_TESTS },
+  { name: "network-unresolved", tests: NETWORK_UNRESOLVED_TESTS },
   { name: "init-slot", tests: INIT_SLOT_TESTS },
   { name: "shadowing", tests: SHADOWING_TESTS },
   { name: "conversion", tests: CONVERSION_TESTS },

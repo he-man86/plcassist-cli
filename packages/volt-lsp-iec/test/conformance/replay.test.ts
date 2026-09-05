@@ -47,8 +47,8 @@ const RECORDINGS: ReadonlyArray<{ vendor: Vendor; filename: string; floor: numbe
   // (unresolved-identifier): 231 TC / 228 CS of 259. Remaining non-agreements are documented IDE-only
   // divergences (parse cascades, app-config warnings, op_sys_* / __-system constructs) — not reproducible
   // offline; the subset (no-FP) gate stays green on them.
-  { vendor: "twincat", filename: "expected-tc.json", floor: 252 },
-  { vendor: "codesys", filename: "expected-codesys.json", floor: 251 },
+  { vendor: "twincat", filename: "expected-tc.json", floor: 253 },
+  { vendor: "codesys", filename: "expected-codesys.json", floor: 255 },   // +4: the `???` slots now match on text
 ]
 
 /** Fixtures that legitimately do NOT match, each with a documented reason. Empty until a real divergence
@@ -61,6 +61,10 @@ const RECORDINGS: ReadonlyArray<{ vendor: Vendor; filename: string; floor: numbe
 const KNOWN_DIVERGENCES: Record<Vendor, ReadonlySet<string>> = {
   // TwinCAT does NOT flag a network-text JMP to a missing label (CODESYS does) — confirmed live 2026-07-07.
   twincat: new Set<string>(["cc_vg_undefined_label"]),
+  // The `???` fixtures were here while the LSP answered every position with ONE invented sentence. They are
+  // NOT divergences any more: the check reads the slot and emits the COMPILER'S wording for it
+  // (`Expression expected instead of '?'` for an operand/pin/instance, `The assignment target is not
+  // specified.` for a coil target), so they match on text like every other fixture.
   codesys: new Set<string>(),
 }
 

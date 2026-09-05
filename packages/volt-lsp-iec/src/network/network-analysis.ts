@@ -19,6 +19,7 @@
  * scope (POU + `LET` wires). Error severity, so the corpus 0-FP gate covers it.
  */
 import {
+  isTrivia,
   unitBodies,
   isGraphicalBody,
   stmtExprs,
@@ -45,6 +46,7 @@ import { hasUnresolvedBase, type Scope } from "../symbols/index.js"
 import type { Document } from "../services/index.js"
 import { analyzeNetworkText } from "./network-analyze.js"
 import type { NetworkTextNetwork, NetworkTextStatement } from "./text/ast.js"
+import { ASSIGN_OPS } from "./text/parser.js"
 
 export function computeNetworkTextDiagnostics(
   doc: Document,
@@ -60,7 +62,7 @@ export function computeNetworkTextDiagnostics(
       for (const d of analysis.vg.diagnostics) {
         out.push({ severity: "error", span: d.span, source: SOURCE, code: d.code, message: d.message })
       }
-      checkUnresolvedBoxes(body, out)
+      checkUnresolvedBoxes(body, messages, out)
 
       for (const [network, scope] of analysis.networkScopes) {
         checkStatements(network.statements, scope, project, messages, out)
@@ -245,7 +247,8 @@ function isPinSection(section: string | undefined): boolean {
  * NETWORK_UNRESOLVED_BOX: an operand of `???`, which is a COMPILE ERROR the IDE will raise — reported here at
  * the keystroke instead.
  *
- * CODESYS writes `???` into a box whose instance it could not resolve. It is not a placeholder Volt invented and
+ * CODESYS writes `???` into any graphical slot nobody filled: a call box whose instance was never named, a
+ * coil with no target, a pin it cannot name. It is not a placeholder Volt invented and
  * not something to normalise away: it is the vendor's own marker, it reaches the workspace verbatim, and the
  * project does not build while it is there. One real project carried five, one of them an assignment TARGET
  * (`??? := ioAxis.xVirtual;`). It is also why network text has no `?` token of its own — a sigil for the
@@ -256,28 +259,51 @@ function isPinSection(section: string | undefined): boolean {
  * literals into single tokens, so a `???` inside a network TITLE or a `//` comment is skipped for free — which a
  * text scan would have to re-derive, wrongly, at least once.
  *
+ * THE MESSAGE IS THE COMPILER'S OWN, and it depends on the SLOT — which is why this check reads one token of
+ * lookahead. Measured live on SP21 (scripts/audit-check.ts in this package):
+ *
+ *   operand / input pin / unnamed instance   `Expression expected instead of '?'`  (+ `Unexpected token '?'
+ *                                            found`, and for an instance two more — the LSP emits the first)
+ *   assignment target                        `The assignment target is not specified.`
+ *
+ * It used to emit ONE string for all of them, and that string said "a box whose instance the IDE could not
+ * resolve" — which is false on an input pin and on a coil, where there is no instance at all. Every shape is
+ * pinned in `test/conformance/fixtures/network-unresolved.ts` against a recording of the real compiler.
+ *
  * The lexer emits `?` as three separate `punct` tokens, so adjacency is checked on the spans: only `???` written
  * with nothing between the marks is the vendor's marker.
  */
-function checkUnresolvedBoxes(body: BodySpan, out: DiagnosticItem[]): void {
+function checkUnresolvedBoxes(body: BodySpan, messages: Messages, out: DiagnosticItem[]): void {
   const toks = body.tokens
   for (let i = 0; i + 2 < toks.length; i++) {
     const [a, b, c] = [toks[i]!, toks[i + 1]!, toks[i + 2]!]
     if (a.kind !== "punct" || a.text !== "?") continue
     if (b.kind !== "punct" || b.text !== "?" || c.kind !== "punct" || c.text !== "?") continue
     if (a.span.end !== b.span.start || b.span.end !== c.span.start) continue // `? ? ?` is not `???`
+
+    // WHICH SLOT the marker sits in, decided by the token that FOLLOWS it. An assignment operator there
+    // means the marker is the TARGET (`??? := a;`, `??? S= a;`) and the compiler answers semantically;
+    // anywhere else it is an operand and the compiler's PARSER answers instead. One token of lookahead is
+    // enough because the grammar is fully parenthesised (docs/network-text.md §4): every operand sits
+    // between two structural marks, so nothing else can follow a marker that is about to be assigned to.
+    // SKIP TRIVIA to reach it: `body.tokens` carries whitespace and comments, so the token at i+3 is the
+    // SPACE in `??? := a` rather than the operator. Reading it raw classified every target as an operand.
+    let n = i + 3
+    while (n < toks.length && isTrivia(toks[n]!.kind)) n++
+    const next = toks[n]
+    const isTarget = next !== undefined && ASSIGN_OPS.has(next.text)
     out.push({
       severity: "error",
       span: { ...a.span, end: c.span.end },
       source: SOURCE,
       code: "NETWORK_UNRESOLVED_BOX",
-      message:
-        "`???` marks a box whose instance the IDE could not resolve — the project will not compile until it is " +
-        "replaced with a real operand.",
+      message: isTarget ? messages.unresolvedAssignTarget() : messages.unresolvedOperand(),
     })
     i += 2 // one diagnostic per marker, not three overlapping ones
   }
 }
+
+
 
 /**
  * The placement rule for a network's COMMENT — reported here so an engineer sees it while typing rather than

@@ -32,6 +32,7 @@ it serves `volt.bridge.codesys.<pid>` — pass `VOLT_PIPE=volt.bridge.codesys.<p
 |---|---|
 | `catalog-status.ts` | renders the C-code catalog status matrix (LSP / CS / TC) |
 | `corpus-fp.ts` | the zero-FP corpus oracle in debuggable, grouped-by-code form |
+| `probe-projectsettings-effect.ts` | proves a project's `.projectsettings` actually SUPPRESSES diagnostics (per-code delta, settings on vs off) |
 | `parser-completeness.ts` | parser-recovery evidence over the corpus |
 | `lower-completeness.ts` | transpiler coverage over the corpus — what each construct would unblock, ranked |
 | `check-layering.ts` | the `bun run lint` gate — fails on an illegal upward layer import |

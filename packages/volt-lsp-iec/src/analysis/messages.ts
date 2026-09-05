@@ -31,6 +31,33 @@ export interface Messages {
    *  PROVISIONAL: the bridge rejects the push, so this wording can't be live-verified. */
   duplicateMethod(name: string): string
   /** A bare identifier that resolves in no reachable scope — byte-identical on both vendors. */
+  /**
+   * The `???` MARKER, in an OPERAND position — an input pin, a group operand, or a call box whose
+   * instance was never named. CODESYS writes `???` into a graphical slot nobody filled and then chokes on it
+   * as raw text, so this is its PARSER talking rather than a semantic check.
+   *
+   * MEASURED LIVE (SP21, scripts/audit-check.ts): each of those positions answers with this message AND
+   * `Unexpected token '?' found`; an unnamed INSTANCE adds two more (a second copy of this one, and
+   * `Program name, function or function block instance expected instead of '!!!'ERROR'!!!'`). The LSP emits
+   * ONE per marker — a SUBSET of what the compiler says, never a message it does not say — because the
+   * corpus gate forbids two diagnostics sharing a (range, code), and a parse cascade is noise in an editor.
+   *
+   * PROVISIONAL ON TWINCAT: `???` is CODESYS's marker (DIALECT), and no live XAE was available to record
+   * TwinCAT's wording. The CODESYS string stands for both rather than a guessed second spelling.
+   */
+  unresolvedOperand(): string
+  /**
+   * The `???` MARKER as an ASSIGNMENT TARGET — a coil or output variable with no name. A different
+   * message from the operand case, and a SEMANTIC one rather than a parse error, which is why these are two
+   * members and not one string.
+   *
+   * MEASURED LIVE (SP21): `??? := a;` answers exactly this. Behind an unconnected enable the compiler adds
+   * two more about an implicit temp it invents (`__FB__ImpVar15`), whose NAME cannot be reproduced offline
+   — so the LSP emits this one alone and stays a subset.
+   *
+   * PROVISIONAL ON TWINCAT, for the same reason as {@link unresolvedOperand}.
+   */
+  unresolvedAssignTarget(): string
   undefinedIdentifier(name: string): string
   /** A bare global declared in 2+ GVLs — ambiguous unqualified reference (C0136). verified both vendors. */
   ambiguousGlobalName(name: string): string
@@ -333,6 +360,10 @@ export function messagesFor(vendor: Vendor): Messages {
     // PROVISIONAL — bridge rejects the push (CreateChild name collision), so unverifiable. Doc wording (C0582).
     duplicateMethod: (name) =>
       `There is another method with the name '${name}'. Use the Attribute {attribute 'overloaded'} if you want to define overloaded methods.`,
+    // Both MEASURED on live CODESYS SP21; unverified on TwinCAT (see the interface docs), so the CODESYS
+    // wording stands for both rather than a guessed TC spelling.
+    unresolvedOperand: () => "Expression expected instead of '?'",
+    unresolvedAssignTarget: () => "The assignment target is not specified.",
     undefinedIdentifier: (name) => `Identifier '${name}' not defined`,
     // Live-verified both vendors (2026-07-11): CODESYS capital "Ambiguous", TwinCAT lowercase "ambiguous".
     ambiguousGlobalName: (name) => `${tc ? "ambiguous" : "Ambiguous"} use of name '${name}'`,
