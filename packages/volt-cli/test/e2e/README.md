@@ -8,6 +8,22 @@ And `requireHealthy()` sweeps any `VltE2E_*` a PREVIOUS run left behind, once pe
 because `cleanup()` lives in `afterAll`/`afterEach`, which is exactly where it does not run when a test TIMES OUT.
 Without that sweep one bad run poisons the next, and the failure count climbs run over run.
 
+## Known: the suite flakes in a FULL run, never in isolation
+
+Two different tests have failed once each in a whole-suite run and passed on a re-run and when run alone:
+`graphical/grouping` (network counts) and `items/clear` (an emptied ACTION body). Neither is a product bug — the
+same binary passes them minutes later — and neither has ever failed twice.
+
+**The cause is cleanup discipline, and it is not uniform.** Some files sweep in `beforeEach`, some only in
+`beforeAll`/`afterAll`, and two clean nothing but their own items on the happy path — so an assertion that throws
+mid-test leaks an item for the rest of the process. `sweepOnce` in `lib/workspace.ts` catches leftovers from a
+PREVIOUS run, once per process; it cannot help a file that runs after a leak inside the same run. That is the
+cascade its own comment records as measured (4/1/2/7 failures across runs, against 159/1 from a restored fixture).
+
+So a single red in a full run is worth re-running before believing; a red that reproduces is real. Making every
+file clean per-test — and moving the leak-prone ones onto `expectRoundTrip`/`removeItem`, which clean regardless
+of how a test exits — is the remaining half of the suite rebuild.
+
 ## Cleaning up: through the BRIDGE, never `git restore`
 
 **If a run leaves the fixture project dirty, clean it over the wire and let the IDE close normally.** Delete the
