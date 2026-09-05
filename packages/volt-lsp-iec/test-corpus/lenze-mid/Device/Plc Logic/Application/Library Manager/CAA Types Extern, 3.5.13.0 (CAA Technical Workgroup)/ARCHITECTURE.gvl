@@ -1,4 +1,0 @@
-VAR_GLOBAL
-	G_EENDIANESS : ENDIANESS := CalcEndianess();
-	G_ESYSTYPE : SYSTYPE := CalcSystemType();
-END_VAR

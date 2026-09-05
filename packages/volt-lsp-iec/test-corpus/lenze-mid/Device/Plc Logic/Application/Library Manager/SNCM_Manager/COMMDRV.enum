@@ -1,6 +1,0 @@
-TYPE COMMDRV :
-(
-	SHAREDMEM := 16#1,
-	SERIAL := 16#2
-);
-END_TYPE

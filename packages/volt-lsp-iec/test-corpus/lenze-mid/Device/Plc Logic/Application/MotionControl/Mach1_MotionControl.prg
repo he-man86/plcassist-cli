@@ -34,7 +34,7 @@ NETWORK 2 LD
 END_NETWORK
 NETWORK 3 LD TITLE: "Main drive motion"
   LET en1 := ;
-  IF en1 THEN Maindrive(ioDataExchange := Data_Exchange_Motion.Servo_MainDrive, i_xOnlyPositiveDirectionSync := TRUE, i_lrWindowStandstill := 1, i_lrJogVel := 2, i_lrSyncVel := 10, i_NormalCamRefTable := Cam_MainDrive, i_ByPassCamRefTable := , i_CamCyclic := TRUE, i_MasterAbsolute := TRUE, i_SlaveAbsolute := TRUE, ioMasterAxis := LM_VirtualMaster, ioSlaveAxis := Axis_MainDrive); END_IF
+  IF en1 THEN Maindrive(ioDataExchange := Data_Exchange_Motion.Servo_MainDrive, i_xOnlyPositiveDirectionSync := TRUE, i_lrWindowStandstill := 1, i_lrJogVel := 2, i_lrSyncVel := 10, i_NormalCamRefTable := , i_ByPassCamRefTable := , i_CamCyclic := TRUE, i_MasterAbsolute := TRUE, i_SlaveAbsolute := TRUE, ioMasterAxis := LM_VirtualMaster, ioSlaveAxis := Axis_MainDrive); END_IF
 END_NETWORK
 NETWORK 4 LD
   xWrappingDeviceDoneOnce S= L_MC1P_ChangeMachineData_WrappingDevice(Axis := Axis_OverrollingDevice, xExecute := (Axis_OverrollingDevice.xCommunicationOK AND NOT Axis_OverrollingDevice.xDriveEnabled), xSetFeedconstant := , lrFeedconstant := , xSetGearFactor := , dwGearDenominator := , dwGearNumerator := , xSetAddGearFactor := , dwAddGearDenominator := , dwAddGearNumerator := , xSetPosResolution := , dwPosResolution := , xSetOrientation := TRUE, xOrientation := NOT LST_InputsOutputs.I100_5_ConfigSelectionRightMachine, xSetTraversingRange := , eTraversingRange := , xSetCycleLength := , lrCycleLength := );
@@ -44,11 +44,11 @@ NETWORK 5 LD
 END_NETWORK
 NETWORK 6 LD TITLE: "Wrapping device"
   LET en1 := ;
-  IF en1 THEN WrappingDevice(ioDataExchange := Data_Exchange_Motion.Servo_WrappingDevice, i_xOnlyPositiveDirectionSync := FALSE, i_lrWindowStandstill := 5, i_lrJogVel := 10, i_lrSyncVel := 10, i_NormalCamRefTable := CamRefWikkelnest, i_ByPassCamRefTable := , i_CamCyclic := TRUE, i_MasterAbsolute := TRUE, i_SlaveAbsolute := FALSE, ioMasterAxis := LM_VirtualMaster, ioSlaveAxis := Axis_OverrollingDevice); END_IF
+  IF en1 THEN WrappingDevice(ioDataExchange := Data_Exchange_Motion.Servo_WrappingDevice, i_xOnlyPositiveDirectionSync := FALSE, i_lrWindowStandstill := 5, i_lrJogVel := 10, i_lrSyncVel := 10, i_NormalCamRefTable := , i_ByPassCamRefTable := , i_CamCyclic := TRUE, i_MasterAbsolute := TRUE, i_SlaveAbsolute := FALSE, ioMasterAxis := LM_VirtualMaster, ioSlaveAxis := Axis_OverrollingDevice); END_IF
 END_NETWORK
 NETWORK 7 LD TITLE: "Side correction"
   LET en1 := ;
-  IF en1 THEN Sidecorrection(ioDataExchange := Data_Exchange_Motion.Servo_SideCorrection, i_xOnlyPositiveDirectionSync := FALSE, i_lrWindowStandstill := 5, i_lrJogVel := 100, i_lrSyncVel := 10, i_NormalCamRefTable := CamRefKantcorrectie, i_ByPassCamRefTable := CamRefKantcorrectie, i_CamCyclic := TRUE, i_MasterAbsolute := TRUE, i_SlaveAbsolute := FALSE, ioMasterAxis := LM_VirtualMaster, ioSlaveAxis := Axis_SideCorrection, i_NormalCamRefTableNeg := CamRefKantcorrectie_Neg); END_IF
+  IF en1 THEN Sidecorrection(ioDataExchange := Data_Exchange_Motion.Servo_SideCorrection, i_xOnlyPositiveDirectionSync := FALSE, i_lrWindowStandstill := 5, i_lrJogVel := 100, i_lrSyncVel := 10, i_NormalCamRefTable := , i_ByPassCamRefTable := , i_CamCyclic := TRUE, i_MasterAbsolute := TRUE, i_SlaveAbsolute := FALSE, ioMasterAxis := LM_VirtualMaster, ioSlaveAxis := Axis_SideCorrection, i_NormalCamRefTableNeg := ); END_IF
 END_NETWORK
 NETWORK 8 LD
   xFeedforwardDoneOnce S= L_MC1P_ChangeMachineData_FeedforwardWrapper(Axis := Axis_FeedFowardWrapper, xExecute := (Axis_FeedFowardWrapper.xCommunicationOK AND NOT Axis_FeedFowardWrapper.xDriveEnabled), xSetFeedconstant := , lrFeedconstant := , xSetGearFactor := , dwGearDenominator := , dwGearNumerator := , xSetAddGearFactor := , dwAddGearDenominator := , dwAddGearNumerator := , xSetPosResolution := , dwPosResolution := , xSetOrientation := TRUE, xOrientation := LST_InputsOutputs.I100_5_ConfigSelectionRightMachine, xSetTraversingRange := , eTraversingRange := , xSetCycleLength := , lrCycleLength := );

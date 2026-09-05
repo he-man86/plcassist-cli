@@ -1,6 +1,0 @@
-VAR_GLOBAL
-	G_DRIVERCLASS : DriverClass;
-	G_RECEIVERCLASS : ReceiverClass;
-	G_MESSAGECLASS : MessageClass;
-	G_CYCLECLASS : CycleClass;
-END_VAR

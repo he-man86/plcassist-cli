@@ -1,3 +1,4 @@
+Disabled warnings:     C0371
 Replace constants:     on
 Unicode identifiers:   off
 UTF-8 encoding:        off

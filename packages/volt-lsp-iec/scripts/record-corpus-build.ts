@@ -36,5 +36,20 @@ const out = {
   diagnostics,
 }
 const path = join(dir, `expected-build.${vendor}.json`)
+
+// A FAILED BUILD IS NOT GROUND TRUTH, and overwriting a good oracle with one is worse than recording nothing.
+// When the compile does not complete — an unresolved library is the usual reason, and this machine is missing the
+// Safety/system libraries `Lenze_MID-S100` references — it never reaches the CODE: it emits a handful of library
+// errors and NO code-level diagnostics at all. On disk that reads as "the compiler found nothing here", which
+// turns every real LSP warning into a false positive and every real gap into a pass. It was recorded exactly
+// once, by hand, and the resulting oracle claimed a 373-network project compiles with 8 errors and no warnings.
+if (!r.success) {
+	console.error(`BUILD FAILED (${diagnostics.length} diagnostic(s)) — NOT recording: the compile did not complete,`)
+	console.error(`so its diagnostics are not this project's ground truth. First few:`)
+	for (const d of diagnostics.slice(0, 5)) console.error(`  [${d.severity}] ${d.message.split("\n")[0]}`)
+	console.error(`\nFix the build in the IDE (usually a missing library), then re-run. ${path} left as it was.`)
+	process.exit(1)
+}
+
 writeFileSync(path, JSON.stringify(out, null, 2) + "\n")
 console.log(`Wrote ${diagnostics.length} diagnostics → ${path}`)

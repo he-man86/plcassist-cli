@@ -162,13 +162,13 @@ NETWORK 8 LD TITLE: "TODO NETWORK 9: Condition: Tray decend"
   tBool S= stFePulseCounter(CLK := g4);
   LET en1 := (g3 AND tBool AND (stDecendTray OR stTrayDecended OR stTiltInpusher));
   IF en1 THEN stActHeightElevator := (stActHeightElevator + 5); END_IF
-  LET en2 := ;
-  IF en2 THEN (stActHeightElevator >= tInt); END_IF
-  LET en3 := (g2 AND stDecendTray);
-  IF en3 THEN tInt := (ioActNumberOfRows * iRowHeight); END_IF
-  LET en4 := en3;
-  IF en4 THEN tInt := (tInt + iInitialDescentValue); END_IF
-  LET g1 := (en4 AND (en2 OR iPsElevatorDown));
+  LET en2 := (g2 AND stDecendTray);
+  IF en2 THEN tInt := (ioActNumberOfRows * iRowHeight); END_IF
+  LET en3 := en2;
+  IF en3 THEN tInt := (tInt + iInitialDescentValue); END_IF
+  LET en4 := ;
+  IF en4 THEN (stActHeightElevator >= tInt); END_IF
+  LET g1 := (en3 AND (en4 OR iPsElevatorDown));
   stTrayDecended S= g1;
   stDecendTray R= g1;
 END_NETWORK
