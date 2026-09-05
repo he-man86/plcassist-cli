@@ -503,4 +503,45 @@ public class CodesysNetworkReaderTests
 
         Assert.Contains("dst := MOVE(src);", text);
     }
+    /// <summary>A NETWORK THAT REPORTS MORE ITEMS THAN IT HAS reads as the trees it really has — the phantom slot
+    /// is SKIPPED, not thrown on and not rendered as an empty body.
+    ///
+    /// <para>Measured: "a network reported 2 with one tree, the second slot being an item the IDE had dropped".
+    /// The reader answers that with `TryCall` + a null skip, and that path had no test at all, because the double
+    /// defined `NetworkItemCount => _trees.Count` and so could never disagree with itself. The failure it guards
+    /// is the ugly kind: a POU materializing with a header and no logic.</para></summary>
+    [Fact]
+    public void A_network_reporting_a_dropped_item_skips_the_phantom_slot()
+    {
+        var assign = new Nwl.BoxTreeAssign { RValue = false };
+        assign.Outputs.List.Add(new Nwl.Operand { OperandExpr = "out" });
+        var net = new Nwl.Network().With(assign);
+        net.PhantomItemCount = 2;   // the vendor says two items; only one is really there
+
+        var read = CodesysNetworkReader.ReadNetwork(net, 0);
+
+        // The real tree survived, and nothing was invented for the phantom slot.
+        Assert.Single(read.Trees);
+        Assert.IsType<Assign>(read.Trees.Single());
+    }
+
+    /// <summary>A NETWORK CARRYING A VENDOR SPLIT POINT IS REFUSED, naming the operand. Volt has no text form for
+    /// one, and rendering a body silently missing it is the loss this refusal exists to prevent.
+    ///
+    /// <para>The refusal had no test either: the double's `GetSplitPoint` was hardcoded to null, so the throw was
+    /// unreachable. Rare — zero across all 356 networks of the one real project surveyed — but "rare" is not
+    /// "cannot happen", and an untested throw is one nobody knows the wording of until a customer hits it.</para></summary>
+    [Fact]
+    public void A_network_carrying_a_vendor_split_point_is_refused_by_name()
+    {
+        var assign = new Nwl.BoxTreeAssign { RValue = false };
+        assign.Outputs.List.Add(new Nwl.Operand { OperandExpr = "out" });
+        var net = new Nwl.Network().With(assign);
+        net.SplitPoint = new Nwl.Operand { OperandExpr = "gSplit" };
+
+        var ex = Assert.Throws<System.NotSupportedException>(() => CodesysNetworkReader.ReadNetwork(net, 0));
+        Assert.Contains("split point", ex.Message);
+        Assert.Contains("gSplit", ex.Message);   // the engineer needs to know WHICH one
+    }
+
 }

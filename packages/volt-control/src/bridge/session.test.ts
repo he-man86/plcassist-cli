@@ -15,6 +15,7 @@ import {
   __resetSessionForTest,
 } from "./session.js"
 import type { DetectedProject } from "./connector.js"
+import { boundWorkspace as ws } from "../test-support.js"
 
 const realFetch = globalThis.fetch
 // The session client is a module singleton — reset it around every test so state never leaks across tests or files.
@@ -50,15 +51,6 @@ function router(route: (c: Call) => { status?: number; ok?: boolean; json?: unkn
   return calls
 }
 
-function boundWorkspace(vendor: string, projectName: string): string {
-  const dir = join(tmpdir(), `volt-sess-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-  mkdirSync(join(dir, ".git", "volt"), { recursive: true })
-  writeFileSync(
-    join(dir, ".git", "volt", "config.json"),
-    JSON.stringify({ bridge: { vendor }, project: { platform: vendor, projectName } }),
-  )
-  return dir
-}
 
 /** A one-project view; `serving` flips its row between connected and gated. */
 const view = (serving: boolean): ConnectorView => ({
@@ -79,6 +71,8 @@ function newConnector(serving = true): Call[] {
 }
 
 const lastSync = (calls: Call[]): Call | undefined => [...calls].reverse().find((c) => c.url.includes("/sync"))
+
+const boundWorkspace = (vendor: string, projectName: string) => ws({ vendor, projectName })
 
 describe("session client (declarative connection presence)", () => {
   test("first declareInterest opens a session and declares the interest", async () => {

@@ -33,13 +33,27 @@ internal static class Nwl
         public string Comment { get; set; } = "";
         public bool OutCommented { get; set; }
 
-        public int NetworkItemCount => _trees.Count;
+        /// <summary>Report MORE items than there are trees — the measured vendor quirk the reader guards
+        /// against: "a network reported 2 with one tree, the second slot being an item the IDE had dropped".
+        ///
+        /// <para>This double defined <c>NetworkItemCount =&gt; _trees.Count</c>, which is definitionally
+        /// consistent and therefore could never diverge — so the whole `TryCall`/null-skip path built to stop a
+        /// network materializing "with a header and no logic" was unreachable from any of the 20 reader tests.
+        /// A fake that cannot express the bug cannot catch it.</para></summary>
+        public int? PhantomItemCount { get; set; }
 
-        /// <summary>The vendor hands trees out one at a time by index — not as a list.</summary>
-        public object GetTree(int i) => _trees[i];
+        public int NetworkItemCount => PhantomItemCount ?? _trees.Count;
 
-        /// <summary>Answers null, i.e. no split point. The reader REFUSES a body that has one.</summary>
-        public object? GetSplitPoint(int i) => null;
+        /// <summary>The vendor hands trees out one at a time by index — not as a list. An index past the real
+        /// trees answers null (the dropped-item slot), which is what the reader must skip.</summary>
+        public object? GetTree(int i) => i >= 0 && i < _trees.Count ? _trees[i] : null;
+
+        /// <summary>The vendor's per-network split point. Null — none — on all 356 networks of the one real
+        /// project surveyed, so that is the default; set it to make the reader REFUSE the body, which is the
+        /// behaviour that had no test.</summary>
+        public object? SplitPoint { get; set; }
+
+        public object? GetSplitPoint(int i) => i == 0 ? SplitPoint : null;
 
         public Network With(params object[] trees) { _trees.AddRange(trees); return this; }
 

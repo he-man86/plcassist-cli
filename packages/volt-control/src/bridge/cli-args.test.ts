@@ -3,6 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { DetectedProject } from "./connector.js"
+import { boundWorkspace as ws } from "../test-support.js"
 
 
 /**
@@ -29,7 +30,8 @@ void mock.module("./cli.js", () => ({
   setBundledCli: () => {},
 }))
 
-const { pull, push, fetchStatus, rebind } = await import("./actions.js")
+const { pull, push, fetchStatus, rebind, init, build, mergeContinue, mergeAbort, mergeResolve } =
+  await import("./actions.js")
 const { __resetSessionForTest } = await import("./session.js")
 
 const detected = (over: Partial<DetectedProject>): DetectedProject =>
@@ -64,12 +66,8 @@ afterEach(() => {
   __resetSessionForTest() // rebind now uses the module-singleton session client
 })
 
-function boundWorkspace(): string {
-  const dir = join(tmpdir(), `volt-args-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-  mkdirSync(join(dir, ".git", "volt"), { recursive: true })
-  writeFileSync(join(dir, ".git", "volt", "config.json"), JSON.stringify({ bridge: { vendor: "codesys" }, project: { platform: "codesys", projectName: "P" } }))
-  return dir
-}
+
+const boundWorkspace = () => ws({ vendor: "codesys", projectName: "P" })
 
 test("pull sends --force ONLY when asked — the flag the Force Pull button depends on", async () => {
   const dir = boundWorkspace()
@@ -159,3 +157,69 @@ test("fetchStatus sends --local only in local mode", async () => {
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+/*
+ * THE OTHER HALF OF THE SAME SEAM.
+ *
+ * The tests above cover pull/push/rebind/fetchStatus. `init`, `build` and the three merge verbs send argv the same
+ * way and had no test at all — including `mergeResolve`'s side→flag mapping, which is precisely the shape of the
+ * `--force` bug this file exists for: a value the UI picks, translated into a flag the CLI must implement, with
+ * nothing checking the translation. Both frontends drive all of these.
+ */
+
+test("build passes the workspace and nothing else", async () => {
+  const dir = boundWorkspace()
+  try {
+    await build(dir)
+    expect(lastArgs).toEqual(["build", "--workspace", dir])
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test("merge --continue and --abort each send their own flag", async () => {
+  const dir = boundWorkspace()
+  try {
+    await mergeContinue(dir)
+    expect(lastArgs).toEqual(["merge", "--continue", "--workspace", dir])
+
+    await mergeAbort(dir)
+    expect(lastArgs).toEqual(["merge", "--abort", "--workspace", dir])
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test("mergeResolve maps MINE to --use-ours and IDE to --use-theirs", async () => {
+  // The mapping is the whole test. "mine" is the workspace side (ours) and "ide" is the incoming side (theirs);
+  // swapping them silently resolves every conflict the wrong way — the file is staged, the merge finishes, and
+  // the engineer's edit is gone with no error anywhere.
+  const dir = boundWorkspace()
+  try {
+    await mergeResolve(dir, "POUs/FB_X.fb", "mine")
+    expect(lastArgs).toEqual(["merge", "--resolve", "POUs/FB_X.fb", "--use-ours", "--workspace", dir])
+
+    await mergeResolve(dir, "POUs/FB_X.fb", "ide")
+    expect(lastArgs).toEqual(["merge", "--resolve", "POUs/FB_X.fb", "--use-theirs", "--workspace", dir])
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test("init names the vendor, asks for JSON, and creates under the PARENT", async () => {
+  const parent = boundWorkspace()
+  nextStdout = JSON.stringify({ workspace: join(parent, "Proj") })
+  try {
+    const r = await init(parent, "twincat")
+    expect(lastArgs).toEqual(["init", "--vendor", "twincat", "--json", "--workspace", parent])
+    // `volt init` makes <parent>/<project>/ and RETURNS it — the shells must bind the returned path, not the
+    // parent they passed in, so the lift out of --json is part of the contract too.
+    expect(r.workspace).toBe(join(parent, "Proj"))
+  } finally { nextStdout = "{}"; rmSync(parent, { recursive: true, force: true }) }
+})
+
+test("init lifts a --json {reason} failure into stderr, where both shells read it", async () => {
+  // With --json the CLI reports the failure as {reason} and leaves stderr EMPTY. Without this lift the user sees
+  // a blank error.
+  const parent = boundWorkspace()
+  nextStdout = JSON.stringify({ reason: "no project is open in that IDE" })
+  try {
+    const r = await init(parent, "codesys")
+    expect(r.stderr).toBe("no project is open in that IDE")
+  } finally { nextStdout = "{}"; rmSync(parent, { recursive: true, force: true }) }
+})
+

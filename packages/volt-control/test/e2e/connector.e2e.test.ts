@@ -18,6 +18,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { connectorStatus, detectedProjects, isServing } from "../../src/bridge/connector.js"
 import { declareInterest, dropInterest, shutdownSession, __resetSessionForTest } from "../../src/bridge/session.js"
+import { boundWorkspace as ws } from "../../src/test-support.js"
 
 const HARNESS_DIR = join(import.meta.dir, "..", "..", "..", "volt-cli", "test", "Volt.Connector.ControlHarness")
 const OUT = join(HARNESS_DIR, "bin", "Debug", "net8.0")
@@ -50,12 +51,8 @@ const tc = (name: string, pid: number): Row =>
 
 function writeView(rows: Row[]): void { writeFileSync(VIEW, JSON.stringify(rows)) }
 
-function boundWorkspace(vendor: string, projectName: string): string {
-	const dir = mkdtempSync(join(tmpdir(), "volt-sess-e2e-"))
-	mkdirSync(join(dir, ".git", "volt"), { recursive: true })
-	writeFileSync(join(dir, ".git", "volt", "config.json"), JSON.stringify({ bridge: { vendor }, project: { platform: vendor, projectName } }))
-	return dir
-}
+
+const boundWorkspace = (vendor: string, projectName: string) => ws({ vendor, projectName })
 
 suite("volt-control ↔ real ControlServer (session model)", () => {
 	let proc: ChildProcess

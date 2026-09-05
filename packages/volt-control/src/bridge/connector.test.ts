@@ -3,6 +3,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { boundStatus, connectOptions, connectSurface, connectorStatus, detectedProjects, type ConnectorView } from "./connector.js"
+import { boundWorkspace as ws } from "../test-support.js"
 
 const realFetch = globalThis.fetch
 afterEach(() => {
@@ -21,23 +22,10 @@ const VIEW: ConnectorView = {
   projects: [{ id: "codesys:::MyMachine:", displayName: "MyMachine", vendor: "codesys", dirty: true, status: "healthy", projectName: "MyMachine" }],
 }
 
-function tempWorkspace(vendor?: string): string {
-  const dir = join(tmpdir(), `volt-conn-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-  mkdirSync(dir, { recursive: true })
-  if (vendor) {
-    mkdirSync(join(dir, ".git", "volt"), { recursive: true })
-    writeFileSync(join(dir, ".git", "volt", "config.json"), JSON.stringify({ bridge: { vendor } }))
-  }
-  return dir
-}
 
-/** A workspace with a FULL binding (vendor + project name) — what per-workspace boundStatus resolves against. */
-function boundWorkspace(vendor: string, projectName: string): string {
-  const dir = join(tmpdir(), `volt-conn-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-  mkdirSync(join(dir, ".git", "volt"), { recursive: true })
-  writeFileSync(join(dir, ".git", "volt", "config.json"), JSON.stringify({ bridge: { vendor }, project: { platform: vendor, projectName } }))
-  return dir
-}
+const tempWorkspace = (vendor?: string) => ws({ vendor })
+const boundWorkspace = (vendor: string, projectName: string) => ws({ vendor, projectName })
+
 // The row's `status` decides connection state (default "healthy"/serving — these fixtures describe live projects
 // unless a test is specifically about a bridge that isn't serving, i.e. "idle").
 const proj = (vendor: string, name: string, projectName?: string, status: "idle" | "healthy" | "degraded" = "healthy") => ({ id: `${vendor}::${name}:`, displayName: name, vendor, dirty: false, status, projectName: projectName ?? name })

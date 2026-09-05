@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { enterWorkspace, leaveWorkspace } from "./actions.js"
 import { __resetSessionForTest } from "./session.js"
 import type { ConnectorView } from "./connector.js"
+import { boundWorkspace as ws } from "../test-support.js"
 
 // The actions layer (enterWorkspace / leaveWorkspace) now delegates to the session client; the
 // full behaviour is covered in session.test.ts. These tests pin the ACTIONS-level wiring: each wrapper declares /
@@ -36,12 +37,8 @@ function mockSessionConnector(serving: boolean): void {
   }) as typeof fetch
 }
 
-function boundWorkspace(vendor: string, projectName: string): string {
-  const dir = join(tmpdir(), `volt-recon-${Date.now()}-${Math.random().toString(36).slice(2)}`)
-  mkdirSync(join(dir, ".git", "volt"), { recursive: true })
-  writeFileSync(join(dir, ".git", "volt", "config.json"), JSON.stringify({ bridge: { vendor }, project: { platform: vendor, projectName } }))
-  return dir
-}
+
+const boundWorkspace = (vendor: string, projectName: string) => ws({ vendor, projectName })
 
 describe("enter/leave/reconnect — declare this workspace's interest through the session client", () => {
   test("enterWorkspace declares the bound project (by its binding vendor+projectName)", async () => {
