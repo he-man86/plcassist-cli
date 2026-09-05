@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Volt.Connector;
@@ -34,6 +34,52 @@ public class ConnectionManagerSessionTests
         await mgr.SyncAsync(sid, new[] { Want(a) });
 
         Assert.Contains(a, cds.Bound); // reconcile bound it
+    }
+
+    /// <summary>THE TRAY GOES GREEN — serving AND wanted. This is the connector's most-advertised behaviour and
+    /// nothing asserted it: `Aggregate()`'s only test covers the "nothing wanted" arm and defers the green path to
+    /// "the session tests", which never called `Aggregate()` at all. So both `Connected` and `Degraded` were
+    /// produced by no test in the suite.</summary>
+    [Fact]
+    public async Task Aggregate_is_Connected_only_once_a_project_is_both_serving_AND_wanted()
+    {
+        var cds = new FakeProjectSource("codesys", "CODESYS");
+        var a = cds.Add("A", serving: true);            // a loaded host, already serving
+        var mgr = new ConnectionManager(new IProjectSource[] { cds }, wantedFile: TempWanted());
+        await mgr.RefreshAsync();
+
+        // Serving but unwanted is NOT green: the channel is up and waiting for someone to pick a project.
+        Assert.Equal(BridgeStatus.Unavailable, mgr.Aggregate());
+
+        var (sid, _) = await mgr.OpenSessionAsync();
+        await mgr.SyncAsync(sid, new[] { Want(a) });
+        Assert.Equal(BridgeStatus.Connected, mgr.Aggregate());
+
+        // ...and it goes back the moment the last interest leaves. Green is a live claim, not a latch.
+        await mgr.CloseSessionAsync(sid);
+        Assert.Equal(BridgeStatus.Unavailable, mgr.Aggregate());
+    }
+
+    /// <summary>A DEGRADED served row degrades the whole verdict, even beside a healthy one. The tray must not
+    /// report green while an IDE it is serving is failing — and `Degraded` was likewise unreachable in the suite.</summary>
+    [Fact]
+    public async Task Aggregate_is_Degraded_when_any_served_and_wanted_project_is_degraded()
+    {
+        var cds = new FakeProjectSource("codesys", "CODESYS");
+        var healthy = cds.Add("A", serving: true);
+        var sick = cds.Add("B", serving: true, status: HealthStatus.Degraded);
+        var mgr = new ConnectionManager(new IProjectSource[] { cds }, wantedFile: TempWanted());
+        var (sid, _) = await mgr.OpenSessionAsync();
+
+        await mgr.SyncAsync(sid, new[] { Want(healthy) });
+        Assert.Equal(BridgeStatus.Connected, mgr.Aggregate());   // only the healthy one is wanted
+
+        await mgr.SyncAsync(sid, new[] { Want(healthy), Want(sick) });
+        Assert.Equal(BridgeStatus.Degraded, mgr.Aggregate());    // one bad row is enough
+
+        // A degraded project nobody wants does not colour the tray — the verdict is over what is SERVED and WANTED.
+        await mgr.SyncAsync(sid, new[] { Want(healthy) });
+        Assert.Equal(BridgeStatus.Connected, mgr.Aggregate());
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -148,16 +148,67 @@ public class BridgeSupervisorTests : IDisposable
         File.WriteAllText(Path.Combine(_dir, "sleeper.cmd"), SleeperScript);
         var spec = Spec("twincat.100", "detach.cmd", DetachScript);
 
-        sup.EnsureWorker(spec);
-        Assert.True(WaitUntil(() => Held(lockFile)), "the detached grandchild never started");
-        Assert.True(WaitUntil(() => !sup.IsWorkerRunning(spec.Id)), "the spawned worker was expected to exit at once");
+        try
+        {
+            sup.EnsureWorker(spec);
+            Assert.True(WaitUntil(() => Held(lockFile)), "the detached grandchild never started");
+            Assert.True(WaitUntil(() => !sup.IsWorkerRunning(spec.Id)), "the spawned worker was expected to exit at once");
 
         // The spawned process is already gone, so Kill(entireProcessTree: true) has nothing to walk — the only thing
         // that can still reap the survivor is the job object's KILL_ON_JOB_CLOSE (job membership is INHERITED by a
         // child's children). That is exactly the guard's documented purpose: a connector that dies without a clean
         // Dispose must not leave workers holding volt.bridge.twincat.<pid> pipes for the next start to collide with.
-        sup.Dispose();
-        Assert.True(WaitUntil(() => !Held(lockFile), 20000), "closing the job did not terminate the surviving worker");
+            sup.Dispose();
+            Assert.True(WaitUntil(() => !Held(lockFile), 20000), "closing the job did not terminate the surviving worker");
+        }
+        // NOT a `using`: the test asserts state either side of an explicit Dispose. But without this finally, a
+        // failure on either assertion above threw BEFORE the Dispose — leaking a detached grandchild for up to a
+        // minute and its job handle with it (SafeJobHandle has no finalizer). A second Dispose is a no-op.
+        finally { sup.Dispose(); }
+    }
+
+    /// <summary>STOP ONE WORKER. `StopWorker` is the reap primitive the whole TwinCAT fleet is built on — the
+    /// thing that runs when an XAE window closes — and no test called it. Its guard (`TryGetValue`) implies a
+    /// double-reap is a no-op, and nothing pinned that either.</summary>
+    [Fact]
+    public void StopWorker_kills_the_worker_and_a_second_stop_is_a_no_op()
+    {
+        if (!OnWindows) return;
+        using var sup = new BridgeSupervisor();
+        var spec = Spec("twincat.200", "live.cmd", LiveScript);
+
+        sup.EnsureWorker(spec);
+        Assert.True(WaitUntil(() => sup.IsWorkerRunning(spec.Id)), "the worker never started");
+
+        sup.StopWorker(spec.Id);
+        Assert.False(sup.IsWorkerRunning(spec.Id));
+
+        // A second reap of the same id, and a reap of one that never existed, must both be quiet no-ops: the
+        // fleet reaps from a debounced policy, so it can legitimately ask twice.
+        sup.StopWorker(spec.Id);
+        sup.StopWorker("twincat.does-not-exist");
+        Assert.False(sup.IsWorkerRunning(spec.Id));
+    }
+
+    /// <summary>A REAPED WORKER COMES BACK. Reap and respawn share one dictionary behind one lock, and the fleet
+    /// does both every tick — so a stop must leave no ghost entry that makes the next `EnsureWorker` believe the
+    /// worker is still up. Measured by spawn COUNT: the marker file gains a second line.</summary>
+    [Fact]
+    public void A_worker_stopped_and_ensured_again_is_respawned()
+    {
+        if (!OnWindows) return;
+        using var sup = new BridgeSupervisor();
+        var spec = Spec("twincat.201", "live.cmd", LiveScript);
+
+        sup.EnsureWorker(spec);
+        Assert.True(WaitUntil(() => Spawns() == 1), "the worker never started");
+
+        sup.StopWorker(spec.Id);
+        Assert.False(sup.IsWorkerRunning(spec.Id));
+
+        sup.EnsureWorker(spec);
+        Assert.True(WaitUntil(() => Spawns() == 2), "a reaped worker was not respawned — a ghost entry survived the stop");
+        Assert.True(sup.IsWorkerRunning(spec.Id));
     }
 
     [Fact]
