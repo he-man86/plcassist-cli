@@ -89,8 +89,17 @@ public class OpGuardTests
     public void A_read_and_a_write_reach_the_same_verdict_on_a_stale_snapshot()
     {
         var ide = StaleSnapshot("twincat", "PLC_A");
-        RefsService.Handle(ide);                            // the live-signal path already proceeded
-        PushService.Handle(ide, Empty("twincat", "PLC_A")); // so the write must too
+
+        // ASSERT THE VERDICTS, not merely that nothing threw. This test had NO assertion at all: it called
+        // both services and passed if neither raised. But a push signals refusal by returning
+        // `Accepted: false` — it does not throw — so the exact regression the test above it guards (a write
+        // refused over a stale snapshot) would have slipped through here in silence.
+        var read = RefsService.Handle(ide);
+        Assert.NotNull(read);                                     // the live-signal path proceeded
+
+        var write = PushService.Handle(ide, Empty("twincat", "PLC_A"));
+        Assert.True(write.Accepted,
+            "a write must reach the same verdict as a read: the read proceeded, so the write cannot refuse");
     }
 
     /// <summary>The fix must not become permissiveness: a REAL identity mismatch still refuses, and it refuses with

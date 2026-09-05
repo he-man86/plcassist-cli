@@ -46,6 +46,15 @@ done by widening a refusal or skipping a test.
       green, and the assertion accepts either message for exactly that reason.
 - [ ] Delete the branch in `roundtrip.test.ts` ("creates an FBD program with an Execute box").
 
+## 4b. Network grouping — a silent reshape, not a refusal
+
+- [ ] A body pushed as ONE network returns as N on TwinCAT (one per connected component). Decide whether the
+      importer can be made to preserve the pushed grouping — the network boundary is Volt's, and the importer
+      currently re-derives it.
+- [ ] If it cannot: make it a stated REFUSAL like the other four, so the engineer is told rather than silently
+      handed a different body. A measured, stable difference is still a difference.
+- [ ] Delete the vendor branch in `graphical/grouping.test.ts` (`[1,1,2,2]` vs `[1,1,1,1]`).
+
 ## 5. Close
 
 - [ ] `grep -rn 'VENDOR === "twincat"' packages/volt-cli/test/e2e/graphical/` returns nothing.

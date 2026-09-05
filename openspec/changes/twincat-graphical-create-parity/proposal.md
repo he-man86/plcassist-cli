@@ -13,6 +13,22 @@ They surfaced together, in one run, and only because tests that had never been p
 | a box's **embedded output pin** — `t1(… ET => el)` | the importer honours an `outVariable` wired to the pin by lowering it to a **separate assignment**, not an output on the box |
 | an **unconnected input pin** — `FB(xEnable := , …)` | lowers to a rung terminator the importer has no form for |
 | a wired **EN input** | the importer folds the enable into the box as an ordinary input, changing what the program does (long-standing, deliberate refusal) |
+| **network GROUPING** — one pushed network | comes back as one network on CODESYS and as N on TwinCAT, one per connected component (`grouping.test.ts` asserts `[1,1,2,2]` vs `[1,1,1,1]`) |
+
+**Grouping is the odd one out, and it is not a refusal — it is a silent reshape.** The other four are refused,
+so an engineer is told. A body pushed as ONE network comes back as several on TwinCAT because the PLCopen
+importer groups by connected rung, and nothing warns. It was left out of the original list because it is
+measured and stable, not broken — but "the same source gives the same result on both bridges" is the contract,
+and this breaks it in the one way the engineer cannot see. It may turn out to be unfixable through the importer,
+in which case the answer is a stated refusal like the others rather than a quiet regrouping.
+
+**Treat the whole list as provisional, because the two vendors have not had equal scrutiny.** TwinCAT's LD and
+FBD paths have been examined far less closely than CODESYS's — the `???` marker work, the network-text format and
+the graphical round-trip evidence were all developed against CODESYS and only pointed at TwinCAT afterwards,
+which is exactly how four of these five surfaced in a single run. So a row here saying "TwinCAT does X" is a
+statement about what was measured, not proof that X is inherent. **If everything were correct the results would
+be identical**; each row is therefore a defect until someone shows the vendor genuinely cannot express the shape,
+and grouping is the first place to dig, since it is the one that changes the body without saying so.
 
 **One of these was silent data loss until 2026-09-05, and it was not the `???` case.** A fully resolvable
 `ET => el` was dropped on create and the push reported success: TwinCAT's importer left the box's `OutputItems`

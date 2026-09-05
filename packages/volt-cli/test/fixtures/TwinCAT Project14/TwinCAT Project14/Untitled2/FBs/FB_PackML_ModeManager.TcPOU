@@ -246,7 +246,7 @@ xHeld       := (eState = E_PackML_State.eHELD);
 xSuspended  := (eState = E_PackML_State.eSUSPENDED);]]></ST>
     </Implementation>
     <LineIds Name="FB_PackML_ModeManager">
-      <LineId Id="515" Count="210" />
+      <LineId Id="2042" Count="210" />
       <LineId Id="8" Count="0" />
     </LineIds>
   </POU>

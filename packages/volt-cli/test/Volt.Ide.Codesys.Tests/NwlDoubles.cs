@@ -236,7 +236,28 @@ internal static class Nwl
     /// <c>Text</c>, which on the vendor clears the document first and underflows.</summary>
     internal sealed class TextDocument
     {
+        /// <summary><b>`Insert` THROWS, and it throws AFTER landing the text.</b> That is the measured vendor
+        /// behaviour the writer is built around: `Insert(0, ...)` stores the text and then raises
+        /// `InvalidOperationException: Unique ID generator not available` - editor bookkeeping this document has
+        /// no host for - so the writer catches it and VERIFIES the postcondition by reading the text back.
+        ///
+        /// <para>This double used to store the text and return quietly, which made both halves of that dance
+        /// dead code: delete the writer's `catch` and every test still passed, and the postcondition check could
+        /// never fire. A double behaving the way the author WISHED the vendor behaved is how a fake asserts a bug
+        /// away. On by default - the faithful behaviour is what a test gets without asking.</para></summary>
+        public static bool ThrowsAfterInsert = true;
+
+        /// <summary>Drop the text instead of storing it - the failure the writer's postcondition check exists to
+        /// catch. Off by default; one test turns it on to prove that check is real.</summary>
+        public static bool DropsText;
+
         public string Text { get; private set; } = "";
-        public void Insert(int offset, string text) => Text = Text.Insert(offset, text);
+
+        public void Insert(int offset, string text)
+        {
+            if (!DropsText) Text = Text.Insert(offset, text);
+            if (ThrowsAfterInsert)
+                throw new System.InvalidOperationException("Unique ID generator not available");
+        }
     }
 }

@@ -162,12 +162,11 @@ public class NetworkTextRoundTripTests
     [InlineData("NETWORK 0 LD LABEL: Guard TITLE: \"interlock\"\n  // holds the drive off while the guard is open\n  // second line of the same comment\n  out := (a AND b);\nEND_NETWORK\n")]
     public void A_real_projects_shapes_round_trip_byte_for_byte(string net) => Assert.Equal(net, Round(net));
 
-    [Theory]
-    [InlineData("  x := y;\n")]                                                       // statement before any NETWORK
-    [InlineData("NETWORK 0 FBD\n  out := (a AND b OR c);\nEND_NETWORK\n")]             // mixed operators in one parenthesised group
-    [InlineData("NETWORK 0 FBD\n  out := ((a AND b);\nEND_NETWORK\n")]                 // unbalanced parens
-    public void Malformed_input_is_rejected(string net)
-        => Assert.ThrowsAny<System.Exception>(() => NetworkTextReader.Parse(net));
+    // MALFORMED INPUT lives in `NetworkTextDiagnosticsTests`, not here. Three cases sat at this spot — statement
+    // before any NETWORK, mixed operators in one parenthesised group, unbalanced parens — on the SAME three
+    // literals that file already uses, asserting only `ThrowsAny<Exception>` where it pins the refusal CODE
+    // (NETWORK_PARSE, NETWORK_BAD_EXPRESSION twice). Two tests over one input, and the weaker one would have gone
+    // on passing if the reader began refusing for the wrong reason. This file is about what ROUND-TRIPS.
 
     /// <summary>A MODIFIER never forces a hoist. The writer used to test the RENDERED operand for inline
     /// safety, and "NOT b" contains a space, so every negated operand at operand position was hoisted to

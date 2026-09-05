@@ -396,6 +396,45 @@ public class CodesysCoilFlagTests
         var written = Assert.IsType<Nwl.BoxTreeBox>(live.GetTree(live.NetworkItemCount - 1));
         Assert.Equal("EXECUTE", written.BoxType);
         Assert.True(written.ProvidesSTSnippet, "the box must report that it carries ST");
-        Assert.NotNull(written.STSnippet);
+
+        // AND THE ST ITSELF LANDED. `Assert.NotNull(written.STSnippet)` used to stand here and proved
+        // nothing beyond the line above it — the double defines `ProvidesSTSnippet => STSnippet != null`,
+        // so the two assertions were the same boolean read twice. Read the text back instead.
+        Assert.Equal(st, StTextOf(written));
+    }
+
+    /// <summary>THE POSTCONDITION CHECK IS REAL. The vendor's `Insert` throws AFTER landing the text, so the
+    /// writer catches that throw and then verifies the document by reading it back. If the text did NOT land,
+    /// the write must fail rather than create a box whose code is gone.
+    ///
+    /// <para>Neither half was reachable before: the double's `Insert` never threw, so the catch was dead and
+    /// the verification could never fire. Deleting the writer's `catch` left every test green. It does not
+    /// now — proven by making it rethrow, which fails this file.</para></summary>
+    [Fact]
+    public void An_execute_box_whose_ST_does_not_land_is_refused()
+    {
+        Nwl.TextDocument.DropsText = true;
+        try
+        {
+            var live = new Nwl.Network().With(new Nwl.BoxTreeAssign());
+            var model = new Network(0, null, null, null, false, new Node[]
+            {
+                new Box("EXECUTE", null, CallKind.Function, System.Array.Empty<Input>(),
+                        System.Array.Empty<Output>(), null, "iCount := iCount + 1;", Flags.None),
+            });
+
+            var ex = Assert.Throws<System.InvalidOperationException>(() =>
+                CodesysNetworkWriter.WriteNetwork(new Nwl.NWLImplementationObject(), live, model, null, NoProject, BodyLanguage.Fbd));
+            Assert.Contains("did not take its ST", ex.Message);
+        }
+        finally { Nwl.TextDocument.DropsText = false; }
+    }
+
+    /// <summary>The ST a written Execute box carries, through the same members the writer used to put it there.</summary>
+    private static string StTextOf(Nwl.BoxTreeBox box)
+    {
+        var snippet = Assert.IsType<Nwl.STSnippet>(box.STSnippet);
+        var impl = Assert.IsType<_3S.CoDeSys.STObject.STImplementationObject>(snippet.Snippet);
+        return impl.TextDocument.Text;
     }
 }
