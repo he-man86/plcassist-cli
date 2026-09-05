@@ -37,7 +37,7 @@ describe(`resilience / lifecycle chaos (${BASE})`, () => {
 
 	beforeAll(async () => {
 		await requireHealthy()
-		const pairs: Bound[] = (await bridge.instances()).map((p: any) => ({ project: p.project }))
+		const pairs: Bound[] = (await bridge.projects()).map((p: any) => ({ project: p.project }))
 		// Keep only the projects that actually SERVE right now: a window can be in the ROT but crashed / not yet
 		// built, so instances[0] isn't necessarily usable. The bridge-level cases run against a live one; the
 		// multi-instance cases need >= 2 LIVE projects (else they no-op).

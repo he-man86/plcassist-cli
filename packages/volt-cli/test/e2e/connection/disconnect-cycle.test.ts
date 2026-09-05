@@ -43,7 +43,7 @@ describe(`lifecycle / disconnect cycle (${BASE})`, () => {
 		// Fail loudly rather than silently skipping: a bridge without `deselect` is an OLD build, and a green run
 		// against it would be a lie. (This is the exact trap the stale-bundled-bridge snapshot fell into before.)
 		// Remember exactly which project is live, so every resume() re-selects THIS one by name.
-		const row = (await bridge.instances())?.[0]
+		const row = (await bridge.projects())?.[0]
 		bound = { project: row?.project }
 
 		const code = await opErrorCode(() => bridge.disconnect())
@@ -78,7 +78,7 @@ describe(`lifecycle / disconnect cycle (${BASE})`, () => {
 
 		// instances must keep listing the project: it is what the connector offers as "Connect to", so gating it
 		// would strand the user in the tray with nothing to click.
-		const projects = await bridge.instances()
+		const projects = await bridge.projects()
 		expect(Array.isArray(projects)).toBe(true)
 		expect(projects.length).toBeGreaterThan(0)
 	})

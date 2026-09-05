@@ -64,7 +64,7 @@ describe.skipIf(!ENABLED)(`ide-restart / close + reopen the IDE mid-connection (
 	beforeAll(async () => {
 		requireSingleIde()
 		await requireHealthy()
-		const row = (await bridge.instances())?.[0]
+		const row = (await bridge.projects())?.[0]
 		bound = { project: row?.project }
 		await bridge.connect(bound)
 	})
