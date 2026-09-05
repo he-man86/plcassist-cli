@@ -195,16 +195,19 @@ internal sealed partial class TcObjectModel
         // becomes 623 with the right base. One seed, no per-subtype dispatch. DIALECT C2b.
         if (kindCode == ItemKind.PlcDut) kindCode = ItemKind.PlcDutStruct;
 
+        // A task is TWO items and the SYSTEM one comes first — measured, from the vendor's own refusal:
+        // "No task 'X' found in Realtime-Settings!" (DIALECT C19b).
+        if (kindCode == ItemKind.PlcTask) return CreatePlcTask(parent, name);
+
         object? vInfo = kindCode switch
         {
             ItemKind.PlcPouFunc => System.Type.Missing,
             ItemKind.PlcDutStruct or ItemKind.PlcDutEnum or ItemKind.PlcDutUnion => System.Type.Missing,
             ItemKind.PlcItf => null,
-            // A task and a task's POU call have no BODY, so neither has a language to be given. A call is a
-            // REFERENCE whose name is the whole of it; a task's own state is its schedule, which lives on the
-            // linked system task and is written separately. Both are read back after the write (WriteCallList,
-            // WriteTask), so a wrong vInfo here fails loudly rather than leaving a task that calls nothing.
-            ItemKind.PlcTask or ItemKind.PlcProgRef => System.Type.Missing,
+            // A task's POU call is a REFERENCE with no body, so it has no language to be given: the name is the
+            // whole of it. Read back by WriteCallList, so a wrong vInfo fails loudly rather than leaving a task
+            // that calls nothing. (A task itself never reaches here — see CreatePlcTask.)
+            ItemKind.PlcProgRef => System.Type.Missing,
             // Interface method/property: TC wants the return/data type as a STRING vInfo (carried in the
             // `language` arg by PushService, null when untyped) — NOT a body language. Matches the working
             // Beckhoff sample (BuildChildVInfo): method→returnType, property→dataType, else null.
@@ -215,7 +218,15 @@ internal sealed partial class TcObjectModel
         };
         return (object)((dynamic)parent).CreateChild(name, kindCode, "", vInfo);
     }
-    public void DeleteChild(object parent, string name) => ((dynamic)parent).DeleteChild(name);
+    /// <summary>Remove a child. A TASK takes its SYSTEM task with it — the PLC item is only a reference, so
+    /// deleting it alone leaves an orphan under Realtime Settings that nothing in the workspace can see, and
+    /// every create/delete cycle would leak one more.</summary>
+    public void DeleteChild(object parent, string name)
+    {
+        var linked = LinkedTaskOfChild(parent, name);
+        ((dynamic)parent).DeleteChild(name);
+        if (linked is { } path) DeleteSystemTask(path);
+    }
     public void Rename(object node, string newName) => ((dynamic)node).Name = newName;
 
     /// <summary>Relocate a child whole. TwinCAT's tree item has no <c>Move</c>/<c>Reparent</c> member — the full

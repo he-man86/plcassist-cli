@@ -109,6 +109,29 @@ internal static class TcTaskSchedule
         return true;
     }
 
+    /// <summary>What a set of settings asks for, in the vendor's own numbers — for the read-back failure, which
+    /// is useless without them. "Did not apply it" tells nobody which field moved or where it landed.</summary>
+    public static string Describe(TaskSettings t) =>
+        $"priority {t.Priority}, cycle {ToTicks(t.Interval, t.IntervalUnit)} ticks";
+
+    /// <summary>The same, read off whatever the system task currently publishes — every copy of it, since a
+    /// half-moved schedule is the thing worth seeing.</summary>
+    public static string Describe(string sysTaskXml)
+    {
+        var root = XDocument.Parse(sysTaskXml);
+        var def = root.Descendants("TaskDef").FirstOrDefault();
+        var parts = new List<string>
+        {
+            $"priority {def?.Element("Priority")?.Value.Trim() ?? "?"}, " +
+            $"cycle {def?.Element("CycleTime")?.Value.Trim() ?? "?"} ticks",
+        };
+        foreach (var ctx in root.Descendants("Context"))
+            parts.Add($"context '{ctx.Element("Name")?.Value.Trim()}' priority " +
+                      $"{ctx.Element("Priority")?.Value.Trim() ?? "-"}, cycle " +
+                      $"{ctx.Element("CycleTime")?.Value.Trim() ?? "-"} ns");
+        return string.Join("; ", parts);
+    }
+
     // ── the cycle time, both ways ────────────────────────────────────────────────────────────────────────
 
     /// <summary>100ns ticks → the largest unit that stays EXACT, so a 10ms task reads `10 ms` rather than

@@ -11,15 +11,24 @@
  * just "set a field": a `.task` file ADDED is a task created, and one DELETED is a task removed. Neither needed
  * new push machinery — a delete op was always generic — but neither could be BUILT for a read-only kind.
  *
- * CODESYS ONLY. TwinCAT renders a different `.task` shape entirely and refuses the write with a reason; the
- * describe below skips there rather than asserting a refusal that would only re-state its own driver.
+ * BOTH VENDORS, deliberately. This file skipped TwinCAT while that driver refused the write, and the skip
+ * outlived the refusal — which is the failure mode a vendor gap actually has: the capability lands and the
+ * suite that would prove it stays switched off. The two vendors reach a schedule by routes that share nothing
+ * (CODESYS sets live properties; TwinCAT patches the SYSTEM task its PLC task links to and rebuilds the call
+ * children — DIALECT C19 / C19b), so a pass on one and a fail on the other is exactly the signal worth having.
+ *
+ * Where they legitimately differ is NARROW and named here rather than skipped: the folder a task lives in, and
+ * the three fields TwinCAT cannot schedule at all (a non-Cyclic type, an event, a watchdog). Everything else —
+ * the descriptor bytes, the edit, the call list, create and delete, the canonical-form refusal — is asserted
+ * identically on both.
  */
 import { describe, it, expect, beforeAll, setDefaultTimeout } from "bun:test"
 import { bridge, id, fid, pushOps, fetchItem, requireHealthy, BASE, VENDOR } from "../harness"
 
-const TASK_FOLDER = "Device/Plc Logic/Application/Task Configuration"
+// CODESYS drills tasks out of a `Task Configuration` container; a TwinCAT task sits at the PLC project root.
+const TASK_FOLDER = VENDOR === "twincat" ? "" : "Device/Plc Logic/Application/Task Configuration"
 
-describe.skipIf(VENDOR === "twincat")(`items / a task is writable (${BASE})`, () => {
+describe(`items / a task is writable (${BASE})`, () => {
 	setDefaultTimeout(180_000)
 	beforeAll(async () => {
 		await requireHealthy()
@@ -95,11 +104,26 @@ describe.skipIf(VENDOR === "twincat")(`items / a task is writable (${BASE})`, ()
 		}
 	})
 
+	/**
+	 * A priority no OTHER task holds. TwinCAT schedules by priority and will not seat two tasks on the same one:
+	 * asking for a taken slot leaves the new task where the IDE put it, which reads as "the write did not take"
+	 * and is really "you asked for something the vendor forbids". Found live — the original literal `20` is the
+	 * priority the fixture's own PlcTask already runs at. CODESYS does not care, so deriving it is correct on
+	 * both rather than a TwinCAT special case.
+	 */
+	async function freePriority(): Promise<number> {
+		const taken = new Set<number>()
+		for (const n of Object.keys((await refs()).items ?? {}).filter((x) => x.endsWith(".task")))
+			for (const m of (await fetchItem(n)).sourceText.matchAll(/^Priority:\s*(\d+)/gm)) taken.add(Number(m[1]))
+		for (let p = 30; p < 90; p++) if (!taken.has(p)) return p
+		throw new Error(`no free task priority: ${[...taken].join(", ")}`)
+	}
+
 	it("a NEW .task file creates a real task, and DELETING it removes one", async () => {
 		const name = fid("task_new", "task")
 		await clean(name)
 
-		const body = "Type:      Cyclic\nInterval:  100 ms\nPriority:  20\nWatchdog:  off\n"
+		const body = `Type:      Cyclic\nInterval:  100 ms\nPriority:  ${await freePriority()}\nWatchdog:  off\n`
 		const created = await pushOps([{ op: "set", name, toFolder: TASK_FOLDER, sourceText: body, ifVersion: null }])
 		expect(created.accepted, `create refused: ${JSON.stringify(created.conflicts)}`).toBe(true)
 
@@ -111,6 +135,36 @@ describe.skipIf(VENDOR === "twincat")(`items / a task is writable (${BASE})`, ()
 		const removed = await pushOps([{ op: "deleteItem", name, ifVersion: await versionOf(name) }])
 		expect(removed.accepted, `delete refused: ${JSON.stringify(removed.conflicts)}`).toBe(true)
 		expect(await versionOf(name)).toBeNull()
+	})
+
+	/**
+	 * The ONE place the vendors legitimately part, asserted rather than skipped. CODESYS schedules a watchdog;
+	 * TwinCAT has no per-task watchdog with a time and a sensitivity, so it REFUSES the push instead of dropping
+	 * the line — a file that keeps saying `Watchdog: 50 ms (sensitivity 1)` over a task with no watchdog is the
+	 * silent divergence this whole capability was held back to avoid.
+	 */
+	it("a watchdog is scheduled on CODESYS and REFUSED on TwinCAT — never silently dropped", async () => {
+		const name = await anyTask()
+		const original = (await fetchItem(name)).sourceText
+		const edited = original.replace(/^Watchdog:.*$/m, "Watchdog:  50 ms (sensitivity 1)")
+		expect(edited, "the task's descriptor has no Watchdog line to move").not.toBe(original)
+
+		try {
+			const r = await pushOps([{ op: "set", name, toFolder: null, sourceText: edited, ifVersion: await versionOf(name) }])
+			if (VENDOR === "twincat") {
+				expect(r.accepted, "TwinCAT accepted a watchdog it cannot schedule").toBe(false)
+				expect(JSON.stringify(r.conflicts).toLowerCase()).toContain("watchdog")
+				// …and the refusal changed NOTHING. A rejected push that half-applied would be worse than one
+				// that silently dropped the field.
+				expect((await fetchItem(name)).sourceText).toBe(original)
+			} else {
+				expect(r.accepted, `push refused: ${JSON.stringify(r.conflicts)}`).toBe(true)
+				expect((await fetchItem(name)).sourceText).toBe(edited)
+			}
+		} finally {
+			if ((await fetchItem(name)).sourceText !== original)
+				await pushOps([{ op: "set", name, toFolder: null, sourceText: original, ifVersion: await versionOf(name) }])
+		}
 	})
 
 	it("a body that is not canonical is refused, with the exact text to use", async () => {

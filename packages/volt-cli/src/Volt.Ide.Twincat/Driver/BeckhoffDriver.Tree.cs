@@ -117,7 +117,9 @@ public sealed partial class BeckhoffDriver
                 unwalked.Add(lost);
                 childCount = 0;
             }
-            bool isHybrid = childCount > 0 && !ItemKind.IsTopLevelCrud(itemType);
+            // A node whose children are all folded into its own body (a task's POU calls) is a FILE, not a
+            // folder — otherwise it opens one named after itself for children the walk never emits.
+            bool isHybrid = childCount > 0 && !ItemKind.IsTopLevelCrud(itemType) && !ItemKind.InlinesItsChildren(itemType);
             string emitFolder = isHybrid ? FolderPath.Append(folderPath, name) : folderPath;
 
             items.Add(new ProjectItem(name, new ItemRef(child), itemType, emitFolder));

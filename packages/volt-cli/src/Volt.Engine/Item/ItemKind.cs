@@ -208,12 +208,22 @@ public static class ItemKind
     ///
     /// <para><b>Deliberately NOT the same predicate as <see cref="IsTopLevelCrud"/></b>, which now means only
     /// "is assembled ST". The two questions were the same until a descriptor became writable, and they read
-    /// alike — but <c>IsTopLevelCrud</c> also decides TwinCAT's hybrid-node detection (a node with children
-    /// that is not a top-level item) and whether a tree walk may descend past a name. A TwinCAT task HAS
-    /// children (its call references), so widening that one predicate would have quietly changed how the
-    /// TwinCAT walk classifies every task — on a vendor where tasks are not even writable.</para></summary>
+    /// alike — but <c>IsTopLevelCrud</c> also decides TwinCAT's hybrid-node detection and whether a tree walk
+    /// may descend past a name. Those are separate questions and are answered separately: see
+    /// <see cref="InlinesItsChildren"/>.</para></summary>
     public static bool IsAddressableItem(int code) =>
         IsTopLevelCrud(code) || (Map(code) is { } kind && WritableReferenceSet.Contains(kind));
+
+    /// <summary>A node whose children are ALL folded into its own body, so it is a FILE and never a folder.
+    ///
+    /// <para>Only a TwinCAT task, and only because that vendor models a task's POU calls as child items
+    /// (<see cref="PlcProgRef"/>, 650) where CODESYS keeps them as a property. Both are rendered into the
+    /// `Calls:` line of the one `.task` file, and the walk already skips the children themselves
+    /// (<see cref="IsInlinedInPou"/>) — but the HYBRID test looks at the raw child COUNT, so a task still
+    /// opened a folder named after itself for children nobody emits. Measured: `PlcTask.task` landed at
+    /// `PlcTask/PlcTask.task` on TwinCAT against `Task Configuration/MainTask.task` on CODESYS, a workspace
+    /// layout that differed per vendor for a file whose CONTENT is now identical in shape.</para></summary>
+    public static bool InlinesItsChildren(int code) => code is PlcTask;
 
     /// <summary>Whether a kind string is a source kind (assembled ST text, not a manifest).</summary>
     public static bool IsSourceKind(string kind) => SourceKinds.Contains(kind);

@@ -21,6 +21,64 @@ namespace Volt.Ide.Twincat;
 /// </summary>
 internal sealed partial class TcObjectModel
 {
+    /// <summary>Where TwinCAT keeps the real tasks: Realtime Settings, in the system-manager tree.</summary>
+    private const string SystemTasks = "TIRT";
+
+    /// <summary>The subtype a PLC-driven system task is created with. Measured off the live `TIRT^PlcTask`,
+    /// which reports <c>ItemType=1 ItemSubType=1</c>.</summary>
+    private const int SystemTaskSubType = 1;
+
+    /// <summary>Create a task — the SYSTEM one first, then the PLC reference to it.
+    ///
+    /// <para>The order is not a preference, it is the vendor's: creating the PLC item alone fails with
+    /// <c>"No task 'X' found in Realtime-Settings!"</c>, because a PLC task IS a reference and there is nothing
+    /// for it to point at yet. Found by running the e2e create against a live XAE, which is the only place this
+    /// could have been found — every offline test would have passed.</para>
+    ///
+    /// <para>If the PLC half then fails, the system task this method made is removed again. A create that
+    /// half-lands is worse than one that fails: the orphan is invisible from the workspace (nothing walks
+    /// Realtime Settings), so it would accumulate silently across retries.</para></summary>
+    private object CreatePlcTask(object parent, string name)
+    {
+        var mine = LookupPath($"{SystemTasks}^{name}") is null;
+        if (mine)
+            ((dynamic)LookupTreeItem(SystemTasks)).CreateChild(name, SystemTaskSubType, "", System.Type.Missing);
+        try
+        {
+            return (object)((dynamic)parent).CreateChild(name, ItemKind.PlcTask, "", System.Type.Missing);
+        }
+        catch
+        {
+            if (mine) try { DeleteSystemTask($"{SystemTasks}^{name}"); } catch { /* the original failure wins */ }
+            throw;
+        }
+    }
+
+    /// <summary>The system task a named child points at, or null when that child is not a task. Read BEFORE the
+    /// child is deleted, because afterwards there is nothing left to ask.</summary>
+    private string? LinkedTaskOfChild(object parent, string name)
+    {
+        var n = ChildCount(parent);
+        for (var i = 1; i <= n; i++)
+        {
+            var child = ChildAt(parent, i);
+            if (ItemType(child) != ItemKind.PlcTask) continue;
+            if (!string.Equals(GetName(child), name, StringComparison.OrdinalIgnoreCase)) continue;
+            return TcTaskSchedule.LinkedTaskPath(ProduceXml(child));
+        }
+        return null;
+    }
+
+    /// <summary>Drop `TIRT^Name`. Absence is fine — the PLC reference is already gone, and a task that was
+    /// never linked has nothing to clean up.</summary>
+    private void DeleteSystemTask(string path)
+    {
+        var cut = path.LastIndexOf('^');
+        if (cut < 0) return;
+        if (LookupPath(path) is null) return;
+        ((dynamic)LookupTreeItem(path.Substring(0, cut))).DeleteChild(path.Substring(cut + 1));
+    }
+
     /// <summary>A PLC task's settings, assembled from the linked system task plus this item's call children.</summary>
     public TaskSettings ReadTask(object node) =>
         TcTaskSchedule.Read(ProduceXml(LinkedSystemTask(node)), CallNames(node));
@@ -37,11 +95,12 @@ internal sealed partial class TcObjectModel
 
         // Re-LOOKUP rather than reuse the handle: a tree item is invalidated by a mutation ("Item 'x' is deleted
         // or invalidated by an ealier operation!"), which is the same trap `ReadManifest` records for the walk.
-        if (!TcTaskSchedule.Matches(ProduceXml(LookupTreeItem(path)), t))
+        var got = ProduceXml(LookupTreeItem(path));
+        if (!TcTaskSchedule.Matches(got, t))
             throw new BridgeException(BridgeErrorCodes.Unsupported,
-                $"TwinCAT accepted the schedule for '{GetName(node)}' and did not apply it — the system task " +
-                $"'{path}' still reports a different priority or cycle time. Set it in the IDE; pushing it again " +
-                "will not help.");
+                $"TwinCAT accepted the schedule for '{GetName(node)}' and did not apply it. Asked the system " +
+                $"task '{path}' for {TcTaskSchedule.Describe(t)}; it reports {TcTaskSchedule.Describe(got)}. " +
+                "Set it in the IDE — pushing the same body again will not help.");
 
         WriteCallList(node, t.Calls);
     }
