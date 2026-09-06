@@ -179,8 +179,10 @@ END_FUNCTION_BLOCK
       "nothing unassigned — and lenze-mid carries four of exactly this (`??? := SpeedCalculationDryer();` and " +
       "friends, in Mach1_MIDS.prg and AHWF.prg) while its recorded build reports buildSuccess with no such " +
       "error. Volt is faithful here: a plain void call round-trips as `P();`, measured live, so the `???` is " +
-      "the vendor's own. This fixture decides whether the LSP's four are false positives or whether those two " +
-      "POUs are simply excluded from the build.",
+      "the vendor's own. ANSWERED: all four are false positives. The compiler answers about the SOURCE over " +
+      "any real call, so the target message is one it never emits here — and voidness is not the line, as " +
+      "`network_unnamed_target_of_valued_call` shows. `Mach1_MIDS` is LIVE (`General.prg:29` calls it and " +
+      "`general` is a task root), so the excluded-from-build reading this fixture tested is WRONG.",
     plcPrgBody: "PRG_LANG_network_unnamed_void_caller();",
     source: `PROGRAM PRG_LANG_network_unnamed_void_callee
 VAR
@@ -202,6 +204,43 @@ NETWORK 0 LD
 END_NETWORK
 
 END_PROGRAM
+`,
+  },
+  {
+    name: "network_unnamed_target_of_valued_call",
+    pouName: "FB_LANG_network_unnamed_valued_call",
+    kind: "function_block",
+    feature: "`???` as the target of a FUNCTION call that DOES return a value",
+    fromDoc: "network-text.md#sink--lvalue--operand",
+    note:
+      "The last unmeasured target shape, and the one lenze-mid's surviving corpus divergence sits on " +
+      "(`??? := Alarms_V5_1_100(...)`, a `FUNCTION … : BOOL`). The neighbours bracket it without covering it: " +
+      "`??? := NOT(a)` is an OPERATOR and errors on the target, `??? := <PROGRAM>()` returns NOTHING and errors " +
+      "on the source. A valued call is a call with a value, so either answer is credible and only the compiler " +
+      "settles it. Same unconnected enable as the corpus and as the `_behind_enable` fixture, so the enable is " +
+      "held constant and the CALL is the only thing that varies.",
+    plcPrgVar: "fb_nvc : FB_LANG_network_unnamed_valued_call;",
+    plcPrgBody: "fb_nvc();",
+    source: `FUNCTION FUN_LANG_network_unnamed_valued : BOOL
+VAR_INPUT
+	a : BOOL;
+END_VAR
+
+FUN_LANG_network_unnamed_valued := a;
+
+END_FUNCTION
+
+FUNCTION_BLOCK FB_LANG_network_unnamed_valued_call
+VAR
+	a : BOOL;
+END_VAR
+
+NETWORK 0 LD
+  LET en1 := ;
+  IF en1 THEN ??? := FUN_LANG_network_unnamed_valued(a); END_IF
+END_NETWORK
+
+END_FUNCTION_BLOCK
 `,
   },
 ]

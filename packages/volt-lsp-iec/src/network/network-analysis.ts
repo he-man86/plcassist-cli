@@ -306,15 +306,22 @@ function checkUnresolvedBoxes(
 
     // A TARGET MARKER OVER A VOID CALL IS NOT A TARGET COMPLAINT — measured, not reasoned.
     //
-    // The two recorded target shapes (`??? := a`, `IF en1 THEN ??? := NOT(a)`) both have a real VALUE to leave
-    // unassigned, and CODESYS answers "The assignment target is not specified." A call that returns nothing has
-    // no value at all, and the compiler answers about the SOURCE instead: recorded 2026-09-06 on live SP21 as
-    // `The assignment source is incorrect.` plus a `__…__ImpVar15` lazy-typed-variable error — so the target
-    // message is one the compiler never emits here, which makes it a false positive.
+    // Four shapes were recorded on live SP21 (2026-09-06) and they split cleanly on ONE thing — whether the
+    // assigned value is a real CALL:
     //
-    // lenze-mid carries four of these. THREE call PROGRAMs (`??? := SpeedCalculationDryer();` and friends) and
-    // are silenced here; the fourth calls `Alarms_V5_1_100 : BOOL`, which DOES return a value, so it keeps the
-    // target message exactly as before. The split is the callee's return type, not the shape of the text.
+    //   `??? := a`               variable   -> "The assignment target is not specified."
+    //   `??? := NOT(a)`          operator   -> the same, plus two about an implicit temp
+    //   `??? := <PROGRAM>()`     void call  -> "The assignment source is incorrect."
+    //   `??? := <FUNCTION:BOOL>()` valued   -> the same source answer
+    //
+    // So over a call the compiler answers about the SOURCE and never about the target, and the target message
+    // is one it does not emit — a false positive. Voidness looked like the line and is not: a `FUNCTION : BOOL`
+    // gets the same answer as a `PROGRAM`. This was fixed once on the narrower void-only rule and the valued
+    // case then had to be measured to correct it, which is why both fixtures are committed rather than one.
+    //
+    // It accounts for all four of lenze-mid's divergences, and for why the recorded build reports success over
+    // them: they were never errors. `Mach1_MIDS` IS live — `General.prg:29` calls it and `general` is a task
+    // root — so this is not the excluded-from-build gap it was briefly taken for.
     //
     // Nothing is emitted in its place: of the compiler's two messages one names an implicit temp whose number
     // cannot be known (the same reason the instance case emits a subset), and the other belongs to an
@@ -419,10 +426,11 @@ function collectVoidCallTargets(
   for (const s of statements) {
     if (s.kind === "en_eno_if") collectVoidCallTargets(s.body, scope, project, out)
     if (s.kind !== "sink" || s.target !== undefined || s.value?.kind !== "call") continue
-    const callee = resolveCallee(s.value, scope, project)
-    // Unresolved -> say nothing (the marker check keeps its existing answer). A callee with no `typeExpr` is
-    // one with no return value: a PROGRAM, an FB, or a FUNCTION declared without a type.
-    if (callee !== undefined && callee.sym.typeExpr === undefined) out.push(s.span)
+    // RESOLUTION IS THE TEST, and it is what separates a CALL from an OPERATOR. `NOT(a)` and `MOVE(x)` parse
+    // as calls too, and the compiler DOES answer about the target for those (`_behind_enable`) — they resolve
+    // to no declared callable. A name that resolves to a real POU is a real call, and voidness does not enter
+    // into it: measured, a `PROGRAM` and a `FUNCTION : BOOL` get the same source answer.
+    if (resolveCallee(s.value, scope, project) !== undefined) out.push(s.span)
   }
 }
 
