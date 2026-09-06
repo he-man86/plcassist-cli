@@ -65,14 +65,20 @@ remaining shape needs its own measurement before its refusal is called permanent
       green, and the assertion accepts either message for exactly that reason.
 - [ ] Delete the branch in `roundtrip.test.ts` ("creates an FBD program with an Execute box").
 
-## 4b. Network grouping — a silent reshape, not a refusal
+## 4b. Network grouping — MEASURED, and the obvious repair CORRUPTS
 
-- [ ] A body pushed as ONE network returns as N on TwinCAT (one per connected component). Decide whether the
-      importer can be made to preserve the pushed grouping — the network boundary is Volt's, and the importer
-      currently re-derives it.
-- [ ] If it cannot: make it a stated REFUSAL like the other four, so the engineer is told rather than silently
-      handed a different body. A measured, stable difference is still a difference.
-- [ ] Delete the vendor branch in `graphical/grouping.test.ts` (`[1,1,2,2]` vs `[1,1,1,1]`).
+- [x] Attempted the repair: merge the importer's split networks back into one by moving tree elements between
+      existing lists (the same "move, never construct" reasoning that made the EN fix safe). It WORKS for
+      independent rungs — all four grouping shapes came back as `[1,1,1,1]`, matching CODESYS exactly.
+- [x] **And it corrupts a body whose trees reference each other.** `t1(IN := a, PT := pt); done := t1.Q;` came
+      back as `done := ();` — the read of the box's output lost its target. So the importer's networks are NOT
+      independent documents that merely got split: a tree in the second network can point into the first, and
+      recombining them breaks that. Reverted.
+- [ ] The divergence therefore stands for now, and it is the only one in this change that is neither a refusal
+      nor a measured impossibility. Next avenue: find what the second network's tree actually references (a
+      connection id? a demux?) and whether that reference can be rewritten as part of the move. Until then a
+      split body is still a silent reshape, which is why this stays open rather than being written off.
+- [ ] Vendor branch REMAINS in `graphical/grouping.test.ts`.
 
 ## 5. Close
 
