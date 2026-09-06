@@ -166,4 +166,42 @@ END_NETWORK
 END_FUNCTION_BLOCK
 `,
   },
+  {
+    name: "network_unnamed_target_of_void_call",
+    pouName: "PRG_LANG_network_unnamed_void_caller",
+    kind: "program",
+    feature: "`???` as the target of a call that RETURNS NOTHING (a PROGRAM box)",
+    fromDoc: "network-text.md#sink--lvalue--operand",
+    note:
+      "THE SHAPE THE CORPUS ACTUALLY CARRIES, and the one the other target fixtures do not reach. " +
+      "`network_unnamed_assignment_target` measures `??? := a` and the EN variant `??? := NOT(a)`; both have a " +
+      "real value to leave unassigned, and CODESYS errors. A PROGRAM box has NO output pin at all, so there is " +
+      "nothing unassigned — and lenze-mid carries four of exactly this (`??? := SpeedCalculationDryer();` and " +
+      "friends, in Mach1_MIDS.prg and AHWF.prg) while its recorded build reports buildSuccess with no such " +
+      "error. Volt is faithful here: a plain void call round-trips as `P();`, measured live, so the `???` is " +
+      "the vendor's own. This fixture decides whether the LSP's four are false positives or whether those two " +
+      "POUs are simply excluded from the build.",
+    plcPrgBody: "PRG_LANG_network_unnamed_void_caller();",
+    source: `PROGRAM PRG_LANG_network_unnamed_void_callee
+VAR
+	x : BOOL;
+END_VAR
+
+x := TRUE;
+
+END_PROGRAM
+
+PROGRAM PRG_LANG_network_unnamed_void_caller
+VAR
+	go : BOOL;
+END_VAR
+
+NETWORK 0 LD
+  LET en1 := go;
+  IF en1 THEN ??? := PRG_LANG_network_unnamed_void_callee(); END_IF
+END_NETWORK
+
+END_PROGRAM
+`,
+  },
 ]

@@ -28,7 +28,7 @@ import {
   type BodySpan,
   type Expr,
 } from "../syntax/index.js"
-import { inferExprType } from "../types/index.js"
+import { inferExprType, resolveCallee } from "../types/index.js"
 import {
   assignmentPairError,
   narrowingPairError,
@@ -62,7 +62,12 @@ export function computeNetworkTextDiagnostics(
       for (const d of analysis.vg.diagnostics) {
         out.push({ severity: "error", span: d.span, source: SOURCE, code: d.code, message: d.message })
       }
-      checkUnresolvedBoxes(body, messages, out)
+      // `??? := <a call that returns nothing>` — the marker sits in the TARGET slot but the compiler does not
+      // answer about the target. Gathered BEFORE the marker walk, which is token-based and cannot see it.
+      const voidCallTargets: { start: number; end: number }[] = []
+      for (const [network, scope] of analysis.networkScopes)
+        collectVoidCallTargets(network.statements, scope, project, voidCallTargets)
+      checkUnresolvedBoxes(body, messages, out, voidCallTargets)
 
       for (const [network, scope] of analysis.networkScopes) {
         checkStatements(network.statements, scope, project, messages, out)
@@ -273,7 +278,12 @@ function isPinSection(section: string | undefined): boolean {
  * The lexer emits `?` as three separate `punct` tokens, so adjacency is checked on the spans: only `???` written
  * with nothing between the marks is the vendor's marker.
  */
-function checkUnresolvedBoxes(body: BodySpan, messages: Messages, out: DiagnosticItem[]): void {
+function checkUnresolvedBoxes(
+  body: BodySpan,
+  messages: Messages,
+  out: DiagnosticItem[],
+  voidCallTargets: readonly { start: number; end: number }[] = [],
+): void {
   const toks = body.tokens
   for (let i = 0; i + 2 < toks.length; i++) {
     const [a, b, c] = [toks[i]!, toks[i + 1]!, toks[i + 2]!]
@@ -293,6 +303,24 @@ function checkUnresolvedBoxes(body: BodySpan, messages: Messages, out: Diagnosti
     const next = toks[n]
     const isTarget = next !== undefined && ASSIGN_OPS.has(next.text)
     const marker = { ...a.span, end: c.span.end }
+
+    // A TARGET MARKER OVER A VOID CALL IS NOT A TARGET COMPLAINT — measured, not reasoned.
+    //
+    // The two recorded target shapes (`??? := a`, `IF en1 THEN ??? := NOT(a)`) both have a real VALUE to leave
+    // unassigned, and CODESYS answers "The assignment target is not specified." A call that returns nothing has
+    // no value at all, and the compiler answers about the SOURCE instead: recorded 2026-09-06 on live SP21 as
+    // `The assignment source is incorrect.` plus a `__…__ImpVar15` lazy-typed-variable error — so the target
+    // message is one the compiler never emits here, which makes it a false positive.
+    //
+    // lenze-mid carries four of these. THREE call PROGRAMs (`??? := SpeedCalculationDryer();` and friends) and
+    // are silenced here; the fourth calls `Alarms_V5_1_100 : BOOL`, which DOES return a value, so it keeps the
+    // target message exactly as before. The split is the callee's return type, not the shape of the text.
+    //
+    // Nothing is emitted in its place: of the compiler's two messages one names an implicit temp whose number
+    // cannot be known (the same reason the instance case emits a subset), and the other belongs to an
+    // assignment-source rule that does not exist yet and would have to fire for a plain `x := VoidProg()` too.
+    // A missing diagnostic is a reported coverage gap; a wrong one is a hard failure.
+    if (isTarget && voidCallTargets.some((sp) => marker.start >= sp.start && marker.start < sp.end)) continue
 
     // AN OPERAND MARKER GETS BOTH OF THE COMPILER'S MESSAGES, because it emits both for the one marker and
     // both are reproducible: they name the position and the token, and neither embeds anything invented.
@@ -378,6 +406,24 @@ function checkMetadataPlacement(network: NetworkTextNetwork, out: DiagnosticItem
         "so the pushed text and the project stop matching",
     })
   })
+}
+
+/** Spans of `??? := <call>` sinks whose callee returns NOTHING — see the note in `checkUnresolvedBoxes`.
+ *  The parser drops the marker, so such a sink is exactly one with NO target and a call for its value. */
+function collectVoidCallTargets(
+  statements: readonly NetworkTextStatement[],
+  scope: Scope,
+  project: Scope,
+  out: { start: number; end: number }[],
+): void {
+  for (const s of statements) {
+    if (s.kind === "en_eno_if") collectVoidCallTargets(s.body, scope, project, out)
+    if (s.kind !== "sink" || s.target !== undefined || s.value?.kind !== "call") continue
+    const callee = resolveCallee(s.value, scope, project)
+    // Unresolved -> say nothing (the marker check keeps its existing answer). A callee with no `typeExpr` is
+    // one with no return value: a PROGRAM, an FB, or a FUNCTION declared without a type.
+    if (callee !== undefined && callee.sym.typeExpr === undefined) out.push(s.span)
+  }
 }
 
 function operandExprs(statements: readonly NetworkTextStatement[]): Expr[] {
