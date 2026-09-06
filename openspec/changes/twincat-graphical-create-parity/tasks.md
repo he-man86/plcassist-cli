@@ -108,8 +108,9 @@ remaining shape needs its own measurement before its refusal is called permanent
 - [x] Recorded in DIALECT C20(d) and pinned by `TcImporterSplitTests` + `fixtures/tc-pou/importer-split.TcPOU`
       (real XAE output), including a sweep asserting NO committed archive types a network item by the child —
       the one observation that would reopen this.
-- [ ] Vendor branch REMAINS in `graphical/grouping.test.ts` — now asserting a permanent vendor fact rather than
-      an open question, so its wording should say "cannot", not "does not yet".
+- [x] Vendor branch REMAINS in `graphical/grouping.test.ts`, and its wording now states the measurement — that
+      a `NetworkItems` list is homogeneous, so the merge is impossible rather than pending. It asserts a
+      permanent vendor fact, which is the parity suite working.
 
 ## 5. Close
 
