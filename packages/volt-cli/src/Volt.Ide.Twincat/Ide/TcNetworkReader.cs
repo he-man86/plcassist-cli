@@ -225,6 +225,12 @@ internal static class TcNetworkReader
         // shorter `Names` is not a partial list to guess at, it is how an EXTENSIBLE operator says its trailing
         // pins are positional. Requiring equality split one project's boxes in half on that accident.
         return items.Skip(skip)
+            // `Flags.None` IS THE READ, not a stub. The archive has an `InputFlags` member and it is ALWAYS
+            // NULL — `<n n="InputFlags" />` in all 22 occurrences across the committed fixtures and a live
+            // Lenze pull, `NegatedContact.derived.TcPOU` included. A per-pin negation rides the OPERAND
+            // instead (that fixture carries `Flags = 1` on the operand's own Flags), which is also how network
+            // text spells it — `NOT x`, a modifier on the operand, never on the pin. So there is nothing to
+            // read here; do not "fix" this by reading `InputFlags` into it.
             .Select((x, i) => new Input(Box.FormalAt(names, i + skip), ReadNode(x), Flags.None))
             .ToList();
     }

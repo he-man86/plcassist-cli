@@ -43,6 +43,10 @@ internal static class Fixtures
     /// <summary>A vendor <c>.TcPOU</c>/<c>.TcIO</c> archive fixture, the suite's most-used shape.</summary>
     public static string Pou(string name) => Text("tc-pou", name);
 
+    /// <summary>The directory those archives live in — for a check that must sweep ALL of them rather than name
+    /// one, e.g. a format invariant that is only meaningful across every sample of real IDE output.</summary>
+    public static string PouDir() => System.IO.Path.Combine(AppContext.BaseDirectory, "fixtures", "tc-pou");
+
     /// <summary>Does this body hold an Execute box AT ALL — the coarse question, which only the tests still ask.
     ///
     /// <para>It lived in <c>TcArchive</c> until the marker stopped being decided by it (the product asks

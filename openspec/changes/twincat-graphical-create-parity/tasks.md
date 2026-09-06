@@ -87,11 +87,21 @@ remaining shape needs its own measurement before its refusal is called permanent
       back as `done := ();` — the read of the box's output lost its target. So the importer's networks are NOT
       independent documents that merely got split: a tree in the second network can point into the first, and
       recombining them breaks that. Reverted.
-- [ ] The divergence therefore stands for now, and it is the only one in this change that is neither a refusal
-      nor a measured impossibility. Next avenue: find what the second network's tree actually references (a
-      connection id? a demux?) and whether that reference can be rewritten as part of the move. Until then a
-      split body is still a silent reshape, which is why this stays open rather than being written off.
-- [ ] Vendor branch REMAINS in `graphical/grouping.test.ts`.
+- [x] **ANSWERED 2026-09-06 — a measured impossibility, and the corruption was never the reason.** The avenue
+      above was followed: the second network's tree references NOTHING (an ordinary assign whose RValue is a
+      plain operand `"t1.Q"`, no id, no connector; the two networks' `Id`s do not overlap). The merge was then
+      re-attempted with that knowledge and the real cause surfaced — a `NetworkItems` list declares its element
+      type ONCE via `cet` and no child carries its own `t`, so a network is HOMOGENEOUS. A box rung and an
+      assign rung cannot share a list.
+- [x] The obvious repair (stamp each moved item's own `t`, which `TcArchive` says wins over `cet`) was BUILT and
+      MEASURED: it round-trips perfectly through Volt's reader offline and comes back from a live XAE as
+      `done := ();` — that rule is Volt's reader's, not the vendor's deserializer's. Merge deleted rather than
+      left as dead code.
+- [x] Recorded in DIALECT C20(d) and pinned by `TcImporterSplitTests` + `fixtures/tc-pou/importer-split.TcPOU`
+      (real XAE output), including a sweep asserting NO committed archive types a network item by the child —
+      the one observation that would reopen this.
+- [ ] Vendor branch REMAINS in `graphical/grouping.test.ts` — now asserting a permanent vendor fact rather than
+      an open question, so its wording should say "cannot", not "does not yet".
 
 ## 5. Close
 

@@ -78,7 +78,14 @@ describe(`graphical / importer grouping (${BASE})`, () => {
 		// the PLCOPEN IMPORTER, which is TwinCAT's only route to a body it does not have: it groups by connected
 		// component, so two disconnected sinks come back as two networks. CODESYS builds the body directly from
 		// the model and regroups nothing, so it returns exactly the one network it was given. Measured live on
-		// both, today. A single shared expectation would have had to be wrong on one of them.
+		// both. A single shared expectation would have had to be wrong on one of them.
+		//
+		// AND IT CANNOT BE UNDONE — established 2026-09-06, so this branch is permanent rather than pending.
+		// A `NetworkItems` list declares its element type ONCE, via `cet`, and no child carries its own `t`, so a
+		// network is HOMOGENEOUS: a box rung and an assign rung have no list that can hold them together. The
+		// merge was built anyway and measured — it round-trips through Volt's reader offline and comes back from
+		// a live XAE as `done := ();`, because the vendor's deserializer types children from the list. See
+		// DIALECT C20(d) and `TcImporterSplitTests`, which pins the homogeneity across every committed archive.
 		const expected = PIPE.includes("twincat") ? [1, 1, 2, 2] : [1, 1, 1, 1]
 		expect(counts, "the importer's grouping changed, or a push was refused (-1)").toEqual(expected)
 	})
