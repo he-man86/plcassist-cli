@@ -1,4 +1,4 @@
-# Tasks
+﻿# Tasks
 
 Each shape is done when its e2e vendor branch is DELETED and the test passes on both vendors. Nothing here is
 done by widening a refusal or skipping a test.
@@ -64,12 +64,19 @@ remaining shape needs its own measurement before its refusal is called permanent
       the engineer's code, which is the worst outcome of the five shapes.
 - [x] Task 3 (EN) landed first, as required — the fixture is EN-guarded, so the enable now passes and the
       Execute box is the only wall left in it.
-- [ ] Vendor branch REMAINS in `roundtrip.test.ts`, and its assertion should now accept ONLY the Execute message
-      (the EN alternative it allows is dead).
-- [ ] READING one is separately unmeasured — `TcNetworkReader.ReadStCode` refuses because a populated
-      `STSnippet`'s archive shape has never been captured on this vendor. Reachable only if an engineer draws an
-      Execute box in XAE by hand, which is also how the shape would be captured. Worth doing: it is the one
-      remaining path where TwinCAT would meet an Execute box in the field.
+- [x] Vendor branch REMAINS in `roundtrip.test.ts`, and its assertion now accepts ONLY the Execute message
+      (the EN alternative it allowed is dead).
+- [x] READING one is DONE 2026-09-06, from a network drawn by hand in XAE
+      (`test/Volt.Ide.Twincat.Tests/fixtures/tc-pou/execute-box.TcPOU`). It was a FIELD gap, not a test gap:
+      `ReadStCode` refused outright, so an engineer with an Execute box could not pull the POU at all. Two members
+      of the walk are guessable wrongly and both are now pinned by test — `TextLines` is an `<a>` ARRAY, not the
+      `<l2>` every other member uses (wrong accessor ⇒ EMPTY, a box with no code), and each line's `Text` is
+      stored WITH its own surrounding double quotes.
+- [x] EDITING that ST is REFUSED, and had to be: nothing in `TcNetworkWriter` looked at `StCode`, so making the
+      box readable created a silent-loss path — the push found no storage change, wrote nothing, reported SUCCESS
+      and the next pull reverted the edit (the `JMP` retarget bug's exact shape). Test is red without the guard.
+- [ ] Writing the ST back needs the `TextLine.Id` contract measured on a live XAE: a changed LINE COUNT means
+      constructing `TextLine` items with invented ids, which is N11. Refusal until then.
 
 ## 4b. Network grouping — MEASURED, and the obvious repair CORRUPTS
 

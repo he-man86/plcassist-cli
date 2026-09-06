@@ -294,6 +294,23 @@ internal static class TcNetworkWriter
 
                 changed |= WriteOperand(e, "Instance", b.Instance);
 
+                // AN EXECUTE BOX'S ST IS COMPARED, NOT WRITTEN — so changing it FAILS rather than vanishing.
+                //
+                // The reader materializes the snippet now, which means an engineer can pull a POU with an
+                // Execute box, edit the ST in it, and push. Nothing below this line looks at `StCode`, so that
+                // push found no storage change, `Apply` returned null, the driver wrote nothing, the push
+                // reported SUCCESS and the next pull handed the edit back reverted — the identical shape the
+                // `JMP` retarget bug had above, and the reason this comparison exists at all.
+                //
+                // ponytail: refusing is the whole fix. Writing it back means editing `TextLines`, and a changed
+                // LINE COUNT means constructing `TextLine` items with invented `Id`s — archive construction,
+                // which is the line this writer does not cross (N11). Write them in place once the Id contract
+                // is measured on a live XAE, not inferred.
+                if (TcNetworkReader.ReadStCode(e) is var wasSt && wasSt != b.StCode)
+                    throw Refuse(wasSt is null
+                        ? $"box '{b.Type}' gains ST code, which Volt cannot add to an existing box"
+                        : $"the ST inside Execute box '{b.Type}' changed; edit it in the IDE");
+
                 // A BOX'S OWN OUTPUT PINS ARE WRITTEN NOW, matched to their SLOTS BY NAME.
                 //
                 // This used to skip them entirely, and the reason was sound at the time: "network text has no

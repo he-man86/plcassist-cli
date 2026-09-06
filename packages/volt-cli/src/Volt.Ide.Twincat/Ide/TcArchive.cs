@@ -109,6 +109,19 @@ internal static class TcArchive
             : l.Elements().Select(e => e.Name == "o" ? e : null).ToList();
     }
 
+    /// <summary>The items of an ARRAY member — <c>&lt;a n="..." cet="..."&gt;</c>, which is a different
+    /// serialization from the <c>&lt;l2&gt;</c> list <see cref="List"/> reads.
+    ///
+    /// <para>The archive uses both, and the distinction is the vendor's, not a style choice: an Execute box's
+    /// <c>TextLines</c> is an array of <c>TextLine</c>, while a network's <c>NetworkItems</c> is an l2 list.
+    /// Reading one with the other's accessor answers EMPTY, which is how an Execute box's ST could look like a
+    /// box with no code rather than like a member read by the wrong name.</para></summary>
+    public static IReadOnlyList<XElement> Items(XElement? owner, string name)
+    {
+        var a = owner?.Elements("a").FirstOrDefault(e => (string?)e.Attribute("n") == name);
+        return a == null ? Array.Empty<XElement>() : a.Elements("o").ToList();
+    }
+
     public static IReadOnlyList<XElement> List(XElement? owner, string name)
     {
         var l = owner?.Elements("l2").FirstOrDefault(e => (string?)e.Attribute("n") == name);

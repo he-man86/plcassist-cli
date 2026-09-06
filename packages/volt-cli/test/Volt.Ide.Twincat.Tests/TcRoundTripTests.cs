@@ -85,6 +85,7 @@ public class TcRoundTripTests
     [InlineData("NegatedContact.derived.TcPOU")]  // a negated contact - the commonest modifier of all
     [InlineData("MultiOutput.derived.TcPOU")]     // one value driving two coils
     [InlineData("FanOut.TcPOU")]                  // a box with a REAL output item - see the note on this row
+    [InlineData("execute-box.TcPOU")]             // an Execute box - its ST must survive a no-op push
     public void A_push_that_changes_nothing_changes_nothing_in_the_archive(string fixture)
     {
         var before = Body(fixture);
@@ -119,6 +120,7 @@ public class TcRoundTripTests
     [InlineData("NegatedContact.derived.TcPOU")]  // a negated contact - the commonest modifier of all
     [InlineData("MultiOutput.derived.TcPOU")]     // one value driving two coils
     [InlineData("FanOut.TcPOU")]                  // a box with a REAL output item - see the note on this row
+    [InlineData("execute-box.TcPOU")]             // an Execute box - its ST must survive a no-op push
     public void A_push_of_an_unchanged_body_is_not_written_back_at_all(string fixture)
     {
         var before = Body(fixture);

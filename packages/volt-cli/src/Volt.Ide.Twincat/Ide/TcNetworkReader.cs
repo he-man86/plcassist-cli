@@ -147,28 +147,48 @@ internal static class TcNetworkReader
         }
     }
 
-    /// <summary>An Execute box's ST — or a REFUSAL, because its archive shape is not measured.
+    /// <summary>An Execute box's ST, read from the archive.
     ///
-    /// <para>An Execute box carries raw ST on the box itself; the archive records that with
-    /// <c>ProvidesSTSnippet</c> and <c>STSnippet</c>, both measured members of <c>BoxTreeBox</c> (DIALECT N4).
-    /// This returned null unconditionally, so <c>NetworkTextWriter</c>'s Execute arm never fired and the box
-    /// rendered as a bare <c>EXECUTE();</c> — the engineer's ST absent from git with no marker, no diagnostic
-    /// and no unreadable tally, and <c>volt status</c> reporting clean.</para>
+    /// <para>An Execute box carries raw ST on the box itself, recorded with <c>ProvidesSTSnippet</c> and
+    /// <c>STSnippet</c> (DIALECT N4). This used to return null unconditionally, so <c>NetworkTextWriter</c>'s
+    /// Execute arm never fired and the box rendered as a bare <c>EXECUTE();</c> — the engineer's ST absent from
+    /// git with no marker, no diagnostic and no unreadable tally, and <c>volt status</c> reporting clean. It then
+    /// REFUSED instead, which was right while the shape was unmeasured: inventing a vendor serialization is what
+    /// made twenty .TcPOU files unopenable once.</para>
     ///
-    /// <para>It REFUSES rather than reading, and that is deliberate: what a populated <c>STSnippet</c> looks
-    /// like inside this archive has never been measured on TwinCAT, and inventing a vendor serialization is
-    /// exactly what made twenty .TcPOU files unopenable once. A refusal is loud and recoverable; a body missing
-    /// the code it runs is neither. CODESYS reads its own snippet through the live object model, where there is
-    /// nothing to guess at.</para></summary>
-    private static string? ReadStCode(XElement e)
+    /// <para><b>MEASURED 2026-09-06</b> from an Execute box drawn by hand in XAE (the fixture
+    /// <c>tc-pou/execute-box.TcPOU</c>, since Volt cannot create one on this vendor — the importer accepts the
+    /// push and returns a plain box named EXECUTE with the ST gone). The shape is four objects deep, and the
+    /// line list is an ARRAY, not an l2 list:</para>
+    /// <code>
+    /// &lt;o n="STSnippet" t="STSnippet"&gt;
+    ///   &lt;o n="STSnippet" t="STImplementationObject"&gt;
+    ///     &lt;o n="TextDocument" t="TextDocument"&gt;
+    ///       &lt;a n="TextLines" cet="TextLine"&gt;
+    ///         &lt;o&gt;&lt;v n="Id"&gt;17L&lt;/v&gt;&lt;n n="Tag" /&gt;&lt;v n="Text"&gt;"iCount:=icount+1;"&lt;/v&gt;&lt;/o&gt;
+    /// </code>
+    /// <para>Each line's <c>Text</c> is stored QUOTED — the value includes its own surrounding double quotes —
+    /// so they are stripped here. A box whose <c>ProvidesSTSnippet</c> is true but whose document cannot be
+    /// walked still REFUSES rather than answering empty: an Execute box with no code is not a thing, and
+    /// answering "" would put the old silent-loss behaviour back.</para></summary>
+    internal static string? ReadStCode(XElement e)
     {
         if (!TcArchive.Bool(e, "ProvidesSTSnippet")) return null;
 
-        throw new NotSupportedException(
-            "TwinCAT: this network contains an Execute box (ST inside FBD). Volt has not measured how the " +
-            "archive stores its ST, and it will not materialize the box without the code it runs — the body " +
-            "would look complete and would not be. Edit this POU in the IDE.");
+        var doc = TcArchive.Obj(TcArchive.Obj(TcArchive.Obj(e, "STSnippet"), "STSnippet"), "TextDocument");
+        var lines = TcArchive.Items(doc, "TextLines");
+        if (doc == null)
+            throw new NotSupportedException(
+                "TwinCAT: this network contains an Execute box whose STSnippet/TextDocument this reader could " +
+                "not walk. Volt will not materialize the box without the code it runs — the body would look " +
+                "complete and would not be. Edit this POU in the IDE.");
+
+        return string.Join("\n", lines.Select(l => Unquote(TcArchive.Str(l, "Text") ?? "")));
     }
+
+    /// <summary>A `TextLine`'s stored text, without the double quotes the archive wraps every line in.</summary>
+    private static string Unquote(string s) =>
+        s.Length >= 2 && s[0] == '"' && s[^1] == '"' ? s.Substring(1, s.Length - 2) : s;
 
     /// <summary>The enable wire, if input slot 0 is one — read BEFORE <see cref="ReadInputs"/> pairs the rest
     /// with their names, and removed from them there. See <see cref="Box.HasEnableSlot"/>: the enable is an
