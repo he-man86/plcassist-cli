@@ -336,34 +336,20 @@ internal static class TcNetworkWriter
                 var enSlot = Box.HasEnableSlot(pinNames) && inputs.Count > 0 ? 1 : 0;
                 if (enSlot == 1 && b.Enable is null)
                     throw Refuse($"box '{b.Type}' drops its EN input, which network text cannot express");
-                // THE IMPORTER FOLDS A WIRED ENABLE IN AS A DATA INPUT — so turn it back into an enable here.
+                // THE WIRED ENABLE IS BUILT BY THE IMPORTER, NOT REPAIRED HERE.
                 //
-                // `TcPlcOpenWriter` emits the enable as input slot 0 named EN, which the importer accepts and
-                // then flattens: the box comes back with one input MORE than the model and no EN. Everything
-                // needed to repair that already exists — the input ITEM and its name slot, both at slot 0 — so
-                // this renames the slot to `EN` and sets the `En` display flag. Two VALUE edits, no archive
-                // construction, which is the line this writer must not cross (N11).
+                // There WAS a repair block here, and it was dead on arrival — four independent reasons, each
+                // checkable against the committed fixtures: it read `InputParam` via `Element("l")` where the
+                // archive writes `<l2 n="Names">` (32 occurrences, zero `<l n=>`), so its slot list was always
+                // null; it set a member spelled `En` where the archive spells `EN` (16, none `En`); six of those
+                // are `<n n="EN" />` explicit nulls, which `Set` will not write; and every importer-produced
+                // operator box carries an EMPTY `<l2 n="Names" />`, so there was no slot to rename anyway.
                 //
-                // Measured 2026-09-06 on a live XAE: `IF en1 THEN out := (a AND b); END_IF` round-trips
-                // BYTE-IDENTICAL through create → pull, and the project compiles clean. Before this, a wired
-                // enable was refused outright and TwinCAT could not express a shape CODESYS builds natively.
-                //
-                // Narrow by construction: it only fires when the box has EXACTLY one input more than the model,
-                // which is the signature of the fold. Any other mismatch still refuses below.
-                if (enSlot == 0 && b.Enable is not null &&
-                    inputs.Count == b.Inputs.Count + 1 && pinNames.Count > 0)
-                {
-                    var nameSlots = TcArchive.Obj(e, "InputParam")?.Element("l")?.Elements("v").ToList();
-                    if (nameSlots is { Count: > 0 })
-                    {
-                        nameSlots[0].Value = Box.EnablePin;
-                        SetBool(e, "En", true);
-                        pinNames = TcArchive.Strings(TcArchive.Obj(e, "InputParam"), "Names");
-                        enSlot = 1;
-                        changed = true;
-                    }
-                }
-
+                // It never ran, and the round trip works regardless — RE-MEASURED 2026-09-06 against a live XAE
+                // with the block deleted: `IF en1 THEN out := (a AND b); END_IF` comes back BYTE-IDENTICAL. So
+                // the fix that made a wired enable creatable was the EMISSION change in `TcPlcOpenWriter` (the
+                // enable emitted as input slot 0 named EN), and this block was belt-and-braces credited with it.
+                // Deleted rather than corrected: there is no fold left to undo.
                 if (enSlot == 0 && b.Enable is not null)
                     throw Refuse($"box '{b.Type}' gains an EN input, which this in-place write cannot add");
                 if (inputs.Count - enSlot != b.Inputs.Count)

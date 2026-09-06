@@ -256,16 +256,22 @@ public sealed partial class BeckhoffDriver
             var language = ViewModeOf(impl);
             if (language is null) return BodyMarker.For("IL");
 
-            // AN EXECUTE BOX MAKES THE BODY UNSUPPORTED — it does not make the POU DISAPPEAR.
+            // AN EXECUTE BOX WHOSE ST CANNOT BE READ MAKES THE BODY UNSUPPORTED — it does not make the POU
+            // DISAPPEAR. The reader refuses rather than materializing a box without the code it runs, and that
+            // refusal is a THROW deep in the node walk; `Versioning.SafeVersion` isolates a throw by giving the
+            // item the Unreadable sentinel — so `fetch` skipped the POU entirely and the engineer got no file at
+            // all, only a count in the "N unreadable" tally. A body Volt cannot represent is exactly what the
+            // marker is for, and this file already answers CFC, SFC and IL that way: the POU appears, says what
+            // it holds, and is refused on push instead of vanishing from git.
             //
-            // Reading its ST is still unmeasured on this vendor, and the reader still refuses rather than
-            // materializing a box without the code it runs. But that refusal is a THROW deep in the node walk,
-            // and `Versioning.SafeVersion` isolates a throw by giving the item the Unreadable sentinel — so
-            // `fetch` skipped the POU entirely and the engineer got no file at all, only a count in the
-            // "N unreadable" tally. A body Volt cannot represent is exactly what the marker is for, and this
-            // file already answers CFC, SFC and IL that way: the POU appears, says what it holds, and is refused
-            // on push instead of vanishing from git.
-            if (TcArchive.HasExecuteBox(impl)) return BodyMarker.For("EXECUTE");
+            // THE TEST USED TO BE "IS THERE AN EXECUTE BOX AT ALL", and that was right only while reading one
+            // was impossible. `ReadStCode` reads the snippet now (2026-09-06, from a hand-drawn XAE network),
+            // and against the coarse test it could never run in production: the return above it fired first, so
+            // TwinCAT kept serving a marker where CODESYS serves network text — the same POU, two different
+            // `sourceText`s, which is exactly what the byte-identical-response rule forbids. Ask the precise
+            // question instead. Creating one is still refused (`TcPlcOpenWriter`), and so is editing its ST
+            // (`TcNetworkWriter`); this is the READ path, and it can now answer.
+            if (TcArchive.HasUnreadableExecuteBox(impl)) return BodyMarker.For("EXECUTE");
 
             var model = TcNetworkReader.Read(impl, language.Value);
             var text = NetworkTextWriter.Write(model).Trim();
@@ -509,16 +515,24 @@ public sealed partial class BeckhoffDriver
             // whose `ET => x` the import failed to place counted as "nothing to lose" and the refusal that said
             // so was swallowed. Whatever else the catch above is willing to shrug at, it must not be a pin the
             // engineer wired: the body would come back missing it, and the push would say it worked.
+            // AN ENABLE IS CONTENT BY EXISTING, not by carrying flags. This asked `HasFlags(b.Enable)`, which
+            // recurses into the enable's OPERAND — so a plain wired `IF en1 THEN ...` answered false and the
+            // whole body counted as "nothing to lose". Every EN refusal in the writer was therefore
+            // swallow-eligible, and an enable is precisely the thing whose loss changes what the program does.
             Box b => b.Outputs.Count > 0
+                     || b.Enable is not null
+                     || b.StCode is not null
                      || b.Instance?.Flags is { IsNone: false }
                      || b.Outputs.Any(o => o.Value.Flags is { IsNone: false })
-                     || b.Inputs.Any(i => !i.Flags.IsNone || HasFlags(i.Value))
-                     || (b.Enable is { } e && HasFlags(e)),
+                     || b.Inputs.Any(i => !i.Flags.IsNone || HasFlags(i.Value)),
             Volt.Engine.Format.Network.Parallel p =>
                 (p.Input is { } pi && HasFlags(pi)) || p.Branches.Any(HasFlags),
             Terminator t => t.Input is { } ti && HasFlags(ti),
             Demux d => d.Input is { } di && HasFlags(di),
-            _ => false,
+            // AN UNRECOGNISED NODE IS CONTENT. This is the filter on a CATCH that discards a refusal, so the
+            // safe default is "there is something to lose" — a node kind added later must not become silently
+            // droppable by not being listed here.
+            _ => true,
         };
     }
 

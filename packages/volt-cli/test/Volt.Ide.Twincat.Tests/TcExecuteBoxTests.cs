@@ -106,4 +106,27 @@ public class TcExecuteBoxTests
         var ex = Assert.ThrowsAny<System.Exception>(() => TcNetworkWriter.Apply(Body(), edited));
         Assert.Contains("ST inside Execute box", ex.Message);
     }
+
+    /// <summary>AND THE DRIVER MUST ACTUALLY REACH THE READER.
+    ///
+    /// <para>Implementing <c>ReadStCode</c> was not enough on its own: <c>BeckhoffDriver.ReadBody</c> returned
+    /// the <c>EXECUTE</c> marker on "does this body contain an Execute box at all", which fired BEFORE the node
+    /// walk — so the new reader could not run in production and TwinCAT went on serving a marker where CODESYS
+    /// serves network text. Same POU, two different <c>sourceText</c>s, which is what the byte-identical-response
+    /// rule forbids. The marker's question is now "is there one I cannot READ".</para>
+    ///
+    /// <para>Both answers are pinned, because the coarse and precise predicates agree on one fixture and differ
+    /// on the other — a test using only the hand-drawn one would pass against the bug.</para></summary>
+    [Theory]
+    [InlineData("execute-box.TcPOU", false)]        // a real snippet -> readable, so NO marker: read the ST
+    [InlineData("ExecuteBox.derived.TcPOU", true)]  // <n n="STSnippet" /> -> no code to show, marker stands
+    public void The_marker_asks_whether_the_ST_can_be_read_not_whether_a_box_exists(string fixture, bool marker)
+    {
+        var impl = TcArchive.Root(
+            XDocument.Parse(Fixtures.Pou(fixture), LoadOptions.PreserveWhitespace)
+                .Descendants("NWL").Single().ToString(SaveOptions.DisableFormatting));
+
+        Assert.True(Fixtures.HasExecuteBox(impl), $"{fixture} should hold an Execute box at all");
+        Assert.Equal(marker, TcArchive.HasUnreadableExecuteBox(impl));
+    }
 }

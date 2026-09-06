@@ -316,7 +316,7 @@ public class TcRoundTripTests
     [Fact]
     public void An_Execute_box_is_detected_before_the_walk_so_the_body_can_be_a_marker()
     {
-        Assert.True(TcArchive.HasExecuteBox(Impl(Body("ExecuteBox.derived.TcPOU"))));
+        Assert.True(Fixtures.HasExecuteBox(Impl(Body("ExecuteBox.derived.TcPOU"))));
     }
 
     /// <summary>And it is NARROW — an ordinary ladder must not be mistaken for one, or every graphical body on
@@ -326,7 +326,7 @@ public class TcRoundTripTests
     [InlineData("FanOut.TcPOU")]
     public void An_ordinary_body_is_not_mistaken_for_an_Execute_box(string fixture)
     {
-        Assert.False(TcArchive.HasExecuteBox(Impl(Body(fixture))));
+        Assert.False(Fixtures.HasExecuteBox(Impl(Body(fixture))));
     }
 
     /// <summary>REORDERING NAMED PINS MUST MOVE THE NAMES WITH THE VALUES, not just the values.
