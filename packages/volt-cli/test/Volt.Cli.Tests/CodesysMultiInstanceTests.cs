@@ -32,11 +32,20 @@ public class CodesysMultiInstanceTests
         },
     };
 
+    /// <summary>Start a host and WAIT UNTIL IT IS DISCOVERABLE — by the same enumeration the resolver uses.
+    ///
+    /// <para>Two things were wrong here, and together they produced a CI failure that read as a product bug. The
+    /// wait used <c>File.Exists</c> on the pipe path, which is a DIFFERENT mechanism from
+    /// <c>PipeDiscovery.List</c> (a <c>FindFirstFile</c> walk of the pipe namespace) and can disagree with it —
+    /// so a host could look started while still absent from the list every assertion is made against. And
+    /// <see cref="WaitUntil"/> gave up SILENTLY, so a wait that did not succeed let the test carry on and fail
+    /// later as "expected 2, got 1": the count is the symptom, an unbound pipe is the cause, and the message
+    /// named neither.</para></summary>
     private static BridgePipeHost StartHost(string pipe, string project)
     {
         var h = new BridgePipeHost(Ide(project), pipe);
         h.Start();
-        WaitUntil(() => File.Exists(@"\\.\pipe\" + pipe));
+        WaitUntil(() => PipeDiscovery.List(pipe).Contains(pipe), $"pipe '{pipe}' never appeared in the pipe namespace");
         return h;
     }
 
@@ -53,9 +62,13 @@ public class CodesysMultiInstanceTests
         catch { return Array.Empty<string>(); }
     }
 
-    private static void WaitUntil(Func<bool> cond)
+    /// <summary>Poll until the condition holds, and FAIL SAYING WHAT DID NOT HAPPEN if it never does. Returning
+    /// quietly on timeout is what turned a pipe that never bound into a confusing count mismatch three lines
+    /// later.</summary>
+    private static void WaitUntil(Func<bool> cond, string what)
     {
         for (int i = 0; i < 150 && !cond(); i++) Thread.Sleep(20);
+        Assert.True(cond(), $"{what} (waited 3s)");
     }
 
     [Fact]
@@ -79,7 +92,7 @@ public class CodesysMultiInstanceTests
 
             // CLOSE MachineA: its pipe vanishes and discovery drops it (the pipe dies with Stop()).
             a.Stop();
-            WaitUntil(() => !File.Exists(@"\\.\pipe\" + pa));
+            WaitUntil(() => !PipeDiscovery.List(pa).Contains(pa), $"pipe '{pa}' still in the namespace after Stop()");
             Assert.Equal(new[] { pb }, PipeDiscovery.List(_prefix).ToArray());
             // One left → used unambiguously (a wrong-name mismatch is caught downstream by VerifyBinding).
             Assert.Equal(pb, BridgeResolver.ChooseBridgePipe(PipeDiscovery.List(_prefix), "MachineB", false, ProjectsOf, "CODESYS"));

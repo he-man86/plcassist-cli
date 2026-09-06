@@ -24,11 +24,20 @@ public class PipeDiscoveryTests
         using var hostB = new BridgePipeHost(new FakeIde(Array.Empty<FakeIde.Item>()), b);
         hostA.Start();
         hostB.Start();
-        // Start() spawns the accept thread; the NamedPipeServerStream binds a moment later. Wait for both.
-        for (int i = 0; i < 50 && !(File.Exists(@"\\.\pipe\" + a) && File.Exists(@"\\.\pipe\" + b)); i++)
+        // Start() spawns the accept thread; the NamedPipeServerStream binds a moment later, so wait for both.
+        //
+        // WAIT ON THE THING UNDER TEST, and fail loudly if it never happens. This polled `File.Exists` on the pipe
+        // paths — a different mechanism from the `PipeDiscovery.List` enumeration the assertion uses, so the two
+        // can disagree — and then gave up SILENTLY after 1s, leaving the real failure ("a pipe never bound") to
+        // surface as a confusing list mismatch. Its sibling in CodesysMultiInstanceTests failed in CI exactly
+        // that way.
+        var found = new List<string>();
+        for (int i = 0; i < 150; i++)
+        {
+            found = PipeDiscovery.List(prefix).OrderBy(x => x).ToList();
+            if (found.Count == 2) break;
             Thread.Sleep(20);
-
-        var found = PipeDiscovery.List(prefix).OrderBy(x => x).ToList();
+        }
 
         Assert.Equal(new[] { a, b }, found);
     }
