@@ -17,17 +17,10 @@
 import { test, expect } from "bun:test"
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { extname, join } from "node:path"
-import { parseSource } from "../../src/syntax/index.js"
-import { buildSymbolTable } from "../../src/symbols/index.js"
-import {
-  computeSemanticDiagnostics,
-  deadMemberSpans,
-  deadPous,
-  inDeadMember,
-  ownerPou,
-  resolveConfig,
-  type Vendor,
-} from "../../src/analysis/index.js"
+import { DiagnosticSeverity } from "vscode-languageserver-protocol"
+import { messagesFor, resolveConfig, type Vendor } from "../../src/analysis/index.js"
+import { WorkspaceStore } from "../../src/server/workspace-store.js"
+import { documentDiagnostics } from "../../src/server/diagnostics.js"
 import { loadTaskRoots, loadWorkspaceRefs, scanWorkspace } from "../../src/workspace-refs.js"
 import { SOURCE_EXTENSION_SET } from "../../src/source-extensions.js"
 
@@ -54,27 +47,32 @@ const norm = (m: string): string =>
     .replace(/\s*;\s*/g, ";")
     .trim()
 
-/** The unique normalized WARNING messages the LSP emits across a project (same dead-code suppression as the
- *  server, and the same PROJECT compiler-warning settings — a warning the project switched off is one the build
- *  never emitted, so reporting it here would be a false positive by construction). */
+/** The unique normalized WARNING messages the LSP emits across a project, THROUGH THE SERVER'S OWN PATH.
+ *
+ * This called `computeSemanticDiagnostics` and re-implemented the server's suppression beside it, which made it
+ * blind to HALF the LSP: `computeSemanticDiagnostics` lives in `analysis` (layer D) and network text in
+ * `network` (layer F), so the analysis layer structurally CANNOT return a graphical diagnostic — the two are
+ * merged one layer up, in `documentDiagnostics`. Every network-text warning was therefore outside this oracle
+ * and reported as a COVERAGE GAP we already had.
+ *
+ * Measured: lenze-mid's one "change of sign" warning sat in the MISSING list while the LSP emitted it correctly
+ * at `FB_Lenze_i550.fb:23` (`LET i1 := UINT_TO_WORD(ioUDT.Control.AutoSpeed)`, and `AutoSpeed` is an `INT`) —
+ * a warning attributed to the product that belonged to the harness. `build-conformance.test.ts` had already
+ * been fixed this exact way and its doc names the bug class; this is its twin, and it kept the old shape.
+ *
+ * Going through the server's function is both less code and more coverage — the same conclusion as there. */
 function lspWarnings(dir: string): Set<string> {
-  const config = resolveConfig({ vendor: VENDOR, diagnostics: scanWorkspace(dir).projectDiagnostics })
-  const inputs = walk(dir).map((uri) => {
-    const source = readFileSync(uri, "utf8")
-    return { uri, source, parseResult: parseSource(source) }
-  })
-  const project = buildSymbolTable(inputs)
-  const references = loadWorkspaceRefs(dir)
-  const dead = deadPous(inputs, loadTaskRoots(dir))
-  const deadMembers = deadMemberSpans(inputs, dead)
+  const store = new WorkspaceStore(
+    resolveConfig({ vendor: VENDOR, diagnostics: scanWorkspace(dir).projectDiagnostics }),
+  )
+  store.workspaceRefs = loadWorkspaceRefs(dir)
+  store.taskRoots = loadTaskRoots(dir)
+  store.seedDisk(walk(dir).map((uri) => ({ uri, source: readFileSync(uri, "utf8") })))
+
   const out = new Set<string>()
-  for (const f of inputs) {
-    const owner = ownerPou(f.parseResult)
-    if (owner !== undefined && dead.has(owner)) continue
-    const dm = deadMembers.get(f.uri)
-    for (const d of computeSemanticDiagnostics({ parseResult: f.parseResult, source: f.source, project, config, references }))
-      if (d.severity === "warning" && !inDeadMember(d.span, dm)) out.add(norm(d.message))
-  }
+  for (const d of store.workspace())
+    for (const diag of documentDiagnostics(store, messagesFor(VENDOR), d))
+      if (diag.severity === DiagnosticSeverity.Warning) out.add(norm(diag.message))
   return out
 }
 

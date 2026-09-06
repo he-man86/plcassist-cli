@@ -30,6 +30,7 @@ import {
   type CalleeInfo,
   type Type,
 } from "../../../types/index.js"
+import { conversionWarning } from "../types/narrowing.js"
 import type { CheckContext } from "../../diagnostics.js"
 import { isLibrarySymbol, SOURCE, type DiagnosticItem } from "../_shared.js"
 
@@ -203,7 +204,15 @@ function argTypeError(
   if (target === undefined) return
   const arg = argCheckableType(value, scope, ctx.project)
   if (arg === undefined) return
-  if (isAssignable(target, arg)) return
+  if (isAssignable(target, arg)) {
+    // ASSIGNABLE IS NOT THE SAME AS CLEAN. A narrowing (`LREAL`→`REAL`) and a sign crossing (`INT`→`UINT`) are
+    // both assignable, so this returned early and a call site never produced the warning an identical plain
+    // assignment does — measured on the lenze-mid corpus, where the build's one "change of sign" warning had no
+    // counterpart from us. Same relation, same wording, same codes: `narrowing.ts` owns the mapping.
+    const warning = conversionWarning(target, arg, value, ctx.messages)
+    if (warning !== undefined) out.push(warning)
+    return
+  }
   out.push({
     severity: "error",
     span: value.span,

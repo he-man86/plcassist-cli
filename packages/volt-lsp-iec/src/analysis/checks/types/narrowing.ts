@@ -79,8 +79,14 @@ export function narrowingPairError(
 }
 
 /** Map a source→value conversion to its narrowing/sign-change warning on `at`, or undefined. The ONE mapping —
- *  both the assignment pair and the conversion-arg check funnel through it, so wording stays byte-identical. */
-function conversionWarning(lhs: Type, rhs: Type, at: Expr, messages: Messages): DiagnosticItem | undefined {
+ *  the assignment pair, the conversion-arg check and the CALL-ARGUMENT check all funnel through it, so wording
+ *  stays byte-identical.
+ *
+ *  Exported for `call-arguments.ts`, which resolves a parameter's declared type and the argument's inferred type
+ *  itself and then has only the assignability question answered. Passing an `INT` into a `UINT` parameter is a
+ *  sign crossing exactly as `u := i` is, but `isAssignable` is true for it (a sign-change is assignable), so that
+ *  check returned early and the warning was never emitted from a call site. */
+export function conversionWarning(lhs: Type, rhs: Type, at: Expr, messages: Messages): DiagnosticItem | undefined {
   const kind = classifyConversion(lhs, rhs)
   if (kind === "narrow") return warn(at, "narrowing-conversion", messages.narrowing(name(rhs), name(lhs)))
   if (kind === "sign-change")

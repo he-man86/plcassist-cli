@@ -193,3 +193,73 @@ test("regression: a qualified-enum argument is resolved (shared checkableType ha
   const call = `PROGRAM P\nVAR fb : FB_T; END_VAR\nfb(s := E_A.X);\nEND_PROGRAM`
   expect(codes(enumA, fb, call)).toContain("call-argument-type")
 })
+
+/**
+ * AN ASSIGNABLE ARGUMENT IS NOT NECESSARILY A CLEAN ONE.
+ *
+ * `argTypeError` gated on `isAssignable`, which is true for every kind except `incompatible` — so a narrowing
+ * (`LREAL`→`REAL`) or a sign crossing (`INT`→`UINT`) passed as an ARGUMENT produced nothing, while the identical
+ * plain assignment warned. Found while chasing a corpus miss; the wording and codes come from `narrowing.ts`, so
+ * a call site and an assignment now read the same.
+ */
+test("4.9 an argument that is assignable but LOSSY still warns — same wording as the assignment", () => {
+  const fb = `FUNCTION_BLOCK FB_U
+VAR_INPUT
+	u : UINT;
+END_VAR
+END_FUNCTION_BLOCK`
+  const call = `PROGRAM P
+VAR
+	fb : FB_U;
+	i : INT;
+END_VAR
+fb(u := i);
+END_PROGRAM`
+  expect(codes(fb, call)).toContain("sign-change-conversion")
+
+  // ...positionally too, and it is a WARNING rather than the call-argument-type ERROR.
+  const positional = `PROGRAM P
+VAR
+	fb : FB_U;
+	i : INT;
+END_VAR
+fb(i);
+END_PROGRAM`
+  const cs = codes(fb, positional)
+  expect(cs).toContain("sign-change-conversion")
+  expect(cs).not.toContain("call-argument-type")
+})
+
+test("4.10 a narrowing argument (LREAL into a REAL input) warns as loss of information", () => {
+  const fb = `FUNCTION_BLOCK FB_R
+VAR_INPUT
+	r : REAL;
+END_VAR
+END_FUNCTION_BLOCK`
+  const call = `PROGRAM P
+VAR
+	fb : FB_R;
+	l : LREAL;
+END_VAR
+fb(r := l);
+END_PROGRAM`
+  expect(codes(fb, call)).toContain("narrowing-conversion")
+})
+
+test("4.11 an argument that converts CLEANLY stays silent — the check must not fire on a widen", () => {
+  const fb = `FUNCTION_BLOCK FB_D
+VAR_INPUT
+	d : DINT;
+END_VAR
+END_FUNCTION_BLOCK`
+  const call = `PROGRAM P
+VAR
+	fb : FB_D;
+	i : INT;
+END_VAR
+fb(d := i);
+END_PROGRAM`
+  const cs = codes(fb, call)
+  expect(cs).not.toContain("sign-change-conversion")
+  expect(cs).not.toContain("narrowing-conversion")
+})
