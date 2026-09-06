@@ -5,11 +5,10 @@
  * `--version` — so this is the only coverage that the SPAWN + protocol wiring actually answers a request. A wedged
  * server, a broken crawl, or a collector regression fails here instead of as a silent 30s timeout in the app.
  *
- * Run from packages/volt-control:  bun run test:e2e
- * Builds the LSP dev server if it isn't built yet; skips cleanly if that build can't run.
+ * Run from packages/volt-control:  bun run test:e2e — which BUILDS the LSP server first. The server
+ * binary is an input to this suite, not something a test makes.
  */
 import { test, expect, beforeAll, afterAll } from "bun:test"
-import { spawnSync } from "node:child_process"
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
@@ -20,13 +19,20 @@ const SERVER = join(LSP_DIR, "dist", "src", "bin.js")
 
 let ready = false
 let dir = ""
+// THIS HOOK DOES NOT BUILD ANYTHING, and that is the fix rather than a longer deadline.
+//
+// It used to run `bun run build` for volt-lsp-iec inline. A build has no place in a test hook: bun's default 5s
+// budget applied, a loaded CI runner took longer over `tsc`, bun SIGTERMed it mid-compile, and the graceful
+// "couldn't build → skip" path was reached only AFTER the hook had blown its budget — so a suite that had
+// correctly decided to skip reported `(fail) (unnamed)`. Raising the timeout would have hidden that; a timeout is
+// a symptom, not a budget to tune.
+//
+// The server binary is an INPUT to this suite, so `test:e2e` builds it before bun starts. All this hook does now
+// is check it is there, which is instant and cannot time out.
 beforeAll(() => {
   if (!existsSync(SERVER)) {
-    const r = spawnSync("bun", ["run", "build"], { cwd: LSP_DIR, stdio: "inherit", shell: process.platform === "win32" })
-    if (r.status !== 0 || !existsSync(SERVER)) {
-      console.warn("⚠ diagnostics e2e skipped — couldn't build volt-lsp-iec (dist/src/bin.js)")
-      return
-    }
+    console.warn(`⚠ diagnostics e2e skipped — ${SERVER} is missing. Run: bun run --cwd packages/volt-control test:e2e`)
+    return
   }
   setLspServer(SERVER)
   dir = mkdtempSync(join(tmpdir(), "volt-diag-e2e-"))

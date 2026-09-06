@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@volt/control",
   "version": "0.1.0",
   "private": true,
@@ -12,7 +12,7 @@
   "scripts": {
     "typecheck": "tsgo --noEmit",
     "test": "bun test src",
-    "test:e2e": "bun test test/e2e"
+    "test:e2e": "bun run --cwd ../volt-lsp-iec build && bun test test/e2e"
   },
   "dependencies": {
     "vscode-jsonrpc": "^8.2.0",
