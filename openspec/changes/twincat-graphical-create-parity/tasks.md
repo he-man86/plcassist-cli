@@ -86,42 +86,35 @@ remaining shape needs its own measurement before its refusal is called permanent
       file has shipped once already). One added statement lands in that existing blank slot; a SECOND has
       nowhere to go and is refused, because making somewhere is the construction N11 forbids.
 
-## 4b. Network grouping — MEASURED, and the obvious repair CORRUPTS
+## 4b. Network grouping — FIXED 2026-09-06, on the third attempt
 
-- [x] Attempted the repair: merge the importer's split networks back into one by moving tree elements between
-      existing lists (the same "move, never construct" reasoning that made the EN fix safe). It WORKS for
-      independent rungs — all four grouping shapes came back as `[1,1,1,1]`, matching CODESYS exactly.
-- [x] **And it corrupts a body whose trees reference each other.** `t1(IN := a, PT := pt); done := t1.Q;` came
-      back as `done := ();` — the read of the box's output lost its target. So the importer's networks are NOT
-      independent documents that merely got split: a tree in the second network can point into the first, and
-      recombining them breaks that. Reverted.
-- [x] **ANSWERED 2026-09-06 — a measured impossibility, and the corruption was never the reason.** The avenue
-      above was followed: the second network's tree references NOTHING (an ordinary assign whose RValue is a
-      plain operand `"t1.Q"`, no id, no connector; the two networks' `Id`s do not overlap). The merge was then
-      re-attempted with that knowledge and the real cause surfaced — a `NetworkItems` list declares its element
-      type ONCE via `cet` and no child carries its own `t`, so a network is HOMOGENEOUS. A box rung and an
-      assign rung cannot share a list.
-- [x] The obvious repair (stamp each moved item's own `t`, which `TcArchive` says wins over `cet`) was BUILT and
-      MEASURED: it round-trips perfectly through Volt's reader offline and comes back from a live XAE as
-      `done := ();` — that rule is Volt's reader's, not the vendor's deserializer's. Merge deleted rather than
-      left as dead code.
-- [x] Recorded in DIALECT C20(d) and pinned by `TcImporterSplitTests` + `fixtures/tc-pou/importer-split.TcPOU`
-      (real XAE output), including a sweep asserting NO committed archive types a network item by the child —
-      the one observation that would reopen this.
-- [x] Vendor branch REMAINS in `graphical/grouping.test.ts`, and its wording now states the measurement — that
-      a `NetworkItems` list is homogeneous, so the merge is impossible rather than pending. It asserts a
-      permanent vendor fact, which is the parity suite working.
-
+- [x] **The vendor branch is DELETED and both vendors return `[1,1,1,1]`.** `Stamp` merges the networks the
+      PLCopen importer split before stamping values, so a pushed network holding two independent rungs stays
+      one network on TwinCAT as it always did on CODESYS.
+- [x] Wrong explanation (i), tested and dropped: "a tree in the second network points into the first". It does
+      not — that tree is an ordinary assign whose RValue is a plain operand whose text is `"t1.Q"`, no id, no
+      connector, and the two networks' `Id`s do not overlap (2-9, 10-14).
+- [x] Wrong explanation (ii), tested, SHIPPED, and later falsified: "a network is HOMOGENEOUS, so the halves
+      can never share a list". It held across every archive we had, and the item was closed on it. A fan-out
+      DRAWN BY HAND in XAE produced a list with NO `cet` whose children each carry their own `t`.
+- [x] **The rule is an EXCLUSIVE OR**, verified across all 22 populated lists: a `NetworkItems` list has `cet`
+      and NO child typed, or NO `cet` and EVERY child typed — never a mixture. The failing merge wrote exactly
+      that mixture, so TwinCAT typed the moved assign from the list, read it as a box, and returned
+      `done := ();` — after round-tripping perfectly through Volt's own reader, which honours a child's `t`
+      over the list's `cet`. TWO offline-green attempts shipped wrong before a live XAE caught it.
+- [x] It also closed a second hole: `Apply` refused on the count mismatch, the catch swallowed the refusal, and
+      the values that refusal carried never reached the split networks at all.
+- [x] Pinned by `TcImporterSplitTests` over `importer-split.TcPOU` and `ladder-demux.TcPOU`, both real XAE
+      output, including the exclusive-or contract across every committed archive.
 ## 5. Close
 
-- [x] **The "zero vendor branches" close condition is RETIRED, and that is the finding rather than a
-      concession.** It was written when all five shapes were assumed reachable. Three were (unconnected input
-      pin, wired EN, and the Execute box's READ side); the other two are measured impossibilities — the embedded
-      output pin (the importer discards the pin identity) and network grouping (a `NetworkItems` list is
-      homogeneous, so the split cannot be undone). A branch asserting a measured vendor limit is the parity
-      suite working, not a gap in it. THREE branches remain, each naming its measurement:
-      `create-shapes.test.ts` + `unresolved-marker.test.ts` (output pin, C20a) and `grouping.test.ts` (C20d).
-      The expect() gap between vendors — 1185 codesys vs 1143 twincat — is exactly these and will not close.
+- [x] **The "zero vendor branches" close condition is RETIRED — as a GOAL, though it came closer than expected.**
+      It was written when all five shapes were assumed reachable. Four now are: unconnected input pin, wired EN,
+      the Execute box (read AND ST edit), and network grouping. Only the embedded output pin is a measured
+      impossibility — the importer discards the pin identity, and accepting what it builds would assign a BOOL
+      to a TIME variable. A branch asserting THAT is the parity suite working. Three call sites remain, all the
+      same limit: `create-shapes.test.ts`, `roundtrip.test.ts` and `unresolved-marker.test.ts`
+      (`qmark_out`, `qmark_both`). The expect() gap is 41 (1185 codesys vs 1144 twincat) and is exactly those.
 - [x] Full e2e green on BOTH vendors, and the counts match: the same number of tests passing, not one vendor
       quietly running fewer. **2026-09-06: 186 pass / 8 skip / 0 fail, 194 tests, IDENTICAL on both** (graphical
       alone: 78/0 each). The only remaining asymmetry is the expect() count — 1185 CODESYS vs 1143 TwinCAT — and
