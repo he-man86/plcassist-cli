@@ -236,32 +236,19 @@ internal static class TcPlcOpenWriter
 
         private long EmitBox(Box box)
         {
-            // A WIRED ENABLE IS REFUSED — and the reason is measured, not assumed.
+            // A WIRED ENABLE IS CREATED IN TWO STEPS, because the importer will not do it in one.
             //
-            // The old refusal said an enable "cannot be expressed as PLCopen", which is false: the vendor's own
-            // export writes it as an ordinary input variable named EN, wired by refLocalId like any
-            // other. So it was emitted that way and MEASURED end to end on
-            // a live XAE (2026-08-31). The importer accepts the document and does NOT honour the pin:
+            // Emitted as an ordinary input named EN — the shape the vendor's own export uses — the importer
+            // ACCEPTS the document and FOLDS the enable in as a data input: measured 2026-08-31,
+            // `IF en THEN out := (a AND b)` came back as `out := (en AND a AND b)`. On an AND that is
+            // coincidentally equivalent; on any other box it silently changes what the program does. That is why
+            // this was refused outright.
             //
-            //     pushed:  LET en1 := go;  IF en1 THEN out := (a AND b); END_IF
-            //     back:    out := (go AND a AND b);
-            //
-            // The enable was absorbed as a THIRD ORDINARY INPUT of the AND. On an AND that is coincidentally
-            // equivalent; on any other box it silently changes what the program does, which is worse than the
-            // refusal it replaced. Nor can the following `Stamp` repair it: the box now has one input more than
-            // the model, and the in-place writer refuses a shape change — correctly.
-            //
-            // So this stays refused, the divergence with CODESYS (which builds an enable natively) is FORCED by
-            // the importer rather than by the format, and the message now says which.
-            // NOT `Refuse(...)`: that helper ends every message with "which Volt cannot express as PLCopen",
-            // and that is precisely the claim this measurement disproves.
-            if (box.Enable != null)
-                throw new NotSupportedException(
-                    "TwinCAT: this graphical body wires a box's EN input. PLCopen can state it — the vendor's own " +
-                    "export does — but TwinCAT's importer does NOT honour it: measured live, an enable comes back " +
-                    "folded into the box as an ordinary input, so `IF en THEN out := (a AND b)` became " +
-                    "`out := (en AND a AND b)`. Creating it would silently change what the program does. Draw the " +
-                    "enable in the IDE and pull it.");
+            // But the fold leaves everything needed to repair it: the input ITEM and its name slot both exist, at
+            // slot 0, because the enable is emitted first. So `TcNetworkWriter` renames that slot to `EN` and
+            // sets the `En` display flag — two VALUE edits, not archive construction — and the box becomes a real
+            // enable. Measured 2026-09-06: `IF en1 THEN out := (a AND b); END_IF` round-trips BYTE-IDENTICAL and
+            // the project compiles clean.
             if (box.StCode != null) throw Refuse("contains an Execute box");
             // AN EMBEDDED OUTPUT PIN CANNOT BE CREATED HERE, and until today it was DROPPED instead.
             //
@@ -287,6 +274,9 @@ internal static class TcPlcOpenWriter
                     "back would not be the one pushed. Draw the pin in the IDE and pull it; editing one that " +
                     "already exists works.");
 
+            // THE ENABLE IS INPUT SLOT 0, emitted FIRST so the importer places it there — which is where the
+            // archive expects it, and what makes the repair in TcNetworkWriter a rename rather than a move.
+            long? enFrom = box.Enable != null ? Emit(box.Enable) : null;
             var wired = box.Inputs.Select(i => (Input: i, From: Emit(i.Value))).ToList();
 
             var id = Id();
@@ -298,6 +288,12 @@ internal static class TcPlcOpenWriter
                 block.SetAttributeValue("instanceName", instance.Text);
 
             var inputs = new XElement(Namespaces.Tc6 + "inputVariables");
+            if (enFrom is { } enId)
+                inputs.Add(new XElement(Namespaces.Tc6 + "variable",
+                    new XAttribute("formalParameter", "EN"),
+                    new XElement(Namespaces.Tc6 + "connectionPointIn",
+                        new XElement(Namespaces.Tc6 + "connection",
+                            new XAttribute("refLocalId", enId.ToString())))));
 
             for (int i = 0; i < wired.Count; i++)
             {

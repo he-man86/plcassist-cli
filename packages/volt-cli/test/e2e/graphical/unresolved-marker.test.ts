@@ -152,9 +152,9 @@ describe(`graphical / the ??? marker (${BASE})`, () => {
 			"qmark_coilen",
 			"NETWORK 0 LD\n  LET en1 := ;\n  IF en1 THEN ??? := NOT(a); END_IF\nEND_NETWORK\n",
 			BOOLS,
-			// TwinCAT: the importer folds an enable into the box as an ordinary input, which changes what the
-			// program does — a long-standing, deliberate refusal with nothing to do with `???`.
-			"wires a box's EN input",
+			// NO VENDOR BRANCH. TwinCAT refused this for a year — the importer folds a wired enable in as an
+			// ordinary data input — until the fold turned out to be repairable: the input item and its name slot
+			// already exist, so renaming slot 0 to `EN` and setting the display flag makes it a real enable.
 		)
 	})
 

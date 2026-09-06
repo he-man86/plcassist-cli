@@ -42,14 +42,18 @@ remaining shape needs its own measurement before its refusal is called permanent
 - [x] Vendor branch DELETED from `unresolved-marker.test.ts` (`qmark_lib`). Graphical suite: 78 pass / 0 fail on
       BOTH vendors.
 
-## 3. Wired EN input
+## 3. Wired EN input — DONE 2026-09-06
 
-- [ ] Import the box WITHOUT the enable, then set the EN wire through the archive writer. The existing refusal
-      is about the importer folding an enable into the box as an ordinary input — it is not a claim that the
-      archive cannot hold one.
-- [ ] Verify the folded-input failure mode is really gone: `IF en THEN out := (a AND b)` must not come back as
-      `out := (en AND a AND b)`.
-- [ ] Delete the branch in `unresolved-marker.test.ts` (`qmark_coilen`).
+- [x] The importer folds a wired enable in as a DATA input (measured 2026-08-31: `IF en THEN out := (a AND b)`
+      came back as `out := (en AND a AND b)`). That fold is REPAIRABLE: the input item and its name slot both
+      exist, at slot 0, because the writer emits the enable first. `TcNetworkWriter` renames the slot to `EN` and
+      sets the `En` display flag — two VALUE edits, no archive construction.
+- [x] Verified the folded-input failure mode is gone: `IF en1 THEN out := (a AND b); END_IF` round-trips
+      BYTE-IDENTICAL and the project COMPILES clean.
+- [x] Vendor branch DELETED from `unresolved-marker.test.ts` (`qmark_coilen`). Graphical suite: 78 pass / 0 fail
+      on BOTH vendors.
+- [x] Narrow by construction: the repair only fires when the box has EXACTLY one input more than the model, the
+      signature of the fold. Any other mismatch still refuses.
 
 ## 4. Execute box (ST inside FBD)
 

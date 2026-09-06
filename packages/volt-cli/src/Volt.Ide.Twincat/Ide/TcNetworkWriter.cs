@@ -319,6 +319,34 @@ internal static class TcNetworkWriter
                 var enSlot = Box.HasEnableSlot(pinNames) && inputs.Count > 0 ? 1 : 0;
                 if (enSlot == 1 && b.Enable is null)
                     throw Refuse($"box '{b.Type}' drops its EN input, which network text cannot express");
+                // THE IMPORTER FOLDS A WIRED ENABLE IN AS A DATA INPUT — so turn it back into an enable here.
+                //
+                // `TcPlcOpenWriter` emits the enable as input slot 0 named EN, which the importer accepts and
+                // then flattens: the box comes back with one input MORE than the model and no EN. Everything
+                // needed to repair that already exists — the input ITEM and its name slot, both at slot 0 — so
+                // this renames the slot to `EN` and sets the `En` display flag. Two VALUE edits, no archive
+                // construction, which is the line this writer must not cross (N11).
+                //
+                // Measured 2026-09-06 on a live XAE: `IF en1 THEN out := (a AND b); END_IF` round-trips
+                // BYTE-IDENTICAL through create → pull, and the project compiles clean. Before this, a wired
+                // enable was refused outright and TwinCAT could not express a shape CODESYS builds natively.
+                //
+                // Narrow by construction: it only fires when the box has EXACTLY one input more than the model,
+                // which is the signature of the fold. Any other mismatch still refuses below.
+                if (enSlot == 0 && b.Enable is not null &&
+                    inputs.Count == b.Inputs.Count + 1 && pinNames.Count > 0)
+                {
+                    var nameSlots = TcArchive.Obj(e, "InputParam")?.Element("l")?.Elements("v").ToList();
+                    if (nameSlots is { Count: > 0 })
+                    {
+                        nameSlots[0].Value = Box.EnablePin;
+                        SetBool(e, "En", true);
+                        pinNames = TcArchive.Strings(TcArchive.Obj(e, "InputParam"), "Names");
+                        enSlot = 1;
+                        changed = true;
+                    }
+                }
+
                 if (enSlot == 0 && b.Enable is not null)
                     throw Refuse($"box '{b.Type}' gains an EN input, which this in-place write cannot add");
                 if (inputs.Count - enSlot != b.Inputs.Count)

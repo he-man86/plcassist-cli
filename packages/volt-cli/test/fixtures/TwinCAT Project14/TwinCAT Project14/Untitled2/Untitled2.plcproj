@@ -51,9 +51,6 @@
     <Compile Include="VltE2E_qmark_both.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="VltE2E_qmark_coilen.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="VltE2E_qmark_out.TcPOU">
       <SubType>Code</SubType>
     </Compile>
