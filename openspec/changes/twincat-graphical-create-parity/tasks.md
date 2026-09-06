@@ -32,11 +32,15 @@ remaining shape needs its own measurement before its refusal is called permanent
 - [ ] Delete the two branches in `unresolved-marker.test.ts` (`qmark_out`, `qmark_both`) — they are the same
       limit reached through `???`, and they pass for free once the pin does.
 
-## 2. Unconnected input pin — `FB(xEnable := , Axis := )`
+## 2. Unconnected input pin — `FB(xEnable := , Axis := )` — DONE 2026-09-06
 
-- [ ] Import with the pin wired to something the importer accepts, then CLEAR the operand through the archive
-      writer (an empty operand is a shape the vendor's own editor produces, so this is not element construction).
-- [ ] Delete the branch in `unresolved-marker.test.ts` (`qmark_lib`).
+- [x] Measured: emitted as an `<inVariable>` with an EMPTY expression, the importer builds exactly the right
+      shape and `t1(IN := , PT := pt);` round-trips BYTE-IDENTICAL. The refusal was wrong — an empty operand is a
+      shape the vendor's own archives already carry, so this is its spelling, not an invention.
+- [x] `TcPlcOpenWriter` emits a BARE `Terminator` that way. One carrying an Input is a rung end feeding a value —
+      a different shape with no measurement behind it — and keeps a refusal of its own.
+- [x] Vendor branch DELETED from `unresolved-marker.test.ts` (`qmark_lib`). Graphical suite: 78 pass / 0 fail on
+      BOTH vendors.
 
 ## 3. Wired EN input
 

@@ -97,9 +97,9 @@ describe(`graphical / the ??? marker (${BASE})`, () => {
 			"qmark_lib",
 			"NETWORK 0 FBD\n  ??? : L_TT1P_FlexCamBase(xEnable := , Axis := );\nEND_NETWORK\n",
 			BOOLS,
-			// TwinCAT: an UNCONNECTED input pin (`xEnable := ,`) lowers to a rung terminator its importer has no
-			// PLCopen form for. It is the empty pin it refuses, not the marker.
-			"ladder rung terminator",
+			// NO VENDOR BRANCH. This carried one — TwinCAT refused the unconnected pins (`xEnable := ,`) as "a
+			// ladder rung terminator" — and the refusal was wrong: emitted as an `<inVariable>` with an EMPTY
+			// expression, the importer builds exactly the right shape and this round-trips on both vendors.
 		)
 	})
 

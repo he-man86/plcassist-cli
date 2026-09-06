@@ -172,9 +172,33 @@ internal static class TcPlcOpenWriter
             Assign assign => EmitAssign(assign),
             Demux demux => EmitDemux(demux),
             Parallel => throw Refuse("contains a ladder parallel branch"),
-            Terminator => throw Refuse("contains a ladder rung terminator"),
+            // AN UNWIRED PIN IS CREATABLE, and this used to refuse it. `FB(xEnable := , Axis := )` — a pin the
+            // engineer left connected to nothing — reaches here as a bare Terminator, and the whole body was
+            // refused as "contains a ladder rung terminator".
+            //
+            // MEASURED 2026-09-06 against a live XAE: emitted as an `<inVariable>` with an EMPTY expression, the
+            // importer builds exactly the right thing and `t1(IN := , PT := pt);` round-trips BYTE-IDENTICAL. An
+            // empty operand is a shape the vendor's own archives already carry, so this is its spelling rather
+            // than an invention.
+            //
+            // Only a BARE terminator. One carrying an Input is a rung end feeding a value — a different shape,
+            // with no measurement behind it — so it keeps a refusal of its own rather than inheriting this.
+            Terminator { Input: null } => EmitEmpty(),
+            Terminator => throw Refuse("contains a ladder rung terminator that carries a value"),
             _ => throw Refuse($"contains a {node.GetType().Name}"),
         };
+
+        /// <summary>PROBE ONLY: an input wired to nothing, spelled as an empty expression.</summary>
+        private long EmitEmpty()
+        {
+            var id = Id();
+            _root.Add(new XElement(Namespaces.Tc6 + "inVariable",
+                new XAttribute("localId", id.ToString()),
+                Position(),
+                new XElement(Namespaces.Tc6 + "connectionPointOut"),
+                new XElement(Namespaces.Tc6 + "expression", "")));
+            return id;
+        }
 
         private long EmitLeaf(Leaf leaf)
         {

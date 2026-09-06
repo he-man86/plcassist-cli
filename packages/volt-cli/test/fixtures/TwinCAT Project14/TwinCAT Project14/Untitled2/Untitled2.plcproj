@@ -48,6 +48,18 @@
     <Compile Include="POUs\VltFixtureSfc.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="VltE2E_qmark_both.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VltE2E_qmark_coilen.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VltE2E_qmark_out.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="VltE2E_splice_stable.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="DUTs" />
