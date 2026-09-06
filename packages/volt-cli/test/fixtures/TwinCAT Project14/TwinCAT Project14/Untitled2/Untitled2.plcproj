@@ -51,9 +51,6 @@
     <Compile Include="POUs\VltFixtureSfc.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="VltLadder_Shapes.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="DUTs" />
