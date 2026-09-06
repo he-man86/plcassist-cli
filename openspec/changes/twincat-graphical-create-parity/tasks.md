@@ -26,8 +26,9 @@ remaining shape needs its own measurement before its refusal is called permanent
 ## 1. Embedded output pin — `t1(… ET => el)` — CLOSED as not creatable
 
 - [x] Measured (task 0): neither route reaches it. The refusal stays, and is now documented as measured.
-- [ ] Keep the vendor branches in `create-shapes.test.ts` and `unresolved-marker.test.ts` (`qmark_out`,
-      `qmark_both`) — they assert a REAL vendor limit, not a gap. Reword them to say "cannot", not "cannot yet".
+- [x] Keep the vendor branches in `create-shapes.test.ts` and `unresolved-marker.test.ts` (`qmark_out`,
+      `qmark_both`) — they assert a REAL vendor limit, not a gap. REWORDED 2026-09-06: `create-shapes.test.ts`
+      said "refuses **for now** … delete this branch when it lands" and now states the measurement instead.
       (The two "delete the branch" bullets that stood here were written when the pin was still expected to
       become creatable. Task 0 measured that it cannot — the importer discards the PIN IDENTITY — so deleting
       them would have asserted a shape the vendor does not build. Keep-and-reword is the whole of this task.)
@@ -105,7 +106,14 @@ remaining shape needs its own measurement before its refusal is called permanent
 
 ## 5. Close
 
-- [ ] `grep -rn 'VENDOR === "twincat"' packages/volt-cli/test/e2e/graphical/` returns nothing.
+- [x] **The "zero vendor branches" close condition is RETIRED, and that is the finding rather than a
+      concession.** It was written when all five shapes were assumed reachable. Three were (unconnected input
+      pin, wired EN, and the Execute box's READ side); the other two are measured impossibilities — the embedded
+      output pin (the importer discards the pin identity) and network grouping (a `NetworkItems` list is
+      homogeneous, so the split cannot be undone). A branch asserting a measured vendor limit is the parity
+      suite working, not a gap in it. THREE branches remain, each naming its measurement:
+      `create-shapes.test.ts` + `unresolved-marker.test.ts` (output pin, C20a) and `grouping.test.ts` (C20d).
+      The expect() gap between vendors — 1185 codesys vs 1143 twincat — is exactly these and will not close.
 - [x] Full e2e green on BOTH vendors, and the counts match: the same number of tests passing, not one vendor
       quietly running fewer. **2026-09-06: 186 pass / 8 skip / 0 fail, 194 tests, IDENTICAL on both** (graphical
       alone: 78/0 each). The only remaining asymmetry is the expect() count — 1185 CODESYS vs 1143 TwinCAT — and

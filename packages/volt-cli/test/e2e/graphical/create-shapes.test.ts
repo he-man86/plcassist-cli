@@ -88,8 +88,14 @@ describe(`graphical / create shapes (${BASE})`, () => {
 
 		const created = await pushOps([{ op: "set", name: item, toFolder: "", sourceText: src, ifVersion: null }])
 
-		// TwinCAT REFUSES **for now** - a TRACKED gap, not a vendor difference:
-		// `openspec/changes/twincat-graphical-create-parity`. Delete this branch when it lands.
+		// TwinCAT CANNOT — a measured vendor limit, not a tracked gap, so this branch is permanent.
+		// It read "refuses **for now** … delete this branch when it lands" while the outcome was still hoped for.
+		// Measured 2026-09-06 (`openspec/changes/twincat-graphical-create-parity`, task 0): the importer ACCEPTS
+		// the TC6 spelling and IGNORES `formalParameter`, so `t1(IN := a, PT := pt, ET => el)` comes back as
+		// `el := t1(IN := a, PT := pt)` — the variable wired to the box's UNNAMED RESULT. That is worse than a
+		// reshape: a TON's result pin is `Q` (BOOL), so accepting it would assign a BOOL to a TIME variable. And
+		// there is nothing to fix up afterwards — the archive holds a `BoxTreeAssign`, not an `ET` slot, and
+		// creating that slot means building archive members (N11). Both routes are closed.
 		//
 		// The refusal is the whole finding. Its importer honours an `outVariable` wired to a named
 		// pin by lowering it to a SEPARATE assignment rather than an output on the box, so the body would not be
