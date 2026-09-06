@@ -28,9 +28,9 @@ remaining shape needs its own measurement before its refusal is called permanent
 - [x] Measured (task 0): neither route reaches it. The refusal stays, and is now documented as measured.
 - [ ] Keep the vendor branches in `create-shapes.test.ts` and `unresolved-marker.test.ts` (`qmark_out`,
       `qmark_both`) — they assert a REAL vendor limit, not a gap. Reword them to say "cannot", not "cannot yet".
-- [ ] Delete the branch in `create-shapes.test.ts` ("a box's embedded OUTPUT pin survives a create").
-- [ ] Delete the two branches in `unresolved-marker.test.ts` (`qmark_out`, `qmark_both`) — they are the same
-      limit reached through `???`, and they pass for free once the pin does.
+      (The two "delete the branch" bullets that stood here were written when the pin was still expected to
+      become creatable. Task 0 measured that it cannot — the importer discards the PIN IDENTITY — so deleting
+      them would have asserted a shape the vendor does not build. Keep-and-reword is the whole of this task.)
 
 ## 2. Unconnected input pin — `FB(xEnable := , Axis := )` — DONE 2026-09-06
 
