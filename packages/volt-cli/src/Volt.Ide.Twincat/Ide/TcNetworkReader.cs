@@ -171,6 +171,16 @@ internal static class TcNetworkReader
     /// so they are stripped here. A box whose <c>ProvidesSTSnippet</c> is true but whose document cannot be
     /// walked still REFUSES rather than answering empty: an Execute box with no code is not a thing, and
     /// answering "" would put the old silent-loss behaviour back.</para></summary>
+    /// <summary>The Execute box's ST lines AS ARCHIVE ELEMENTS — one per line, in order.
+    ///
+    /// <para>Shared with <c>TcNetworkWriter</c>, which edits a line's <c>Text</c> in place, so the walk to the
+    /// document lives in ONE place. A reader and a writer that walk to the same member by different routes is
+    /// how `Element("l")` vs `<l2>` shipped.</para></summary>
+    internal static IReadOnlyList<XElement> StLines(XElement e) =>
+        TcArchive.Items(
+            TcArchive.Obj(TcArchive.Obj(TcArchive.Obj(e, "STSnippet"), "STSnippet"), "TextDocument"),
+            "TextLines");
+
     internal static string? ReadStCode(XElement e)
     {
         if (!TcArchive.Bool(e, "ProvidesSTSnippet")) return null;

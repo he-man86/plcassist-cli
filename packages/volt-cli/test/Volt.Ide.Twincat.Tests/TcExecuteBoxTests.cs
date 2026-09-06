@@ -89,44 +89,46 @@ public class TcExecuteBoxTests
         }
     }
 
-    /// <summary>AND EDITING THAT ST FAILS LOUDLY RATHER THAN VANISHING.
+    /// <summary>AND THAT ST IS EDITABLE — one line at a time, which is as far as the archive allows.
     ///
-    /// <para>Making the box readable created the edit: an engineer can now pull the POU, change the ST and
-    /// push. <c>TcNetworkWriter</c> writes operands, outputs and inputs — never the snippet — so that push
-    /// found no storage change, wrote nothing, reported SUCCESS, and the next pull handed the edit back
-    /// reverted. Refusing is the fix; writing the lines back needs the <c>TextLine.Id</c> contract measured on
-    /// a live XAE first.</para></summary>
+    /// <para>Making the box readable created the edit, and for a while it was REFUSED: nothing in
+    /// <c>TcNetworkWriter</c> looked at <c>StCode</c>, so changing it found no storage change, wrote nothing,
+    /// reported SUCCESS and was reverted by the next pull — the `JMP` retarget bug's exact shape. A refusal was
+    /// the honest stopgap; writing the line is the fix.</para>
+    ///
+    /// <para><b>Measured on a live XAE 2026-09-06</b>, on the same hand-drawn POU this fixture came from: the
+    /// edit is accepted, comes back changed, the project BUILDS with zero errors, and pushing the original text
+    /// afterwards restores it byte-identically. A `TextLine` is an existing element whose `Id` the IDE minted,
+    /// so rewriting its `Text` is an ordinary value edit — the same thing this writer does to every operand.</para>
+    ///
+    /// <para>The boundary is the LINE COUNT, and it is a real one: a new line needs a new `TextLine` with an
+    /// invented `Id`, which is the archive construction this writer does not do (N11).</para></summary>
     [Fact]
-    public void An_edit_to_that_ST_is_refused_rather_than_silently_dropped()
+    public void An_edit_to_that_ST_is_written_line_for_line()
     {
         // Edited the way production edits: through the TEXT, which is what the engineer's file holds.
         var text = NetworkTextWriter.Write(Read()).Replace("iCount:=icount+1;", "iCount:=icount+2;");
-        var edited = NetworkTextGate.Validate(text);
+        var written = TcNetworkWriter.Apply(Body(), NetworkTextGate.Validate(text));
 
-        var ex = Assert.ThrowsAny<System.Exception>(() => TcNetworkWriter.Apply(Body(), edited));
-        Assert.Contains("ST inside Execute box", ex.Message);
+        Assert.NotNull(written);
+        Assert.Contains("iCount:=icount+2;", written);
+        Assert.DoesNotContain("iCount:=icount+1;", written);
     }
 
-    /// <summary>AND THE DRIVER MUST ACTUALLY REACH THE READER.
+    /// <summary>GROWING THE ST PAST ITS SLOTS IS REFUSED — an `Id` is the IDE's to mint.
     ///
-    /// <para>Implementing <c>ReadStCode</c> was not enough on its own: <c>BeckhoffDriver.ReadBody</c> returned
-    /// the <c>EXECUTE</c> marker on "does this body contain an Execute box at all", which fired BEFORE the node
-    /// walk — so the new reader could not run in production and TwinCAT went on serving a marker where CODESYS
-    /// serves network text. Same POU, two different <c>sourceText</c>s, which is what the byte-identical-response
-    /// rule forbids. The marker's question is now "is there one I cannot READ".</para>
-    ///
-    /// <para>Both answers are pinned, because the coarse and precise predicates agree on one fixture and differ
-    /// on the other — a test using only the hand-drawn one would pass against the bug.</para></summary>
-    [Theory]
-    [InlineData("execute-box.TcPOU", false)]        // a real snippet -> readable, so NO marker: read the ST
-    [InlineData("ExecuteBox.derived.TcPOU", true)]  // <n n="STSnippet" /> -> no code to show, marker stands
-    public void The_marker_asks_whether_the_ST_can_be_read_not_whether_a_box_exists(string fixture, bool marker)
+    /// <para>The boundary is not "any added line", and measuring it moved it. The archive keeps a trailing
+    /// BLANK line that network text trims, so ONE added statement lands in that existing slot and is an ordinary
+    /// value write — no element is created and the IDE's `Id` is reused. A SECOND has nowhere to go, and making
+    /// somewhere is the construction this writer does not do (N11).</para></summary>
+    [Fact]
+    public void Growing_the_ST_past_its_line_slots_is_refused()
     {
-        var impl = TcArchive.Root(
-            XDocument.Parse(Fixtures.Pou(fixture), LoadOptions.PreserveWhitespace)
-                .Descendants("NWL").Single().ToString(SaveOptions.DisableFormatting));
+        var text = NetworkTextWriter.Write(Read())
+            .Replace("iCount:=icount+1;", "iCount:=icount+1;\n  iCount:=icount+9;\n  iCount:=icount+8;");
 
-        Assert.True(Fixtures.HasExecuteBox(impl), $"{fixture} should hold an Execute box at all");
-        Assert.Equal(marker, TcArchive.HasUnreadableExecuteBox(impl));
+        var ex = Assert.ThrowsAny<System.Exception>(
+            () => TcNetworkWriter.Apply(Body(), NetworkTextGate.Validate(text)));
+        Assert.Contains("line(s)", ex.Message);
     }
 }

@@ -307,9 +307,39 @@ internal static class TcNetworkWriter
                 // which is the line this writer does not cross (N11). Write them in place once the Id contract
                 // is measured on a live XAE, not inferred.
                 if (TcNetworkReader.ReadStCode(e) is var wasSt && wasSt != b.StCode)
-                    throw Refuse(wasSt is null
-                        ? $"box '{b.Type}' gains ST code, which Volt cannot add to an existing box"
-                        : $"the ST inside Execute box '{b.Type}' changed; edit it in the IDE");
+                {
+                    // AN EXECUTE BOX'S ST IS EDITABLE LINE BY LINE, and only that far.
+                    //
+                    // Each `TextLine` is an existing element with an `Id` the IDE minted, so rewriting a line's
+                    // `Text` is an ordinary value edit — the same thing this writer does to every operand. What
+                    // it must not do is change the line COUNT: a new line needs a new `TextLine` with an invented
+                    // `Id`, which is archive construction (N11), and dropping one leaves the document shorter
+                    // than whatever else indexes it. So a same-length edit is written and a re-shape is refused.
+                    if (wasSt is null || b.StCode is null)
+                        throw Refuse($"box '{b.Type}' gains or loses its ST, which this in-place write cannot do");
+
+                    var lines = TcNetworkReader.StLines(e);
+                    var want = b.StCode.Replace("\r", "").Split('\n');
+
+                    // THE ARCHIVE KEEPS A TRAILING BLANK LINE AND NETWORK TEXT DOES NOT, so the counts differ by
+                    // one for every box the IDE wrote. Measured on `execute-box.TcPOU`: the archive holds 2 lines
+                    // (`iCount:=icount+1;` and an empty one) and the text round trip yields 1, because
+                    // `NetworkTextWriter` trims the trailing newline off an EXECUTE block and nothing restores
+                    // it. Without this, every ST edit would read as a re-shape and the write below could never
+                    // run — the feature would compile and be dead, which is the failure mode this file has
+                    // already shipped once.
+                    //
+                    // Tolerating it writes NOTHING to that line: the model fills the first N and the blank is
+                    // left exactly as the IDE wrote it.
+                    var trailingBlank = lines.Count == want.Length + 1 &&
+                                        string.IsNullOrEmpty(TcArchive.Str(lines[lines.Count - 1], "Text"));
+                    if (lines.Count != want.Length && !trailingBlank)
+                        throw Refuse($"the ST inside Execute box '{b.Type}' changes from {lines.Count} to " +
+                                     $"{want.Length} line(s); Volt edits an existing line but cannot add or " +
+                                     "remove one (that needs an Id only the IDE can mint). Edit it in the IDE.");
+
+                    for (var li = 0; li < want.Length; li++) changed |= SetString(lines[li], "Text", want[li]);
+                }
 
                 // A BOX'S OWN OUTPUT PINS ARE WRITTEN NOW, matched to their SLOTS BY NAME.
                 //

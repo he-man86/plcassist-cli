@@ -76,8 +76,15 @@ remaining shape needs its own measurement before its refusal is called permanent
 - [x] EDITING that ST is REFUSED, and had to be: nothing in `TcNetworkWriter` looked at `StCode`, so making the
       box readable created a silent-loss path — the push found no storage change, wrote nothing, reported SUCCESS
       and the next pull reverted the edit (the `JMP` retarget bug's exact shape). Test is red without the guard.
-- [ ] Writing the ST back needs the `TextLine.Id` contract measured on a live XAE: a changed LINE COUNT means
-      constructing `TextLine` items with invented ids, which is N11. Refusal until then.
+- [x] WRITING IT BACK — DONE 2026-09-06, measured on a live XAE against the hand-drawn POU. A `TextLine` is an
+      existing element whose `Id` the IDE minted, so rewriting its `Text` is an ordinary value edit: the push is
+      accepted, the edit comes back changed, the project BUILDS with zero errors, and pushing the original text
+      restores it BYTE-IDENTICALLY.
+- [x] The boundary was measured rather than assumed, and it is not "any added line". The archive keeps a
+      trailing BLANK line that network text trims — so the counts differ by one for every box the IDE wrote, and
+      without tolerating that the write could never run at all (it would have compiled and been dead, which this
+      file has shipped once already). One added statement lands in that existing blank slot; a SECOND has
+      nowhere to go and is refused, because making somewhere is the construction N11 forbids.
 
 ## 4b. Network grouping — MEASURED, and the obvious repair CORRUPTS
 
