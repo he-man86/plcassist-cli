@@ -96,5 +96,7 @@ remaining shape needs its own measurement before its refusal is called permanent
 ## 5. Close
 
 - [ ] `grep -rn 'VENDOR === "twincat"' packages/volt-cli/test/e2e/graphical/` returns nothing.
-- [ ] Full e2e green on BOTH vendors, and the counts match: the same number of tests passing, not one vendor
-      quietly running fewer.
+- [x] Full e2e green on BOTH vendors, and the counts match: the same number of tests passing, not one vendor
+      quietly running fewer. **2026-09-06: 186 pass / 8 skip / 0 fail, 194 tests, IDENTICAL on both** (graphical
+      alone: 78/0 each). The only remaining asymmetry is the expect() count — 1185 CODESYS vs 1143 TwinCAT — and
+      that difference IS the four vendor branches above, so it goes to zero when they do.
