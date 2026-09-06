@@ -17,7 +17,7 @@
  * engineer's networks, so it is asserted rather than remembered.
  */
 import { describe, it, expect, beforeAll, setDefaultTimeout } from "bun:test"
-import { id, fid, bridge, pushOps, requireHealthy, BASE, PIPE } from "../harness"
+import { id, fid, bridge, pushOps, requireHealthy, BASE } from "../harness"
 
 const SHAPES: [string, string, string][] = [
 	// label, VAR block, the ONE network's statements
@@ -74,19 +74,23 @@ describe(`graphical / importer grouping (${BASE})`, () => {
 		// and never read; it was the assertion someone meant to write. Three places called this file the gate for
 		// D25 (the row itself, TcNetworkWriter's header, and the commit that added it) and all three were false.
 		//
-		// THE TWO VENDORS DIFFER HERE, and measuring that is what the assertion is worth. D25 is a fact about
-		// the PLCOPEN IMPORTER, which is TwinCAT's only route to a body it does not have: it groups by connected
-		// component, so two disconnected sinks come back as two networks. CODESYS builds the body directly from
-		// the model and regroups nothing, so it returns exactly the one network it was given. Measured live on
-		// both. A single shared expectation would have had to be wrong on one of them.
+		// THE TWO VENDORS NOW AGREE, and getting here took three tries and a hand-drawn body.
 		//
-		// AND IT CANNOT BE UNDONE — established 2026-09-06, so this branch is permanent rather than pending.
-		// A `NetworkItems` list declares its element type ONCE, via `cet`, and no child carries its own `t`, so a
-		// network is HOMOGENEOUS: a box rung and an assign rung have no list that can hold them together. The
-		// merge was built anyway and measured — it round-trips through Volt's reader offline and comes back from
-		// a live XAE as `done := ();`, because the vendor's deserializer types children from the list. See
-		// DIALECT C20(d) and `TcImporterSplitTests`, which pins the homogeneity across every committed archive.
-		const expected = PIPE.includes("twincat") ? [1, 1, 2, 2] : [1, 1, 1, 1]
+		// D25 is a fact about the PLCOPEN IMPORTER, TwinCAT's only route to a body it does not have: it groups by
+		// connected component, so a pushed network holding two independent rungs came back as two. CODESYS builds
+		// from the model and regroups nothing. This asserted `[1,1,2,2]` vs `[1,1,1,1]` for a year.
+		//
+		// `Stamp` now merges the importer's split back before stamping. The two failed attempts are worth keeping
+		// in mind because both LOOKED right offline: the first believed the second network's tree pointed into the
+		// first (it does not — a plain operand `"t1.Q"`, no id, no connector), and the second stamped each moved
+		// item's own `t` while leaving the destination's `cet` in place. That is a form the vendor never writes, so
+		// TwinCAT typed the moved assign from the list, read an assign as a box, and returned `done := ();` — after
+		// round-tripping perfectly through Volt's own reader.
+		//
+		// The rule, from `ladder-demux.TcPOU` (a fan-out drawn by hand in XAE) and verified across all 22 populated
+		// lists: a `NetworkItems` list has `cet` and NO child typed, or NO `cet` and EVERY child typed — never a
+		// mixture. The merge converts the destination wholesale to the second form. See DIALECT C20(d).
+		const expected = [1, 1, 1, 1]
 		expect(counts, "the importer's grouping changed, or a push was refused (-1)").toEqual(expected)
 	})
 })

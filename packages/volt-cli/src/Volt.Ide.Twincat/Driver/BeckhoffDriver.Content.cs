@@ -472,7 +472,15 @@ public sealed partial class BeckhoffDriver
             //
             // Stamping first removes the ambiguity instead of guessing at it: every slot the MODEL names gets
             // its operand written, so an operand still empty afterwards can only be the importer's.
-            var applied = TcNetworkWriter.Apply(built, model) ?? built;
+            // UNDO THE IMPORTER'S SPLIT FIRST, so everything below sees the body the engineer pushed.
+            //
+            // D25: one network per connected component, so a pushed network holding two independent rungs
+            // arrives as two. That was accepted as a measured reshape and it cost more than cosmetics — `Apply`
+            // refuses on a network-count mismatch, the catch below swallowed the refusal, and the values that
+            // refusal was carrying never reached the split networks. Merging restores the count so the stamp
+            // below reaches them.
+            var merged = TcNetworkWriter.MergeImporterSplits(built, model) ?? built;
+            var applied = TcNetworkWriter.Apply(merged, model) ?? merged;
             return TcNetworkWriter.DropImporterBoxOutputs(applied);
         }
         catch (NotSupportedException) when (!CarriesDetail(model) && !LostNetworks(built, model))

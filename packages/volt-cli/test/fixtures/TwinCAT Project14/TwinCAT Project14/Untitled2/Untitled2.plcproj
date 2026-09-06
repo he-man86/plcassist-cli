@@ -42,19 +42,16 @@
     <Compile Include="ladderLabel.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\POUexecute.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\VltFixtureCfc.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\VltFixtureSfc.TcPOU">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="VltE2E_qmark_both.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="VltE2E_qmark_out.TcPOU">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="VltE2E_splice_stable.TcPOU">
+    <Compile Include="VltLadder_Shapes.TcPOU">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>

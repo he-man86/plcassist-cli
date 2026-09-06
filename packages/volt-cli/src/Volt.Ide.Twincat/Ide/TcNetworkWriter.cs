@@ -42,6 +42,90 @@ internal static class TcNetworkWriter
     /// does not model survives exactly as the IDE wrote it.</para></summary>
     public static string? Apply(string? bodyXml, NetworkBody body) => Apply(bodyXml, body, resolve: null);
 
+    /// <summary>Put back together what the importer split — the CREATE path only, by MOVING nodes.
+    ///
+    /// <para><b>The importer emits one network per connected component (D25)</b>, so a model network holding two
+    /// independent rungs arrives as two. The engineer pushes one network and the next pull hands back two,
+    /// renumbering everything after it, while CODESYS keeps the one.</para>
+    ///
+    /// <para><b>THE FORM IS THE WHOLE PROBLEM, and it took a hand-drawn body to learn it.</b> A `NetworkItems`
+    /// list types its children ONE of two ways and never a mixture: `cet` on the list and NO child carrying `t`,
+    /// or NO `cet` and EVERY child carrying its own `t`. Verified across all 22 populated lists in the fixtures.
+    /// The first attempt at this kept the destination`s `cet` AND stamped `t` on only the moved items — neither
+    /// form — so the vendor typed the moved assign from the list, read an assign as a box, and returned
+    /// `done := ();`. It round-tripped perfectly through Volt`s own reader, which is why only a live XAE caught
+    /// it.</para>
+    ///
+    /// <para>So the merged list is converted WHOLESALE to the child-typed form: every child that was relying on
+    /// a `cet` gets that `cet` stamped on it, the moved children keep or gain theirs, and the list`s `cet` is
+    /// removed. That is the shape `ladder-demux.TcPOU` shows the vendor writing for a mixed network.</para>
+    ///
+    /// <para>How many built networks belong to one model network comes from the MODEL: <see cref="Unhoist"/>
+    /// folds shared-wire trees into one item, so its count is the component count — the same prediction `Apply`
+    /// already refuses on. If the arithmetic does not land exactly this returns null and changes nothing.</para>
+    ///
+    /// <para>Construction-free (N11): every element is one the importer built, moved between existing lists, and
+    /// the emptied networks are removed. Only ATTRIBUTES are written, in the vendor`s own spelling.</para></summary>
+    public static string? MergeImporterSplits(string? bodyXml, NetworkBody body)
+    {
+        if (string.IsNullOrWhiteSpace(bodyXml)) return null;
+        XElement doc;
+        try { doc = XElement.Parse(bodyXml, LoadOptions.PreserveWhitespace); }
+        catch (System.Xml.XmlException) { return null; }
+
+        var impl = doc.DescendantsAndSelf("o").FirstOrDefault(o => (string?)o.Attribute("t") == "NWLImplementationObject");
+        if (impl == null) return null;
+
+        var networks = TcArchive.List(impl, "NetworkList");
+        if (networks.Count == body.Networks.Count) return null;          // nothing was split
+
+        var parts = body.Networks.Select(n => Unhoist(n.Trees).Count).ToList();
+        if (parts.Sum() != networks.Count) return null;                  // cannot map built -> model; say nothing
+
+        var merged = false;
+        var at = 0;
+        foreach (var k in parts)
+        {
+            if (k > 1)
+            {
+                var keep = ItemList(networks[at]);
+                if (keep == null) return null;
+                MakeChildTyped(keep);
+
+                for (var j = at + 1; j < at + k; j++)
+                {
+                    var from = ItemList(networks[j]);
+                    if (from == null) return null;
+                    MakeChildTyped(from);
+                    // REMOVE BEFORE ADD: `Add` on a parented node copies it in XLinq.
+                    foreach (var item in from.Elements().ToList()) { item.Remove(); keep.Add(item); }
+                    networks[j].Remove();
+                    merged = true;
+                }
+            }
+            at += k;
+        }
+
+        return merged ? doc.ToString(SaveOptions.DisableFormatting) : null;
+    }
+
+    private static XElement? ItemList(XElement network) =>
+        network.Elements("l2").FirstOrDefault(l => (string?)l.Attribute("n") == "NetworkItems");
+
+    /// <summary>Convert a list to the CHILD-TYPED form: stamp the list`s `cet` onto every child that lacks a
+    /// `t`, then drop the `cet`. A list already in that form is left alone. This is the only shape a mixed
+    /// network is written in, so it is what a merged list must end up as.</summary>
+    private static void MakeChildTyped(XElement list)
+    {
+        var cet = (string?)list.Attribute("cet");
+        if (cet != null)
+        {
+            foreach (var child in list.Elements("o"))
+                if (child.Attribute("t") == null) child.SetAttributeValue("t", cet);
+            list.Attribute("cet")!.Remove();
+        }
+    }
+
     /// <summary>The same, with a way OUT of a refusal: <paramref name="resolve"/> is handed a network whose
     /// shape the archive cannot be edited into, and returns that network rebuilt by the IDE.
     ///

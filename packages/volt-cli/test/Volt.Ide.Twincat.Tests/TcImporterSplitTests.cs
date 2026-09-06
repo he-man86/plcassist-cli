@@ -7,28 +7,27 @@ using Xunit;
 namespace Volt.Ide.Twincat.Tests;
 
 /// <summary>
-/// WHY THE IMPORTER'S SPLIT CANNOT BE UNDONE — a network's items are all ONE TYPE.
+/// UNDOING THE IMPORTER'S SPLIT — and the two wrong explanations it took to get there.
 ///
 /// <para><c>fixtures/tc-pou/importer-split.TcPOU</c> is real XAE output, captured 2026-09-06 by pushing ONE
 /// network holding two independent rungs (<c>t1(IN := a, PT := pt); done := t1.Q;</c>) and reading back what the
-/// importer built: TWO networks. CODESYS keeps the one, so this was the last divergence in
-/// `twincat-graphical-create-parity` that was neither a refusal nor a measured impossibility — it looked like a
-/// layout choice waiting for the right repair.</para>
+/// importer built: TWO networks (D25, one per connected component). CODESYS keeps the one, so this was the last
+/// divergence in `twincat-graphical-create-parity` that was neither a refusal nor an impossibility.</para>
 ///
-/// <para><b>It is not a layout choice. It is forced by the serialization.</b> A network's <c>NetworkItems</c> is
-/// a list that declares its element type ONCE, on itself (<c>&lt;l2 cet="BoxTreeAssign"&gt;</c>), and across every
-/// committed archive NOT ONE child carries a <c>t</c> of its own. So a network can hold box-rooted trees or
-/// assign-rooted trees — never both. Splitting `t1(…)` from `done := t1.Q;` is the only way the vendor can write
-/// them down, and one network per connected component (D25) is the CONSEQUENCE of that, not a preference.</para>
+/// <para><b>Both earlier explanations were wrong, and each survived because it was only tested offline.</b> The
+/// first said a tree in the second network points into the first. It does not: that tree is an ordinary assign
+/// whose RValue is a plain operand whose text is <c>"t1.Q"</c> — no id, no connector — and the two networks'
+/// <c>Id</c>s do not overlap. The second was mine: a network is HOMOGENEOUS, so the halves can never share a
+/// list. It held across every archive we had, until a fan-out drawn by hand
+/// (<c>ladder-demux.TcPOU</c>) produced a list with NO <c>cet</c> whose children each carry their own <c>t</c>.</para>
 ///
-/// <para><b>Two earlier explanations were wrong, and both were tested before being dropped.</b> The first said a
-/// tree in the second network points into the first (`done := ()` after a merge). It does not: that tree is an
-/// ordinary assign whose RValue is a plain operand whose text is <c>"t1.Q"</c> — no id, no connector — and the
-/// two networks' <c>Id</c>s do not even overlap. The second was the obvious repair from that: stamp each moved
-/// item's own <c>t</c> before moving it, since <see cref="TcArchive"/>'s format note says a child's <c>t</c> wins
-/// over the list's <c>cet</c>. True OF VOLT'S READER, and not of the vendor's — the merged body round-tripped
-/// perfectly through <c>TcNetworkReader</c> offline and came back from a live XAE as <c>done := ();</c>, because
-/// TwinCAT's own deserializer types the children from the list. The merge is deleted; this is what it left.</para>
+/// <para><b>The rule is an exclusive OR</b>, verified across all 22 populated lists: a <c>NetworkItems</c> list
+/// has <c>cet</c> and NO child typed, or NO <c>cet</c> and EVERY child typed — never a mixture. The merge that
+/// failed on a live XAE wrote exactly that mixture (it kept the destination's <c>cet</c> and stamped <c>t</c> on
+/// only the moved items), so TwinCAT typed the moved assign from the list, read an assign as a box, and returned
+/// <c>done := ();</c> — after round-tripping perfectly through Volt's own reader, which is why offline never
+/// caught it. Converting the destination wholesale to the child-typed form works: measured live, all four
+/// grouping shapes now come back as one network, matching CODESYS.</para>
 /// </summary>
 public class TcImporterSplitTests
 {
@@ -126,4 +125,47 @@ public class TcImporterSplitTests
         Assert.True(mixed!.Distinct().Count() > 1, "the child-typed list should hold MORE THAN ONE type");
         Assert.Contains("BoxTreeDemux", mixed);
     }
+
+    /// <summary>MERGING IN THE VENDOR'S OWN FORM — the repair the corrected contract makes possible.
+    ///
+    /// <para>The first attempt round-tripped perfectly through <c>TcNetworkReader</c> and still came back from a
+    /// live XAE as <c>done := ();</c>, because it wrote a list that was NEITHER cet-typed nor child-typed. So the
+    /// assertion that matters is not "it reads back" — that one passed while the code was wrong. It is that the
+    /// merged list is in a form the vendor actually writes.</para></summary>
+    [Fact]
+    public void The_merged_list_is_in_a_form_the_vendor_writes()
+    {
+        var merged = TcNetworkWriter.MergeImporterSplits(Built(), Pushed());
+        Assert.NotNull(merged);
+
+        var lists = Impl(merged!).Descendants("l2")
+            .Where(l => (string?)l.Attribute("n") == "NetworkItems")
+            .Where(l => l.Elements("o").Any())
+            .ToList();
+
+        Assert.Single(lists);                                   // the two became one
+        var kids = lists[0].Elements("o").ToList();
+        Assert.True(kids.Count > 1, "the merged list should hold both rungs");
+
+        // The exclusive-or, asserted on what was just built rather than on a fixture.
+        Assert.Null((string?)lists[0].Attribute("cet"));
+        Assert.All(kids, k => Assert.NotNull((string?)k.Attribute("t")));
+        Assert.True(kids.Select(k => (string?)k.Attribute("t")).Distinct().Count() > 1,
+            "the whole point is a MIXED list — a box rung and an assign rung together");
+    }
+
+    /// <summary>...and the operand survives, which is the regression the first attempt failed.</summary>
+    [Fact]
+    public void The_second_rungs_operand_survives_the_merge()
+    {
+        var text = NetworkTextWriter.Write(
+            TcNetworkReader.Read(Impl(TcNetworkWriter.MergeImporterSplits(Built(), Pushed())!), BodyLanguage.Fbd));
+
+        Assert.Contains("done := t1.Q;", text);
+        Assert.DoesNotContain("done := ()", text);
+        Assert.Contains("t1(IN := a, PT := pt);", text);
+    }
+
+    private static NetworkBody Pushed() =>
+        NetworkTextGate.Validate("NETWORK 0 FBD\n  t1(IN := a, PT := pt);\n  done := t1.Q;\nEND_NETWORK\n");
 }
