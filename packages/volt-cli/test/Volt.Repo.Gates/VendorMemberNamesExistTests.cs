@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -44,23 +44,26 @@ public class VendorMemberNamesExistTests
     /// is UNPROVEN, not blessed — the reason has to say how it would be confirmed.</summary>
     private static readonly Dictionary<string, string> NotInAnyFixture = new(StringComparer.Ordinal)
     {
-        // THREE OF THE SIX NODE TYPES HAVE NO REAL VENDOR BYTES BEHIND THEM, and this gate is how that became
-        // visible. `BoxTreeOperand`, `BoxTreeBox` and `BoxTreeAssign` appear across the fixtures;
-        // `BoxTreeDemux`, `BoxTreeParallel` and `BoxTreeTerminator` appear ZERO times, so every member below
-        // is read and written against a shape nothing we hold demonstrates.
+        // ONE OF THE THREE UNPROVEN NODE TYPES IS NOW PROVEN, and it took a hand-drawn body to do it.
         //
-        // They are not reachable through the create path, measured 2026-09-06 on a live XAE: pushed the classic
-        // fan-out (`LET g1 := (a AND b); out1 := g1; out2 := g1;`) expecting a Demux and the importer built ONE
-        // `BoxTreeAssign` carrying TWO `OutputItems` instead — TwinCAT spells a shared wire as a multi-target
-        // assign. `BoxTreeParallel` is the same story from the other side: C6 says an LD body goes in through
-        // PLCopen as FBD, so parallel contacts arrive as an OR box, never as branches.
+        // `BoxTreeOperand`, `BoxTreeBox` and `BoxTreeAssign` were always demonstrated. `BoxTreeDemux` now is
+        // too — `ladder-demux.TcPOU` carries three, so `VarId` and `Input` came off this list. It was drawn by
+        // hand in XAE's LADDER editor: a contact whose output BRANCHES, one path into an OR box and another to
+        // a second coil.
         //
-        // So these want a body DRAWN BY HAND in XAE, exactly as `execute-box.TcPOU` did. Until then the code
-        // reads them on the strength of DIALECT N1 (both vendors ship the identical NWLObject model), which is
-        // good grounds for the spelling and no evidence at all for the walk.
-        ["VarId"] = "BoxTreeDemux — no committed fixture contains a Demux; needs a hand-drawn XAE body",
-        ["Input"] = "BoxTreeDemux/Parallel/Terminator — none is present in any fixture; needs a hand-drawn body",
-        ["Trees"] = "BoxTreeParallel — no committed fixture contains one; needs a hand-drawn XAE body",
+        // THE CREATE PATH CANNOT REACH IT, which is why this needed a person and not a test. Pushed through
+        // the PLCopen importer the same fan-out comes back as ONE `BoxTreeAssign` with TWO `OutputItems` — the
+        // importer spells a shared wire as a multi-target assign, and only the editor builds the Demux. A
+        // measurement of the importer is not a measurement of the vendor.
+        //
+        // `BoxTreeParallel` is still unproven and may be unreachable on this vendor: drawing parallel contacts
+        // produced an OR BOX, and the ladder rendering of an OR box is parallel contacts, so the two are hard
+        // to tell apart from the drawing alone. FBD, LD and IL are three views of ONE network here (see
+        // `TcArchive`), so there may be no separate parallel object to make. `BoxTreeTerminator` likewise: an
+        // unconnected input pin stores as an empty OPERAND, not a terminator.
+        ["Trees"] = "BoxTreeParallel — no committed archive contains one; drawing parallel contacts in XAE " +
+                    "produces an OR box instead, so this may be unreachable on TwinCAT rather than merely " +
+                    "unsampled. Needs a hand-drawn body that yields one, or a note that none exists.",
     };
 
     private static readonly string[] Sources =

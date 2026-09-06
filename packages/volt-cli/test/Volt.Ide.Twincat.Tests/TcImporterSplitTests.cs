@@ -67,15 +67,23 @@ public class TcImporterSplitTests
         Assert.Equal(new[] { "BoxTreeBox", "BoxTreeAssign" }, lists);
     }
 
-    /// <summary>A NETWORK'S ITEMS ARE TYPED BY THE LIST, NEVER BY THE CHILD — across every committed archive.
+    /// <summary>HOW A NETWORK TYPES ITS ITEMS — and it is an EXCLUSIVE OR, not homogeneity.
     ///
-    /// <para>The load-bearing half. If any real network typed its children individually, a mixed list would be a
-    /// shape the vendor writes and the merge would be back on the table. None does, across every archive of real
-    /// IDE output here — so the homogeneity belongs to the format, not to this one fixture.</para></summary>
+    /// <para>This test asserted the wrong rule for a day. Every archive then held said a list declares its
+    /// element type once via <c>cet</c> with no child carrying <c>t</c>, so a network looked HOMOGENEOUS and the
+    /// importer's split looked permanent. A hand-drawn fan-out (`ladder-demux.TcPOU`) falsified it: that
+    /// network's list has NO <c>cet</c> and EVERY child carries its own <c>t</c> —
+    /// <c>BoxTreeDemux</c>, <c>BoxTreeAssign</c>, <c>BoxTreeAssign</c>. A network CAN hold mixed item types.</para>
+    ///
+    /// <para><b>The real contract, across all 22 populated lists here:</b> either <c>cet</c> is present and NO
+    /// child has <c>t</c>, or <c>cet</c> is absent and ALL children do. Never a mixture of the two — which is
+    /// exactly what the first merge attempt wrote (it kept the destination's <c>cet</c> and stamped <c>t</c> on
+    /// only the moved items), and why the vendor read the moved assign as a box and returned
+    /// <c>done := ();</c>.</para></summary>
     [Fact]
-    public void No_committed_archive_types_a_network_item_by_the_child()
+    public void A_network_types_its_items_by_the_list_or_by_every_child_never_both()
     {
-        var byChild = new System.Collections.Generic.List<string>();
+        var violations = new System.Collections.Generic.List<string>();
         var lists = 0;
 
         foreach (var file in System.IO.Directory.EnumerateFiles(Fixtures.PouDir(), "*.TcPOU"))
@@ -87,20 +95,35 @@ public class TcImporterSplitTests
             foreach (var list in root.Descendants("l2").Where(l => (string?)l.Attribute("n") == "NetworkItems"))
             {
                 var kids = list.Elements("o").ToList();
-                if (kids.Count == 0) continue;                    // an EMPTY list types nothing and omits `cet`
+                if (kids.Count == 0) continue;
                 lists++;
-                Assert.True((string?)list.Attribute("cet") != null,
-                    $"a populated NetworkItems list with no `cet` in {System.IO.Path.GetFileName(file)} — then " +
-                    "its children are typed by something else, and the homogeneity argument does not hold");
-                foreach (var child in kids)
-                    if (child.Attribute("t") != null)
-                        byChild.Add($"{System.IO.Path.GetFileName(file)}: <o t=\"{(string?)child.Attribute("t")}\">");
+
+                var cet = (string?)list.Attribute("cet") != null;
+                var typed = kids.Count(k => k.Attribute("t") != null);
+                var conforms = (cet && typed == 0) || (!cet && typed == kids.Count);
+                if (!conforms)
+                    violations.Add($"{System.IO.Path.GetFileName(file)}: cet={cet}, {typed}/{kids.Count} children typed");
             }
         }
 
-        Assert.True(lists >= 4, $"only {lists} NetworkItems lists across the fixtures — too thin to conclude from");
-        Assert.True(byChild.Count == 0,
-            "a network item typed by the CHILD would mean the vendor can write a mixed network, which would " +
-            "reopen the grouping merge:\n  " + string.Join("\n  ", byChild));
+        Assert.True(lists >= 20, $"only {lists} populated NetworkItems lists — too thin to conclude from");
+        Assert.True(violations.Count == 0,
+            "a list that is neither fully cet-typed nor fully child-typed — the form the vendor does not write, " +
+            "and the one a merge must not produce: " + string.Join(" | ", violations));
+    }
+
+    /// <summary>AND A MIXED NETWORK IS A SHAPE THE VENDOR DOES WRITE — the fact that reopens the merge.</summary>
+    [Fact]
+    public void A_hand_drawn_network_holds_more_than_one_item_type()
+    {
+        var mixed = XElement.Parse(Fixtures.Pou("ladder-demux.TcPOU"), LoadOptions.PreserveWhitespace)
+            .Descendants("l2")
+            .Where(l => (string?)l.Attribute("n") == "NetworkItems" && (string?)l.Attribute("cet") == null)
+            .Select(l => l.Elements("o").Select(o => (string?)o.Attribute("t")).ToList())
+            .FirstOrDefault();
+
+        Assert.NotNull(mixed);
+        Assert.True(mixed!.Distinct().Count() > 1, "the child-typed list should hold MORE THAN ONE type");
+        Assert.Contains("BoxTreeDemux", mixed);
     }
 }
