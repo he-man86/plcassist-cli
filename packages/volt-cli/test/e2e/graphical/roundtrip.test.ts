@@ -221,17 +221,17 @@ describe(`graphical / round-trip (${BASE})`, () => {
 		// A TRACKED gap, not a vendor difference: `openspec/changes/twincat-graphical-create-parity`.
 		// Delete this branch when it lands.
 		//
-		// An Execute box is ST INSIDE an FBD box, and PLCopen has no element for one — so TwinCAT, which accepts
-		// a new graphical body only through its importer, cannot create it and says so. The refusal is asserted
-		// rather than skipped: it is the difference between a shape one vendor cannot build and a shape Volt
-		// forgot to send, and only an assertion tells them apart when the next person reads a red suite.
+		// An Execute box is ST INSIDE an FBD box, and PLCopen FBD has no element for one. MEASURED 2026-09-06:
+		// emitted as a `<block typeName="EXECUTE">` the importer ACCEPTS the push and returns `EXECUTE();` — a
+		// plain box whose TYPE NAME is the string EXECUTE, with the ST gone. So the refusal is what stands
+		// between an engineer and silently losing their code, which is why it is asserted rather than skipped.
 		if (VENDOR === "twincat") {
 			expect(r.accepted, "TwinCAT accepted an Execute box its importer cannot build").toBe(false)
-			// TWO of the tracked gaps are in this one fixture, and the EN one is hit FIRST: the box is
-			// EN-guarded (`LET en1 := bRun; IF en1 THEN EXECUTE …`), so the enable is refused before the Execute
-			// box is ever reached. Worth knowing when closing them — fixing Execute alone will not turn this
-			// green, and the message says which wall it hit.
-			expect(JSON.stringify(r.conflicts)).toMatch(/Execute box|wires a box's EN input/)
+			// ONLY the Execute message now. This also accepted "wires a box's EN input", because the fixture is
+			// EN-guarded and the enable was refused FIRST — so the test passed without the Execute box ever
+			// being reached. TwinCAT creates a wired EN since 2026-09-06, so that alternative is dead, and
+			// leaving it in would let a future EN regression masquerade as this known limit.
+			expect(JSON.stringify(r.conflicts)).toContain("Execute box")
 			return
 		}
 

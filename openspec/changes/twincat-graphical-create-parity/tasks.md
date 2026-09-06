@@ -55,15 +55,21 @@ remaining shape needs its own measurement before its refusal is called permanent
 - [x] Narrow by construction: the repair only fires when the box has EXACTLY one input more than the model, the
       signature of the fold. Any other mismatch still refuses.
 
-## 4. Execute box (ST inside FBD)
+## 4. Execute box (ST inside FBD) — CLOSED as not creatable, and it FAILS SILENTLY
 
-- [ ] The oldest of the four. PLCopen has no element; the CODESYS path builds `<block typeName="EXECUTE">` plus
-      `<STCode>`. Determine whether TwinCAT's importer accepts that same block, and if not, whether an ordinary
-      box can be imported and its `STCode` set through the archive writer.
-- [ ] **Task 3 must land first.** The fixture is EN-guarded (`LET en1 := bRun; IF en1 THEN EXECUTE …`), so it
-      hits the EN refusal BEFORE the Execute box is reached — fixing Execute alone will not turn this test
-      green, and the assertion accepts either message for exactly that reason.
-- [ ] Delete the branch in `roundtrip.test.ts` ("creates an FBD program with an Execute box").
+- [x] Measured: emitted as a `<block typeName="EXECUTE">`, the importer ACCEPTS the push and returns
+      `EXECUTE();` — a plain box whose TYPE NAME is the string EXECUTE, with the ST gone entirely. PLCopen FBD
+      has no element for ST-in-a-box, and a type name is not enough.
+- [x] That makes the refusal load-bearing rather than cautious: without it a push would report success and drop
+      the engineer's code, which is the worst outcome of the five shapes.
+- [x] Task 3 (EN) landed first, as required — the fixture is EN-guarded, so the enable now passes and the
+      Execute box is the only wall left in it.
+- [ ] Vendor branch REMAINS in `roundtrip.test.ts`, and its assertion should now accept ONLY the Execute message
+      (the EN alternative it allows is dead).
+- [ ] READING one is separately unmeasured — `TcNetworkReader.ReadStCode` refuses because a populated
+      `STSnippet`'s archive shape has never been captured on this vendor. Reachable only if an engineer draws an
+      Execute box in XAE by hand, which is also how the shape would be captured. Worth doing: it is the one
+      remaining path where TwinCAT would meet an Execute box in the field.
 
 ## 4b. Network grouping — MEASURED, and the obvious repair CORRUPTS
 
