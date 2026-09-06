@@ -3,20 +3,31 @@
 Each shape is done when its e2e vendor branch is DELETED and the test passes on both vendors. Nothing here is
 done by widening a refusal or skipping a test.
 
-## 0. Establish the route (do this first — it decides the other four)
+## 0. Establish the route — ANSWERED 2026-09-06
 
-- [ ] Push `t1(IN := a, PT := pt, ET => el)` with the `outVariable` emission restored (it is in the history of
-      `TcPlcOpenWriter`, removed in the same commit that added the refusal) and DUMP the resulting archive.
-      The question is exactly one: does the box carry an `OutputItems` slot for `ET`, with the operand on the
-      separate `BoxTreeAssign` — or is there no slot at all?
-- [ ] If a slot exists: the fix is to move the operand onto it and drop the assign item, which is a VALUE edit
-      of the kind `TcNetworkWriter` already does. If no slot exists, say so here and the route is dead — record
-      what replaces it before writing code.
-- [ ] Either way, write the finding into DIALECT (C20 is the placeholder) with the archive fragment.
+- [x] Push `t1(IN := a, PT := pt, ET => el)` with the `outVariable` emission restored and see what the importer
+      builds. **Answer: it ignores `formalParameter`.** The body came back as `el := t1(IN := a, PT := pt)` —
+      the variable wired to the box's UNNAMED RESULT, not to `ET`.
+- [x] Is there an `ET` slot to move the operand into? **No.** The archive holds a `BoxTreeAssign` from the box's
+      result; the box has no output slot at all. So there is nothing to fix up after the import, and creating the
+      slot would mean building archive members — the one thing the writer must not do (N11: `BoxTreeBox` has no
+      concrete class in any shipped assembly, and inferring its member contract once produced twenty unopenable
+      `.TcPOU` files).
+- [x] Recorded in DIALECT C20 with the evidence.
 
-## 1. Embedded output pin — `t1(… ET => el)`
+**Consequence: the import-then-edit route is DEAD for a named output pin**, and the refusal is now evidence-based
+rather than cautious. It is also worse than a reshape — a TON's result pin is `Q` (BOOL), so accepting what the
+importer builds would assign a BOOL to a TIME variable and change what the program computes.
 
-- [ ] Import + post-import edit, per task 0.
+**This does not settle the other shapes.** Import-then-edit may still work where the shape survives the import
+with its identity intact; the output pin fails because the PIN IDENTITY is what the importer discards. Each
+remaining shape needs its own measurement before its refusal is called permanent.
+
+## 1. Embedded output pin — `t1(… ET => el)` — CLOSED as not creatable
+
+- [x] Measured (task 0): neither route reaches it. The refusal stays, and is now documented as measured.
+- [ ] Keep the vendor branches in `create-shapes.test.ts` and `unresolved-marker.test.ts` (`qmark_out`,
+      `qmark_both`) — they assert a REAL vendor limit, not a gap. Reword them to say "cannot", not "cannot yet".
 - [ ] Delete the branch in `create-shapes.test.ts` ("a box's embedded OUTPUT pin survives a create").
 - [ ] Delete the two branches in `unresolved-marker.test.ts` (`qmark_out`, `qmark_both`) — they are the same
       limit reached through `???`, and they pass for free once the pin does.
