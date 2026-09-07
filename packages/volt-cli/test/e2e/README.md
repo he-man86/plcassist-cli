@@ -172,3 +172,26 @@ TwinCAT) and the suite resolves the wire names from `refs` rather than assuming 
 regenerate a fixture project, these two POUs must survive** — without them the suite fails loudly rather than
 skipping, which is deliberate: silently losing the only live coverage of a data-loss guard is the failure mode
 worth being noisy about.
+
+## Not a suite: the corpus-migration GAP FINDER
+
+`scripts/corpus-migration.ts` pushes a real customer project (the `volt-lsp-iec/test-corpus/` harvests) into an
+**empty** CODESYS project and materializes the result back. Every item is therefore a **create**, which is the
+half `whole-project.test.ts` cannot reach — that one pushes a project's own bytes back over itself and so only
+ever exercises the update path.
+
+**It is deliberately NOT a test.** The corpora are large, slow, and prove nothing on a build agent; their job is
+to *surface* gaps. Every gap it finds is fixed and then pinned by a dedicated **offline** test in `volt-cli`
+that fails without the fix — that test is the standing coverage, not the corpus run.
+
+```bash
+bun run scripts/corpus-migration.ts             # every corpus (~5-20 min each)
+bun run scripts/corpus-migration.ts pro2193     # one
+```
+
+It owns the IDE lifecycle (opens and closes a throwaway blank project per corpus), so stop any running bridge
+first. CFC/SFC/IL items are counted and reported rather than staged: they have no text form to create them from.
+
+| Found | Fixed in | Pinned by |
+|---|---|---|
+| Create path wrote a `(* @volt-graphical: LANG *)` marker as source, landing an EMPTY function block while the push reported success — a migration silently dropped every CFC/SFC POU | `BodyFormatGuard.RequireAuthorable`, called on the create arm of `PushService` | `Volt.Engine.Tests/sync/CreateUnauthorableBodyTests.cs` |

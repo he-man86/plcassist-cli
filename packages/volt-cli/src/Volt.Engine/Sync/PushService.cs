@@ -504,9 +504,9 @@ public static class PushService
         // back via the PLCopen transport. (Root CFC/SFC are unsupported and never reach push.)
         var pouIsNetwork = NetworkText.Is(impl);
 
-        // Read-only enforcement for graphical bodies is by LIVE IDE STATE, not content: an existing CFC/SFC
-        // body is refused by the body-type guard below (which reads `BodyLanguage`). The materialized
-        // informational marker carries no semantics, so there is no content-marker check here.
+        // Read-only enforcement for an EXISTING graphical body is by LIVE IDE STATE, not content: it is refused
+        // by the body-type guard below. On a CREATE there is no live state to read, and the marker is the only
+        // evidence there is — see `BodyFormatGuard.RequireAuthorable`, called on that arm.
 
         ItemRef pou;
         ItemContent? live = null;
@@ -516,9 +516,10 @@ public static class PushService
             // tree path here, so an in-place update never re-walks or accidentally materializes the spine.
             var targetParent = TreeNav.ResolveTopLevelFolder(ide, folder);
 
-            // Validate a network-text body BEFORE creating the item - a refused push must not leave an orphaned,
-            // unlisted stub POU behind that blocks the next create.
+            // Validate the body BEFORE creating the item - a refused push must not leave an orphaned, unlisted
+            // stub POU behind that blocks the next create.
             if (pouIsNetwork) NetworkTextGate.Validate(impl);
+            BodyFormatGuard.RequireAuthorable(split);
 
             // The body language is passed UNCONDITIONALLY (null for ST). TwinCAT sets a POU's implementation
             // language at creation; CODESYS takes it from the content. There is no create-arm per language - the

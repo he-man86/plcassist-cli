@@ -32,6 +32,40 @@ public static class BodyFormatGuard
         : NetworkText.Is(body) ? Shape.Network
         : Shape.Textual;
 
+    /// <summary>Refuse a CREATE whose source carries a <see cref="BodyMarker"/>. The rule above — decide from the
+    /// IDE's LIVE body — has nothing to read on a create, but the verdict does not need one: a marker means
+    /// "there is no text form for this body", so Volt cannot author the item under any live state.
+    ///
+    /// <para>Without this the create path wrote the marker as if it were source, and the item landed with an
+    /// EMPTY body while the push reported success. Measured by the corpus-migration gate: pushing a real project
+    /// into a blank one silently dropped every CFC/SFC POU. The update path had been guarded since the first
+    /// data-loss bug; the create path was never covered, and the comment beside it in <c>PushService</c> asserted
+    /// the opposite ("root CFC/SFC are unsupported and never reach push").</para></summary>
+    public static void RequireAuthorable(ItemContent pushed)
+    {
+        Authorable("the item", pushed.Body);
+        foreach (var member in pushed.Members)
+        {
+            // Same split as below: a property node's code lives in its accessors, not in a body of its own.
+            if (member.Kind == ItemKind.Kinds.Property || member.Kind == ItemKind.Kinds.InterfaceProperty
+                || member.Kind == ItemKind.Kinds.InterfaceMethod)
+            {
+                Authorable($"'{member.Name}' GET", member.Getter?.Body);
+                Authorable($"'{member.Name}' SET", member.Setter?.Body);
+                continue;
+            }
+            Authorable($"'{member.Name}'", member.Body);
+        }
+    }
+
+    private static void Authorable(string what, string? body)
+    {
+        if (!BodyMarker.Is(body)) return;
+        throw new BridgeException(BridgeErrorCodes.Unsupported,
+            $"{what} is written in {BodyMarker.LanguageOf(body) ?? "a language"}, which Volt cannot author — " +
+            "there is no text form for it, so it can only be created in the IDE. Remove it from this push.");
+    }
+
     /// <summary>Refuse a push that would overwrite a body Volt cannot author, or that carries a marker over one
     /// it can. <paramref name="live"/> is the item as the IDE holds it now; <paramref name="pushed"/> is the
     /// source being written. Throws <see cref="BridgeException"/>; returns quietly when the write is allowed.</summary>
