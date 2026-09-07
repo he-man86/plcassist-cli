@@ -69,12 +69,31 @@ const CODESYS: Blank = {
 		const scratch = mkdtempSync(join(tmpdir(), `volt-blank-${label}-`))
 		const project = join(scratch, "Blank.project")
 		copyFileSync(join(codesysInstall(), "CODESYS", "Templates", "Standard.project"), project)
+		// `-NoBuild` because `buildToolchain()` already did it, ONCE, before the first IDE started — the launcher's
+		// own rebuild cannot run while a previous corpus's CODESYS still holds the DLL, and rebuilding per corpus
+		// would be four wasted builds. Never drop the up-front build: `PushService` lives in Volt.Engine, which
+		// ships INSIDE the bridge, so a fix compiled into volt.exe alone leaves the wire serving the old code and
+		// the run measures a binary that no longer exists. That is the stale-bridge trap, and it has cost a
+		// re-recorded corpus before.
 		ps(LAUNCHER, ["-Action", "up", "-NoBuild", "-Project", project])
 		waitForPipe()
 	},
 	close() {
 		ps(LAUNCHER, ["-Action", "down"])
 	},
+}
+
+/** Build the bridge AND the CLI before anything opens, so the run cannot measure a stale binary. */
+function buildToolchain(): void {
+	const dotnet = "C:\\Program Files\\dotnet\\dotnet.exe"
+	for (const proj of ["src/Volt.Ide.Codesys/Volt.Ide.Codesys.csproj", "src/Volt.Cli/Volt.Cli.csproj"]) {
+		process.stdout.write(`building ${proj}… `)
+		execFileSync(dotnet, ["build", join(REPO, "packages", "volt-cli", proj), "-c", "Release", "--nologo", "-v", "quiet"], {
+			encoding: "utf8",
+			maxBuffer: 64 * 1024 * 1024,
+		})
+		console.log("ok")
+	}
 }
 
 // TwinCAT has no headless mode and no in-proc host (see test/e2e/README.md), so its blank has to be opened
@@ -215,6 +234,18 @@ function migrate(name: string): string[] {
 	blank.open(name)
 	const pusher = initWorkspace(`push-${name}`)
 	try {
+		// EMPTY THE TARGET IN ITS OWN PUSH, then migrate into it. The shipped template is not actually empty — it
+		// carries a `PLC_PRG` under the Application — and doing both halves in one push let `git diff -M` pair
+		// that deletion with an unrelated ADD by content similarity: two skeletal PROGRAM POUs are well over the
+		// 50% threshold. The push then emitted a single move+rename `PLC_PRG -> POUTab` INTO the project root,
+		// which CODESYS cannot perform at all (its `move` takes an IScriptObject and the project is not one), and
+		// it failed at op 534 of 534 with 533 already written.
+		//
+		// Two pushes is also the more faithful shape: "migrate into an empty project" means the target IS empty
+		// before the migration, so the second push is a pure CREATE — which is the path this exists to exercise.
+		stage(new Map(), pusher.src)
+		volt(pusher.root, ["push"])
+
 		stage(staged, pusher.src)
 		volt(pusher.root, ["push"])
 
@@ -240,6 +271,8 @@ const corpora = readdirSync(CORPUS_ROOT, { withFileTypes: true })
 	.filter((e) => e.isDirectory() && (!only || e.name === only))
 	.map((e) => e.name)
 if (corpora.length === 0) throw new Error(`no corpus matching '${only}' under ${CORPUS_ROOT}`)
+
+buildToolchain()
 
 const findings = new Map<string, string[]>()
 for (const name of corpora) {
