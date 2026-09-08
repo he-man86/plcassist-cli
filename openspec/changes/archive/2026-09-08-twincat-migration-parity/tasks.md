@@ -49,10 +49,22 @@ is therefore a PREREQUISITE for task 2, not a follow-on.
 - [x] `VOLT_VENDOR=twincat bun run scripts/corpus-migration.ts <corpus>` reaches the comparison. It ran, got 6
       of 9 items in, and was refused on `POUexecute.prg` — TwinCAT cannot re-import an Execute box it authored
       itself (C20). A real result, not a throw.
-- [ ] Every drift it reports is triaged the way the CODESYS ones were: a gap gets a fix and an OFFLINE test in
-      `volt-cli` that fails without it. The corpus run is a finder, never the standing coverage.
-- [ ] Expect the importer's grouping (D25) to show up here as reshaped bodies. That is a KNOWN vendor
-      difference, and the finder must be able to say so without being taught to ignore drift in general.
+- [x] Every drift it reports is triaged the way the CODESYS ones were. The run reports two things and both are
+      accounted for: `POUexecute.prg` REFUSED (C20, named — see below), and `ladderLabel.prg` DRIFTED, which is
+      a real data-loss bug and is tracked as its own change, **`twincat-graphical-create-loss`**. Isolated to a
+      one-file corpus first, so neither the other items nor the refusal-recovery is involved: a graphical POU
+      created in an empty TwinCAT project loses its declaration, its language (LD → FBD), both network labels,
+      its coil and an entire network — while `volt push` reports success. Half of it is measurable offline
+      (the PLCopen lowering emits an empty `<interface/>`, an `<FBD>` body for an LD model, one network of two,
+      and no labels), and the guard that should have refused it (`Stamp`'s `CarriesDetail`/`LostNetworks`) did
+      not fire, which is that change's first task.
+- [x] Expect the importer's grouping (D25) to show up here, and say so without learning to ignore drift in
+      general. The finder now recovers from a push the bridge refuses BY NAME: it drops that item, re-stages,
+      pulls what already landed, and pushes the rest — reporting each as a `refused` line beside the `adapted`
+      ones. Deliberately narrow: a failure it cannot parse an item name out of is rethrown untouched, because
+      a finder that shrinks its own input until the push succeeds would report a clean migration of nothing.
+      Without it TwinCAT stopped at item 7 of 9 and the other eight were never compared — which is how
+      `ladderLabel.prg`'s loss stayed invisible.
 
 ## 3. TwinCAT evidence for the ST layer
 

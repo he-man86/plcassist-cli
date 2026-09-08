@@ -402,6 +402,85 @@ function firstDifference(want: string, got: string): string {
 	return "    (lines identical — the trailing newline differs)"
 }
 
+
+/**
+ * THE MIGRATING PUSH, MINUS WHAT THIS VENDOR PAIR CANNOT CARRY.
+ *
+ * A push that the bridge refuses by NAME is a known vendor limit, not a broken run: TwinCAT cannot re-import an
+ * Execute box even in a body TwinCAT itself authored (C20), so `POUexecute.prg` stops a Project14 migration at
+ * item 7 of 9 and the other eight are never compared. The finder exists to find DRIFT, and it cannot find any
+ * in files it never pushed.
+ *
+ * So a refusal removes that item and the push is retried — but ONLY a refusal the bridge NAMED. This is
+ * deliberately not "retry until it works": an error this cannot parse an item name out of is rethrown
+ * untouched, because a finder that shrinks its own input set until the push succeeds would report a clean
+ * migration of nothing. Each dropped item is RETURNED and printed as a `refused` line beside the `adapted`
+ * ones, which is what task 2 asks for — say what this vendor cannot do, by name, without learning to ignore
+ * drift in general.
+ *
+ * The pull between attempts is the CLI's own instruction. A refused push is not rolled back ("6 of 9 item(s)
+ * were already written ... Run `volt pull` to take them into the workspace, then push again"), so without it
+ * the next push re-sends items the IDE already has and fails on their versions instead.
+ */
+function pushAllItCan(
+	pusher: { root: string; src: string },
+	staged: Map<string, string>,
+	tasksAs: string,
+): string[] {
+	const refused: string[] = []
+	const remaining = new Map(staged)
+
+	// One attempt per refusable item, plus one that must succeed. A bound rather than `while (true)`: if a
+	// refusal names an item that is not in the set, dropping it changes nothing and this would spin forever.
+	for (let attempt = 0; attempt <= staged.size; attempt++) {
+		try {
+			volt(pusher.root, ["push"])
+			return refused
+		} catch (err) {
+			const message = String((err as Error).message)
+			// MATCHED BY BASENAME. The bridge names an item the way the WIRE does — `POUexecute.prg`, the
+			// item's own name — while the staged map is keyed by workspace PATH (`POUs/POUexecute.prg`).
+			// Comparing them directly finds nothing, rethrows, and this whole mechanism does nothing at all.
+			const lines = refusalLines(message)
+			const named = [...remaining.keys()].filter((k) => lines.has(k.split("/").pop()!))
+			if (named.length === 0) throw err
+
+			for (const k of named) {
+				remaining.delete(k)
+				refused.push(`${k} — ${lines.get(k.split("/").pop()!)}`)
+			}
+			// RE-STAGE FIRST, THEN PULL. `stage` deletes what is no longer in the map, so this drops the
+			// refused file from the workspace before the merge sees it. The other order conflicts on exactly
+			// that file — the IDE never received it, so a pull merges "locally added" against "not there" and
+			// stops with `CONFLICT in 1 file(s)`, which is a worse failure than the refusal it was recovering
+			// from.
+			stage(remaining, pusher.src, tasksAs)
+			volt(pusher.root, ["pull"])
+		}
+	}
+	throw new Error("the push kept being refused after " + staged.size + " attempts. Refusals so far:\n" + refused.join("\n"))
+}
+
+/**
+ * The item names a refusal message carries. The bridge reports one `  <name>: <reason>` line per rejected op,
+ * two-space indented under `the bridge rejected the push:` — so the shape is scanned rather than matched with a
+ * regex built from the item name, which would need escaping the name for a pattern it is only ever compared to.
+ */
+function refusalLines(message: string): Map<string, string> {
+	const out = new Map<string, string>()
+	for (const raw of message.split("\n")) {
+		if (!raw.startsWith("  ") || raw.startsWith("   ")) continue
+		const colon = raw.indexOf(": ")
+		if (colon < 0) continue
+		const name = raw.slice(2, colon).trim()
+		if (!name || name.includes(" ")) continue   // a prose line, not an item
+		// Drop the CLI's own trailing advice; the REASON is the vendor's sentence.
+		const reason = raw.slice(colon + 2).split(" — NOTE:")[0]!.trim()
+		out.set(name, reason)
+	}
+	return out
+}
+
 // ── one corpus, end to end ────────────────────────────────────────────────────────────────────────────────
 
 async function migrate(name: string): Promise<string[]> {
@@ -439,7 +518,8 @@ async function migrate(name: string): Promise<string[]> {
 		volt(pusher.root, ["push"])
 
 		stage(staged, pusher.src, tasksAs)
-		volt(pusher.root, ["push"])
+		const refused = pushAllItCan(pusher, staged, tasksAs)
+		for (const r of refused) console.log(`   refused  ${r}`)
 
 		// A SECOND workspace, so what comes back is a materialization and never a merge. A `volt pull` back into
 		// the pusher would be a git merge, so a genuine reshape shows up as a CONFLICT rather than a readable
