@@ -97,6 +97,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC AsReal : REAL
 GET
+VAR
+END_VAR
 AsReal := TO_REAL(refSeconds) + TO_REAL(udiMs) / 1000;
 END_GET
 END_PROPERTY
@@ -104,6 +106,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC AsTime : TIME
 GET
+VAR
+END_VAR
 AsTime := TO_TIME(refSeconds * 1000 + udiMs);
 END_GET
 END_PROPERTY
@@ -111,6 +115,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC Cycles : ULINT
 GET
+VAR
+END_VAR
 Cycles := refCycles;
 END_GET
 END_PROPERTY
@@ -118,6 +124,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC InSeconds : ULINT
 GET
+VAR
+END_VAR
 InSeconds := refSeconds;
 END_GET
 END_PROPERTY

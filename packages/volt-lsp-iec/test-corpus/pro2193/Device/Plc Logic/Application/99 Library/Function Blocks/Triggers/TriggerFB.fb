@@ -52,6 +52,8 @@ END_METHOD
 // Falling edge of the input signal
 PROPERTY PUBLIC Q_Falling : BOOL
 GET
+VAR
+END_VAR
 Q_Falling := xFallingEdge;
 END_GET
 END_PROPERTY
@@ -61,6 +63,8 @@ PROPERTY PUBLIC Q_Rising : BOOL
 
 // Attribute 'monitoring':='call' is not needed here.
 GET
+VAR
+END_VAR
 Q_Rising := xRisingEdge;
 END_GET
 END_PROPERTY

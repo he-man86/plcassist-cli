@@ -111,6 +111,8 @@ END_METHOD
 {attribute 'monitoring' := 'call'}
 PROPERTY ObserverCount : UINT
 GET
+VAR
+END_VAR
 ObserverCount := Subject.ObserverCount;
 END_GET
 END_PROPERTY

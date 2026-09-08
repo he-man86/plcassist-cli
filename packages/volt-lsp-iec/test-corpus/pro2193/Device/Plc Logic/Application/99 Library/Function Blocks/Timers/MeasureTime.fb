@@ -41,6 +41,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC ElapsedTime : REAL
 GET
+VAR
+END_VAR
 ElapsedTime := rStoredTime;
 END_GET
 END_PROPERTY

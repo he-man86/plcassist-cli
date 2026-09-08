@@ -77,6 +77,8 @@ END_METHOD
 {attribute 'monitoring':='variable'}
 PROPERTY PUBLIC RequestFullMouldOpen : BOOL
 GET
+VAR
+END_VAR
 RequestFullMouldOpen := SUPER^.RequestFullMouldOpen;
 END_GET
 END_PROPERTY
@@ -85,6 +87,8 @@ END_PROPERTY
 {attribute 'monitoring':='variable'}
 PROPERTY PUBLIC RequestMouldEntry : BOOL
 GET
+VAR
+END_VAR
 RequestMouldEntry := SUPER^.RequestMouldEntry AND S1_MouldAlmostOpen;
 END_GET
 END_PROPERTY

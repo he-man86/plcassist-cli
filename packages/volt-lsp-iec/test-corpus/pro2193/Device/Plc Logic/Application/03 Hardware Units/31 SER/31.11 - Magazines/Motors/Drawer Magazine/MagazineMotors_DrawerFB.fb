@@ -1175,6 +1175,8 @@ END_METHOD
 PROPERTY PUBLIC AxisEnabled : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 AxisEnabled	:=  TM_PickPlace.xAxesEnabled
 			AND TM_PickPlace.scStatusAGBC.ascStatusABC[PickPlaceAxesNames.A1].xAxisEnabled
 			AND TM_PickPlace.scStatusAGBC.ascStatusABC[PickPlaceAxesNames.A2].xAxisEnabled;
@@ -1186,6 +1188,8 @@ END_PROPERTY
 PROPERTY ExternalManualControlEnabled : BOOL
 %FOLDER Properties
 SET
+VAR
+END_VAR
 manualControlEnabled := ExternalManualControlEnabled;
 END_SET
 END_PROPERTY
@@ -1195,6 +1199,8 @@ END_PROPERTY
 PROPERTY HomingSensorM1 : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 HomingSensorM1	:= NOT ReadDigitalInput(A1Axis);
 END_GET
 END_PROPERTY
@@ -1204,6 +1210,8 @@ END_PROPERTY
 PROPERTY HomingSensorM2 : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 HomingSensorM2	:= NOT ReadDigitalInput(A2Axis);
 END_GET
 END_PROPERTY
@@ -1213,6 +1221,8 @@ END_PROPERTY
 PROPERTY PUBLIC InSafePos : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InSafePos	:= actXPos > GVL_Constants.ArmLength - 40
 			OR actZPos < Data.getNewLabelsUpperPos.value - Data.SafeDistanceAboveDrawers + 1;
 END_GET
@@ -1223,6 +1233,8 @@ END_PROPERTY
 PROPERTY IsHomed : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IsHomed := TM_PickPlace.xAxesGroupHomed;
 END_GET
 END_PROPERTY
@@ -1231,6 +1243,8 @@ END_PROPERTY
 PROPERTY IsInterrupted : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IsInterrupted := TM_PickPlace.eTMState = L_TT1P_States.PATH_INTERRUPT AND TM_PickPlace.xPathHold;
 END_GET
 END_PROPERTY
@@ -1239,6 +1253,8 @@ END_PROPERTY
 PROPERTY IsMoving : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IsMoving := TM_PickPlace.eTMState = L_TT1P_States.MOVE_PP;
 END_GET
 END_PROPERTY
@@ -1248,6 +1264,8 @@ END_PROPERTY
 PROPERTY PUBLIC Standstill : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 Standstill	:= TM_PickPlace.eTMState = L_TT1P_States.STOP OR TM_PickPlace.eTMState = L_TT1P_States.READY;
 END_GET
 END_PROPERTY

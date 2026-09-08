@@ -33,36 +33,54 @@ END_METHOD
 {attribute 'monitoring' := 'call'}
 PROPERTY PUBLIC Cavity : UINT
 GET
+VAR
+END_VAR
 Cavity := _cavity;
 END_GET
 SET
+
+VAR
+END_VAR
 _cavity := Cavity;
 END_SET
 END_PROPERTY
 
 PROPERTY PUBLIC Data : UDINT
 GET
+VAR
+END_VAR
 Data := _data;
 END_GET
 SET
+VAR
+END_VAR
 _data := Data;
 END_SET
 END_PROPERTY
 
 PROPERTY PUBLIC RejectReason : USINT
 GET
+VAR
+END_VAR
 RejectReason := _rejectReason;
 END_GET
 SET
+VAR
+END_VAR
 _rejectReason := RejectReason;
 END_SET
 END_PROPERTY
 
 PROPERTY PUBLIC StatType : enumProductionStatsCavityType
 GET
+VAR
+END_VAR
 StatType := _statType;
 END_GET
 SET
+
+VAR
+END_VAR
 _statType := StatType;
 END_SET
 END_PROPERTY

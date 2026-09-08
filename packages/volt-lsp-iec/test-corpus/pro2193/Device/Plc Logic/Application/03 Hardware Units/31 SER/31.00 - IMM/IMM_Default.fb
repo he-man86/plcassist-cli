@@ -1132,6 +1132,8 @@ END_METHOD
 PROPERTY PUBLIC AllowLabelsInCavities : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 AllowLabelsInCavities	:=  (NOT HasLabels OR SER.OperationMode = SER_OperationModeType.SemiAuto)
 						AND (ShotCounter > Data.usiFirstShotsWithoutIML OR SER.OperationMode = SER_OperationModeType.SemiAuto);
 
@@ -1149,6 +1151,8 @@ END_PROPERTY
 PROPERTY PUBLIC AutoOperation : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 AutoOperation := xAutoOperation OR euromapTestInProgress;
 END_GET
 END_PROPERTY
@@ -1158,6 +1162,8 @@ END_PROPERTY
 PROPERTY PUBLIC DoorsClosed : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 DoorsClosed := xDoorsClosed;
 END_GET
 END_PROPERTY
@@ -1167,9 +1173,13 @@ END_PROPERTY
 PROPERTY PUBLIC EnableDetectMovementIMMInput : BOOL
 %FOLDER Config
 GET
+VAR
+END_VAR
 EnableDetectMovementIMMInput := _enableDetectMovementIMM;
 END_GET
 SET
+VAR
+END_VAR
 _enableDetectMovementIMM := EnableDetectMovementIMMInput;
 END_SET
 END_PROPERTY
@@ -1179,9 +1189,13 @@ END_PROPERTY
 PROPERTY PUBLIC HasLabels : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 HasLabels := _labelsInCavities;
 END_GET
 SET
+VAR
+END_VAR
 _labelsInCavities			:= HasLabels;
 END_SET
 END_PROPERTY
@@ -1191,6 +1205,8 @@ END_PROPERTY
 PROPERTY PUBLIC MouldIsOpen : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 MouldIsOpen := TriggerMouldOpened.Q_Rising;
 END_GET
 END_PROPERTY
@@ -1200,6 +1216,8 @@ END_PROPERTY
 PROPERTY PUBLIC MouldIsOpening : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 MouldIsOpening := TriggerMouldClosed.Q_Falling;
 END_GET
 END_PROPERTY
@@ -1209,6 +1227,8 @@ END_PROPERTY
 PROPERTY PUBLIC RequestFullMouldOpen : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 // Mould is fully opened.
 IF  xMouldOpen
 AND NOT xMouldClosed
@@ -1230,6 +1250,8 @@ END_PROPERTY
 PROPERTY PUBLIC RequestMouldEntry : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 // Use Early Mould Entry option and start moving before the mould is fully opened.
 IF  Data.xIntermediateOpenEnable
 AND SER.ActState <> PACK_ML.State.Starting

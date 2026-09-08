@@ -459,9 +459,13 @@ END_METHOD
 PROPERTY CurrentStackFull : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 CurrentStackFull := _currentStackFull;
 END_GET
 SET
+VAR
+END_VAR
 _currentStackFull := CurrentStackFull;
 END_SET
 END_PROPERTY
@@ -471,6 +475,8 @@ END_PROPERTY
 PROPERTY PUBLIC CycleLength : LREAL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 CycleLength := SEL(ReadMachineData.xValid, -1, ReadMachineData.lrCycleLength);
 END_GET
 END_PROPERTY
@@ -518,6 +524,8 @@ END_PROPERTY
 PROPERTY PUBLIC InSafePosForGate : BOOL
 %FOLDER Commands/Gate Requests
 GET
+VAR
+END_VAR
 // Current height of stack is lower than max allowed stacking height
 InSafePosForGate	:= (StackIndex * PersistentVars.RecipeVars.productPitch.value) + PersistentVars.RecipeVars.productHeight.value < MaxAllowedStackingHeightWhenGateOpens;
 // Safe when there is no stack
@@ -536,9 +544,13 @@ END_PROPERTY
 PROPERTY MovingStacksAllowed : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 MovingStacksAllowed := _movingStacksAllowed;
 END_GET
 SET
+VAR
+END_VAR
 _movingStacksAllowed := MovingStacksAllowed;
 END_SET
 END_PROPERTY
@@ -548,6 +560,8 @@ END_PROPERTY
 PROPERTY ProductsOnTopOfStack : ARRAY[1..GVL_Constants.ZUnitProductsForConveyor] OF ProductType
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ProductsOnTopOfStack := _productsOnTopOfStack;
 END_GET
 SET
@@ -580,6 +594,8 @@ END_PROPERTY
 PROPERTY StackingAllowed : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 StackingAllowed := (Arrays.DigitalSensor_All(AreaFree, TRUE) OR StackIndex > 0 OR HMI.testMachineWithoutConveyors)
 					AND Drive.Standstill
 					AND NOT MovingStacksAllowed
@@ -603,6 +619,8 @@ END_PROPERTY
 PROPERTY PUBLIC Standstill : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 Standstill := Drive.Standstill;
 END_GET
 END_PROPERTY

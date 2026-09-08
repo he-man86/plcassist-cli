@@ -156,6 +156,8 @@ END_METHOD
 PROPERTY StackIndex : USINT
 %FOLDER Properties
 GET
+VAR
+END_VAR
 StackIndex			:= BufferStackIndex;
 END_GET
 SET
@@ -169,6 +171,8 @@ END_PROPERTY
 PROPERTY PUBLIC StackStatus : REFERENCE TO StackStatusType
 %FOLDER Properties
 GET
+VAR
+END_VAR
 StackStatus		REF= BufferStackStatus;
 END_GET
 END_PROPERTY

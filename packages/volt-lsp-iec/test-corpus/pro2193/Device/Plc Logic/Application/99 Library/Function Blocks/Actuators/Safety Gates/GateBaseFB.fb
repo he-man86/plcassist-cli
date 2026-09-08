@@ -167,6 +167,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC GateState : enumGateStates
 GET
+VAR
+END_VAR
 GateState := eState;
 END_GET
 END_PROPERTY
@@ -174,6 +176,8 @@ END_PROPERTY
 {attribute 'monitoring' := 'call'}
 PROPERTY LockButtonPushed : BOOL
 GET
+VAR
+END_VAR
 LockButtonPushed := ButtonLock.ButtonPushed OR acknowledgeAllGates;
 END_GET
 END_PROPERTY

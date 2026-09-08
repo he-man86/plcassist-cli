@@ -290,12 +290,16 @@ END_METHOD
 
 PROPERTY PUBLIC ModuleHandler : L_IMHP.L_IMHP_IModuleHandler
 GET
+VAR
+END_VAR
 ModuleHandler	:= _moduleHandler;
 END_GET
 END_PROPERTY
 
 PROPERTY PUBLIC Name : STRING(12)
 GET
+VAR
+END_VAR
 Name	:= _name;
 
 // This does not work because CompName has no Getter. Maybe change in the future when Lenze changes library

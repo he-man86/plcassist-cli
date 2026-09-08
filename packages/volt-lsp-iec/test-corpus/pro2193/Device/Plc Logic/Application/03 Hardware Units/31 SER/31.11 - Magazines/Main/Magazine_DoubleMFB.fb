@@ -510,6 +510,8 @@ END_METHOD
 PROPERTY ActState : enumMagazineState
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ActState := _activeState;
 END_GET
 SET
@@ -525,6 +527,8 @@ END_PROPERTY
 PROPERTY AnotherLabelNeeded : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 AnotherLabelNeeded := _anotherLabelNeeded;
 END_GET
 SET
@@ -540,6 +544,8 @@ END_PROPERTY
 PROPERTY BlowBetweenLabelsRequest : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 BlowBetweenLabelsRequest := _blowBetweenLabelsRequest;
 END_GET
 END_PROPERTY
@@ -549,6 +555,8 @@ END_PROPERTY
 PROPERTY ExternalManualControlEnabled : BOOL
 %FOLDER Properties
 SET
+VAR
+END_VAR
 motors.ExternalManualControlEnabled		:= ExternalManualControlEnabled;
 END_SET
 END_PROPERTY
@@ -558,6 +566,8 @@ END_PROPERTY
 PROPERTY HasPayload : enumPayload
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IF Arrays.Vacuum_All(
 							vacuumArray	:= itfVacuums,
 							condition	:= TRUE,
@@ -586,6 +596,8 @@ END_PROPERTY
 PROPERTY PUBLIC InSafePos : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InSafePos := motors.InSafePos;
 END_GET
 END_PROPERTY
@@ -595,6 +607,8 @@ END_PROPERTY
 PROPERTY PUBLIC InSafePosForGate : BOOL
 %FOLDER Commands/Gate Requests
 GET
+VAR
+END_VAR
 InSafePosForGate := motors.InPositionAt(MagazineMotors_Positions.middlePosition, 10);
 END_GET
 END_PROPERTY

@@ -89,6 +89,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY ActualNumberOfLayers : UINT
 GET
+VAR
+END_VAR
 ActualNumberOfLayers := _ActualNumberOfLayers;
 END_GET
 SET
@@ -102,6 +104,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY MaxNumberOfLayers : UINT
 GET
+VAR
+END_VAR
 MaxNumberOfLayers := _maxNumberOfLayers;
 END_GET
 SET
@@ -115,6 +119,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY State : enumBoxState
 GET
+VAR
+END_VAR
 State := _state;
 END_GET
 SET

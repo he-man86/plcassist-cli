@@ -124,6 +124,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY HasProduct : BOOL
 GET
+VAR
+END_VAR
 HasProduct := eState = enumVacuumCylinderState.InWithProduct;
 END_GET
 END_PROPERTY
@@ -131,6 +133,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY IsBack : BOOL
 GET
+VAR
+END_VAR
 IsBack := xInputBack;
 END_GET
 END_PROPERTY

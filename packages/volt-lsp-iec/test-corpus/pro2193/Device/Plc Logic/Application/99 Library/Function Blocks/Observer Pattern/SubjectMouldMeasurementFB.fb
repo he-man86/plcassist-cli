@@ -16,18 +16,28 @@ END_FUNCTION_BLOCK
 {attribute 'monitoring' := 'call'}
 PROPERTY Cavity : INT
 GET
+VAR
+END_VAR
 Cavity := _cavity;
 END_GET
 SET
+
+VAR
+END_VAR
 _cavity := Cavity;
 END_SET
 END_PROPERTY
 
 PROPERTY Classification : enumMouldMeasurementResult
 GET
+VAR
+END_VAR
 Classification := _classification;
 END_GET
 SET
+
+VAR
+END_VAR
 _classification := Classification;
 END_SET
 END_PROPERTY
@@ -35,9 +45,14 @@ END_PROPERTY
 {attribute 'monitoring' := 'call'}
 PROPERTY PeakValue : REAL
 GET
+VAR
+END_VAR
 PeakValue := _peakValue;
 END_GET
 SET
+
+VAR
+END_VAR
 _peakValue := PeakValue;
 END_SET
 END_PROPERTY
@@ -45,9 +60,14 @@ END_PROPERTY
 {attribute 'monitoring' := 'call'}
 PROPERTY ShortShotTreshold : REAL
 GET
+VAR
+END_VAR
 ShortShotTreshold := _shortShotTreshold;
 END_GET
 SET
+
+VAR
+END_VAR
 _shortShotTreshold := ShortShotTreshold;
 END_SET
 END_PROPERTY

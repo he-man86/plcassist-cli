@@ -184,6 +184,8 @@ END_METHOD
 PROPERTY PUBLIC InStackingPosition : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InStackingPosition :=	Drive.AxisEnabled
 					AND Drive.Standstill
 					AND Drive.InPosition
@@ -196,6 +198,8 @@ END_PROPERTY
 PROPERTY PUBLIC InTakeoverPosition : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InTakeoverPosition :=	Drive.AxisEnabled
 					AND Drive.Standstill
 					AND Drive.InPosition

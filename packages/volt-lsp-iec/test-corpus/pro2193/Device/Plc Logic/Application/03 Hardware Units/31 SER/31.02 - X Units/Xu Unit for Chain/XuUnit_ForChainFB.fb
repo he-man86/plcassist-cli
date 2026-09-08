@@ -49,6 +49,8 @@ END_METHOD
 PROPERTY PUBLIC InSafePosForChain : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 // Chain may already rotate when Xu unit is 15 mm back from Takeover pos
 InSafePosForChain := movementInsideMouldActive OR_ELSE Drive.PosSmallerOrEqual(Data.Takeover[1].Pos.value - rDistanceFromChain) OR_ELSE InSafePos;
 

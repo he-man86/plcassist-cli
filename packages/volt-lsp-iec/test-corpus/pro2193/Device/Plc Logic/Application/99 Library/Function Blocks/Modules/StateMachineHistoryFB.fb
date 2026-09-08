@@ -154,6 +154,8 @@ END_METHOD
 PROPERTY PUBLIC Changed : BOOL
 //{attribute 'monitoring':='call'}	No monitoring because property is true for a single plc cycle
 GET
+VAR
+END_VAR
 Changed := _stateChanged;
 END_GET
 END_PROPERTY

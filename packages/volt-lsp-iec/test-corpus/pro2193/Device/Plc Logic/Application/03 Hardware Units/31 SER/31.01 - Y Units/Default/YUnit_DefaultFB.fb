@@ -339,6 +339,8 @@ END_METHOD
 PROPERTY PUBLIC InSafePos : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InSafePos := xClearMould AND Drive.PosSmallerOrEqual(Data.Waiting.Pos.value);
 END_GET
 END_PROPERTY
@@ -361,6 +363,8 @@ END_PROPERTY
 PROPERTY PUBLIC IsDecelerating : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IsDecelerating	:= Drive.AxisBasicControl.xDecelerating;
 END_GET
 END_PROPERTY
@@ -389,6 +393,8 @@ END_PROPERTY
 PROPERTY PUBLIC IsOnTakeoutPos : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IsOnTakeoutPos := NOT xClearMould AND Drive.PosReached(Data.Takeout.Pos.value);
 END_GET
 END_PROPERTY

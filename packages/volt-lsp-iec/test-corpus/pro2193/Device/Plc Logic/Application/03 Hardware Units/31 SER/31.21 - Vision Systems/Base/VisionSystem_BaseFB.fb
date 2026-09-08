@@ -73,6 +73,8 @@ END_PROPERTY
 PROPERTY CameraResultReady : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 CameraResultReady := _cameraResultReady;
 END_GET
 SET
@@ -87,6 +89,8 @@ END_PROPERTY
 PROPERTY Results : ARRAY[0..GVL_Constants.MaxRejectReasonsCamera] OF BOOL;
 %FOLDER Properties
 GET
+VAR
+END_VAR
 Results := _results;
 
 // After reading the results, clear the CameraResultReady bool

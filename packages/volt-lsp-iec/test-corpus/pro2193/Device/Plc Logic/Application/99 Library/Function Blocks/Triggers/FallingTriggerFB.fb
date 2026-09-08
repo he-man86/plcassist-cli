@@ -33,6 +33,8 @@ PROPERTY PUBLIC Q : BOOL
 
 // Attribute 'monitoring':='call' is not needed here.
 GET
+VAR
+END_VAR
 Q := f_trig.Q;
 END_GET
 END_PROPERTY

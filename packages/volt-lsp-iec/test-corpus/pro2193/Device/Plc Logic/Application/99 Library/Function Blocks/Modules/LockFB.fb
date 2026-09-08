@@ -99,6 +99,8 @@ PROPERTY PUBLIC FirstCall : BOOL
 
 // No monitoring attribute because property is only high for 1 cycle.
 GET
+VAR
+END_VAR
 FirstCall := callCounter = 1;
 END_GET
 END_PROPERTY
@@ -107,6 +109,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC IsLocked : BOOL
 GET
+VAR
+END_VAR
 IsLocked := currentLockHolder <> '';
 END_GET
 END_PROPERTY

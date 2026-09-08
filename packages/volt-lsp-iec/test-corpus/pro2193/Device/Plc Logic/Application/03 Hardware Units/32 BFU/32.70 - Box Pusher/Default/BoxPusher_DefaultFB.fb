@@ -171,6 +171,8 @@ END_PROPERTY
 PROPERTY PUBLIC BoxAtOutfeedPositionSensor : IDigitalSensor
 %FOLDER Properties
 GET
+VAR
+END_VAR
 BoxAtOutfeedPositionSensor	:= sensorBoxAtOutfeedPosition;
 END_GET
 END_PROPERTY

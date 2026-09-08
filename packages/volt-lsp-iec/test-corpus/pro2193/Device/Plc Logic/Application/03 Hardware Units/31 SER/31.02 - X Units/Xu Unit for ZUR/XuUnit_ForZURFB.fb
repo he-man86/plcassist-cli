@@ -201,6 +201,8 @@ END_METHOD
 PROPERTY HasPayload : enumPayload
 %FOLDER Properties
 GET
+VAR
+END_VAR
 //IF PersistentVars.RecipeVars.ActiveExchangeSet <> enumExchangeSets.FourCavDualTakeover AND PersistentVars.RecipeVars.ActiveExchangeSet <> enumExchangeSets.TwoCavSingleTakeover THEN
 	HasPayload := SUPER^.HasPayload;
 (*
@@ -232,6 +234,8 @@ END_PROPERTY
 PROPERTY PUBLIC InSafePos : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InSafePos := OnParkingPosSensor.IsActive AND Drive.PosReached(Data.ParkingPos.value);
 END_GET
 END_PROPERTY
@@ -241,6 +245,8 @@ END_PROPERTY
 PROPERTY PUBLIC InSafePosForMouldEntry : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InSafePosForMouldEntry := SUPER^.InSafePosForMouldEntry AND HasPayload = enumPayload.None;
 END_GET
 END_PROPERTY
@@ -250,6 +256,8 @@ END_PROPERTY
 PROPERTY PUBLIC IsOnTakeoutPos : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IsOnTakeoutPos := (*OnParkingPosSensor.IsInactive AND*) Drive.PosReached(Data.Takeout.Pos.value);
 END_GET
 END_PROPERTY

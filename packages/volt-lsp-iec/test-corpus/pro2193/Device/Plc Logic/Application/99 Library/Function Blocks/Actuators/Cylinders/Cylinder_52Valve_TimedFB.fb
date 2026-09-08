@@ -103,6 +103,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY IsIn : BOOL
 GET
+VAR
+END_VAR
 IsIn := timeGoIn.Q;
 END_GET
 END_PROPERTY
@@ -110,6 +112,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY IsOut : BOOL
 GET
+VAR
+END_VAR
 IsOut := timeGoOut.Q;
 END_GET
 END_PROPERTY

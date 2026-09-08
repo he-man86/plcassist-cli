@@ -224,6 +224,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY OnTargetPos : BOOL
 GET
+VAR
+END_VAR
 OnTargetPos	:= NOT xStartGoInDelay AND NOT xStartGoOutDelay AND EnableOutputs.Q AND
 			(OutputOut.Map() AND NOT OutputIn.Map() AND IsOut) XOR (OutputIn.Map() AND NOT OutputOut.Map() AND IsIn);
 END_GET

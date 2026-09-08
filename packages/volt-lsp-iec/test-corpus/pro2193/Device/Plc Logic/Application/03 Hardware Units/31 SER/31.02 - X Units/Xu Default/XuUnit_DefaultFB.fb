@@ -483,9 +483,13 @@ END_METHOD
 PROPERTY PUBLIC EnableVacuums : WORD
 %FOLDER Config
 GET
+VAR
+END_VAR
 EnableVacuums := _enableVacuums;
 END_GET
 SET
+VAR
+END_VAR
 _enableVacuums := EnableVacuums;
 END_SET
 END_PROPERTY
@@ -495,6 +499,8 @@ END_PROPERTY
 PROPERTY HasPayload : enumPayload
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IF Arrays.Vacuum_Enabled_All(
 							vacuumArray	:= itfVacuums,
 							bitMask		:= EnableVacuums,
@@ -524,6 +530,8 @@ END_PROPERTY
 PROPERTY PUBLIC InSafePos : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InSafePos := NOT Drive.HomingSensor AND Drive.PosSmallerOrEqual(Data.ParkingPos.value);
 END_GET
 END_PROPERTY
@@ -533,6 +541,8 @@ END_PROPERTY
 PROPERTY PUBLIC InSafePosForMouldEntry : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InSafePosForMouldEntry := InSafePos AND HasPayload = enumPayload.None;
 END_GET
 END_PROPERTY
@@ -542,6 +552,8 @@ END_PROPERTY
 PROPERTY PUBLIC IsOnTakeoutPos : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IsOnTakeoutPos := Drive.HomingSensor AND Drive.PosReached(Data.Takeout.Pos.value);
 END_GET
 END_PROPERTY

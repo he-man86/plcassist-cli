@@ -59,6 +59,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY IsIn : BOOL
 GET
+VAR
+END_VAR
 IF xInvertOutput THEN
 	IsIn := SUPER^.IsOut;
 ELSE
@@ -70,6 +72,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY IsOut : BOOL
 GET
+VAR
+END_VAR
 IF xInvertOutput THEN
 	IsOut := SUPER^.IsIn;
 ELSE
@@ -81,6 +85,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY OnTargetPos : BOOL
 GET
+VAR
+END_VAR
 IF xInvertOutput THEN
 	OnTargetPos := NOT SUPER^.OnTargetPos;
 ELSE

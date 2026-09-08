@@ -393,6 +393,8 @@ END_METHOD
 PROPERTY ExternalManualControlEnabled : BOOL
 %FOLDER Properties
 SET
+VAR
+END_VAR
 motors.ExternalManualControlEnabled := ExternalManualControlEnabled;
 END_SET
 END_PROPERTY
@@ -402,6 +404,8 @@ END_PROPERTY
 PROPERTY HasPayload : enumPayload
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IF Arrays.Vacuum_All(
 		vacuumArray	:= itfVacuums,
 		condition	:= TRUE,

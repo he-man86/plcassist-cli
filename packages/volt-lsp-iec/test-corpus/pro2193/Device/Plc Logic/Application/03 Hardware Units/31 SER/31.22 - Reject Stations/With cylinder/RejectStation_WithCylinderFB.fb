@@ -133,6 +133,8 @@ END_METHOD
 PROPERTY PUBLIC InSafePosForChain : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InSafePosForChain := Cylinder[1].IsIn; //AND Cylinder[2].IsIn;
 END_GET
 END_PROPERTY

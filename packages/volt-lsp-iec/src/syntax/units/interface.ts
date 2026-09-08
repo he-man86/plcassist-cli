@@ -173,6 +173,14 @@ function parseInterfaceProperty(c: Cursor): InterfaceProperty | undefined {
   c.eatPunct(";") // some exports terminate the property data type with a trailing `;`
   // Interfaces declare which of GET/SET accessors are required. The bridge materializes each as a bare
   // keyword OR a full `GET … END_GET` block (with a leading `%FOLDER` directive when folder-organized).
+  //
+  // AN INTERFACE ACCESSOR CAN CARRY A VAR SECTION, and that is the vendor's content, not a mistake. It has no
+  // BODY (DIALECT D21 — the accessor declares that a getter exists and nothing more), but bodiless is not
+  // declaration-less: a live census of pro2193 found 263 accessors holding a bare `VAR`/`END_VAR`, interface
+  // ones included. This loop used to jump straight from `GET` to `END_GET`, so the moment Volt stopped
+  // dropping those declarations, five of the corpus's interfaces stopped parsing: the VAR fell through to the
+  // stray-VAR arm below (a C0149 false positive on legal code) and `END_GET` then arrived with nothing
+  // expecting it. Consume the declaration here, where it belongs.
   let hasGetter = false
   let hasSetter = false
   while (true) {
@@ -181,7 +189,18 @@ function parseInterfaceProperty(c: Cursor): InterfaceProperty | undefined {
     if (accessor === undefined) break
     if (accessor.keyword === "GET") hasGetter = true
     if (accessor.keyword === "SET") hasSetter = true
-    c.eatKeyword(accessor.keyword === "GET" ? "END_GET" : "END_SET") // block form: consume its closer
+
+    // Block form: whatever the accessor declares, then its closer. The vars are local temps of a body that
+    // does not exist, so they are consumed rather than captured — but only VAR sections and folder
+    // directives are, so anything genuinely unexpected still reaches the recovery error instead of being
+    // swallowed here.
+    const closer = accessor.keyword === "GET" ? "END_GET" : "END_SET"
+    while (true) {
+      if (skipFolderDirective(c)) continue
+      if (!atVarSection(c)) break
+      if (parseVarSection(c) === undefined) break
+    }
+    c.eatKeyword(closer)
   }
   const endProp = c.eatKeyword("END_PROPERTY")
   const endSpan = endProp?.span ?? dataType.span

@@ -45,6 +45,8 @@ END_METHOD
 // Give a signal on rising edge when the button is pushed.
 PROPERTY PUBLIC ButtonPushed : BOOL
 GET
+VAR
+END_VAR
 ButtonPushed := Trig_Pushed.Q_Rising;
 END_GET
 END_PROPERTY
@@ -52,6 +54,8 @@ END_PROPERTY
 // Give a signal on faling edge when the button is released.
 PROPERTY PUBLIC ButtonReleased : BOOL
 GET
+VAR
+END_VAR
 ButtonReleased := Trig_Pushed.Q_Falling;
 END_GET
 END_PROPERTY

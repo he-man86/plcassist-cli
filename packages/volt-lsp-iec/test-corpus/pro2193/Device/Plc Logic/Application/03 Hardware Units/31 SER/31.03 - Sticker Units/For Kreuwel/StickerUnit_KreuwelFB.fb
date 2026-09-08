@@ -323,6 +323,8 @@ END_METHOD
 PROPERTY PUBLIC CycleLength : DINT
 %FOLDER Properties
 GET
+VAR
+END_VAR
 CycleLength := SEL(ReadMachineData.xValid, -1, TO_DINT(ReadMachineData.lrCycleLength));
 END_GET
 END_PROPERTY

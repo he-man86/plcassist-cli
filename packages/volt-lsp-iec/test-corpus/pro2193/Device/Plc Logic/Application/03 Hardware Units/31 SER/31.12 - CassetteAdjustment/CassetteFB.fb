@@ -173,9 +173,13 @@ END_METHOD
 PROPERTY ActualPositionX1 : SINT
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ActualPositionX1 := _ActualPosition.X1;
 END_GET
 SET
+VAR
+END_VAR
 _ActualPosition.X1	:= ActualPositionX1;
 
 Increment.AnyInt(_SwitchCount[enumMotorsType.X1]);
@@ -186,9 +190,13 @@ END_PROPERTY
 PROPERTY ActualPositionX2 : SINT
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ActualPositionX2 := _ActualPosition.X2;
 END_GET
 SET
+VAR
+END_VAR
 _ActualPosition.X2	:= ActualPositionX2;
 
 Increment.AnyInt(_SwitchCount[enumMotorsType.X2]);
@@ -199,9 +207,13 @@ END_PROPERTY
 PROPERTY ActualPositionY : SINT
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ActualPositionY := _ActualPosition.Y;
 END_GET
 SET
+VAR
+END_VAR
 _ActualPosition.Y	:= ActualPositionY;
 
 Increment.AnyInt(_SwitchCount[enumMotorsType.Y]);
@@ -212,6 +224,8 @@ END_PROPERTY
 PROPERTY AdjustmentNeeded : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 AdjustmentNeeded := (		(ActualPositionX1	> TargetPositionX1	AND NOT NegativeLimitReachedX1)
 						OR	(ActualPositionX2	> TargetPositionX2	AND NOT NegativeLimitReachedX2)
 						OR	(ActualPositionY	> TargetPositionY	AND NOT NegativeLimitReachedY)
@@ -226,9 +240,13 @@ END_PROPERTY
 PROPERTY HomingState : enumCassetteHomingState
 %FOLDER Properties
 GET
+VAR
+END_VAR
 HomingState := _HomingState;
 END_GET
 SET
+VAR
+END_VAR
 _HomingState := HomingState;
 END_SET
 END_PROPERTY
@@ -237,9 +255,13 @@ END_PROPERTY
 PROPERTY LastRotateMotor : enumMotorsType
 %FOLDER Properties
 GET
+VAR
+END_VAR
 LastRotateMotor := _LastRotateMotor;
 END_GET
 SET
+VAR
+END_VAR
 _LastRotateMotor := LastRotateMotor;
 END_SET
 END_PROPERTY
@@ -248,6 +270,8 @@ END_PROPERTY
 PROPERTY NegativeLimitReachedX1 : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 NegativeLimitReachedX1 := _NegativeLimitReached[enumMotorsType.X1] AND HomingState = enumCassetteHomingState.Homed;
 END_GET
 SET
@@ -262,6 +286,8 @@ END_PROPERTY
 PROPERTY NegativeLimitReachedX2 : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 NegativeLimitReachedX2 := _NegativeLimitReached[enumMotorsType.X2] AND HomingState = enumCassetteHomingState.Homed;
 END_GET
 SET
@@ -276,6 +302,8 @@ END_PROPERTY
 PROPERTY NegativeLimitReachedY : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 NegativeLimitReachedY := _NegativeLimitReached[enumMotorsType.Y] AND HomingState = enumCassetteHomingState.Homed;
 END_GET
 SET
@@ -290,6 +318,8 @@ END_PROPERTY
 PROPERTY PositiveLimitReachedX1 : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 PositiveLimitReachedX1 := _PositiveLimitReached[enumMotorsType.X1] AND HomingState = enumCassetteHomingState.Homed;
 END_GET
 SET
@@ -304,6 +334,8 @@ END_PROPERTY
 PROPERTY PositiveLimitReachedX2 : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 PositiveLimitReachedX2 := _PositiveLimitReached[enumMotorsType.X2] AND HomingState = enumCassetteHomingState.Homed;
 END_GET
 SET
@@ -318,6 +350,8 @@ END_PROPERTY
 PROPERTY PositiveLimitReachedY : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 PositiveLimitReachedY := _PositiveLimitReached[enumMotorsType.Y];
 END_GET
 SET
@@ -332,9 +366,13 @@ END_PROPERTY
 PROPERTY TargetPositionX1 : SINT
 %FOLDER Properties
 GET
+VAR
+END_VAR
 TargetPositionX1 := _TargetPosition.X1;
 END_GET
 SET
+VAR
+END_VAR
 _TargetPosition.X1 := TargetPositionX1;
 END_SET
 END_PROPERTY
@@ -343,9 +381,13 @@ END_PROPERTY
 PROPERTY TargetPositionX2 : SINT
 %FOLDER Properties
 GET
+VAR
+END_VAR
 TargetPositionX2 := _TargetPosition.X2;
 END_GET
 SET
+VAR
+END_VAR
 _TargetPosition.X2 := TargetPositionX2;
 END_SET
 END_PROPERTY
@@ -354,9 +396,13 @@ END_PROPERTY
 PROPERTY TargetPositionY : SINT
 %FOLDER Properties
 GET
+VAR
+END_VAR
 TargetPositionY := _TargetPosition.Y;
 END_GET
 SET
+VAR
+END_VAR
 _TargetPosition.Y := TargetPositionY;
 END_SET
 END_PROPERTY

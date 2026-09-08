@@ -127,6 +127,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY ExternalManualControlEnabled : BOOL
 SET
+VAR
+END_VAR
 externalManualServoControlEnabled := ExternalManualControlEnabled;
 END_SET
 END_PROPERTY

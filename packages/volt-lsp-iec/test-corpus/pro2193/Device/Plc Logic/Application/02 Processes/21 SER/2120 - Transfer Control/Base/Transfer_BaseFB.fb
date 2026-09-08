@@ -30,9 +30,13 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY AlternateCycleCounter : INT
 GET
+VAR
+END_VAR
 AlternateCycleCounter := _alternateCycleCounter;
 END_GET
 SET
+VAR
+END_VAR
 _alternateCycleCounter := AlternateCycleCounter;
 END_SET
 END_PROPERTY

@@ -1495,6 +1495,8 @@ END_PROPERTY
 PROPERTY PUBLIC AxisEnabled : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 AxisEnabled	:=	AxisBasicControl.xAxisAvailable
 			AND AxisBasicControl.xReadyForOperation
 			AND AxisBasicControl.xOperationEnabled;
@@ -1506,6 +1508,8 @@ END_PROPERTY
 PROPERTY PUBLIC HomingSensor : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IF NOT __ISVALIDREF(AxisRef) THEN
 	HomingSensor := FALSE;
 	RETURN;
@@ -1534,6 +1538,8 @@ END_PROPERTY
 PROPERTY PUBLIC InPosition : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InPosition	:= AxisBasicControl.xInPosition;
 
 // Target position monitoring (status "axis in target")
@@ -1555,6 +1561,8 @@ END_PROPERTY
 PROPERTY IsHomed : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IsHomed := AxisBasicControl.xIsHomed;
 END_GET
 END_PROPERTY
@@ -1564,6 +1572,8 @@ END_PROPERTY
 PROPERTY PUBLIC Standstill : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 Standstill	:= AxisBasicControl.xAxisAvailable
 			AND (AxisBasicControl.eAxisState = L_MC1P.L_MC1P_AXIS_STATE.StandStill
 			  OR AxisBasicControl.eAxisState = L_MC1P.L_MC1P_AXIS_STATE.Disabled

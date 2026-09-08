@@ -50,6 +50,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC OldestProductWaitingForResult : REFERENCE TO ProductType
 GET
+VAR
+END_VAR
 END_GET
 END_PROPERTY
 
@@ -58,6 +60,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC OldestProductWaitingForTrigger : REFERENCE TO ProductType
 GET
+VAR
+END_VAR
 END_GET
 END_PROPERTY
 
@@ -67,6 +71,8 @@ PROPERTY PUBLIC ProductsNeeded : BOOL
 GET
 END_GET
 SET
+VAR
+END_VAR
 END_SET
 END_PROPERTY
 

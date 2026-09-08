@@ -520,6 +520,8 @@ END_PROPERTY
 PROPERTY HoodIsAcknowledged : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 HoodIsAcknowledged := DrawerHoodSafetyMagnet.GateState = enumGateStates.Acknowledged;
 END_GET
 END_PROPERTY
@@ -529,6 +531,8 @@ END_PROPERTY
 PROPERTY PUBLIC InSafePosForGate : BOOL
 %FOLDER Commands/Gate Requests
 GET
+VAR
+END_VAR
 InSafePosForGate := DrawerInSafePosition.IsActive AND (DrawerChangeCylinder.IsIn OR DrawerChangeCylinder.IsOut);
 END_GET
 END_PROPERTY
@@ -538,6 +542,8 @@ END_PROPERTY
 PROPERTY InactiveDrawerItf : IDrawer
 %FOLDER Properties
 GET
+VAR
+END_VAR
 // Get interface to the currently inactive drawer
 
 IF ActiveDrawerItf = 0 THEN

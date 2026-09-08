@@ -293,6 +293,8 @@ END_METHOD
 PROPERTY HasPayload : enumPayload
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IF Arrays.Vacuum_All(
 		vacuumArray	:= itfVacuums,
 		condition	:= TRUE,
@@ -318,6 +320,8 @@ END_PROPERTY
 PROPERTY LabelsPeeled : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 LabelsPeeled := _labelsPeeled;
 END_GET
 SET

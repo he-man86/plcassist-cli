@@ -5,6 +5,8 @@ INTERFACE IModuleManualControlEnabled
 {attribute 'monitoring':='call'}
 PROPERTY ExternalManualControlEnabled : BOOL
 SET
+VAR
+END_VAR
 END_SET
 END_PROPERTY
 

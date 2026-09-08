@@ -1428,6 +1428,8 @@ END_METHOD
 PROPERTY ActState : PACK_ML.State
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IF currentOperationMode <> 0 THEN
 	ActState := currentOperationMode.CurrentState;
 ELSE
@@ -1441,6 +1443,8 @@ END_PROPERTY
 PROPERTY PUBLIC InAutomaticOperation : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InAutomaticOperation := InAutomaticOperationTrigger.xEdge;
 END_GET
 END_PROPERTY
@@ -1449,6 +1453,8 @@ END_PROPERTY
 PROPERTY PUBLIC InAutomaticOperation_Falling : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InAutomaticOperation_Falling := InAutomaticOperationTrigger.Q_Falling;
 END_GET
 END_PROPERTY
@@ -1457,6 +1463,8 @@ END_PROPERTY
 PROPERTY PUBLIC InAutomaticOperation_Rising : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 InAutomaticOperation_Rising := InAutomaticOperationTrigger.Q_Rising;
 END_GET
 END_PROPERTY
@@ -1466,6 +1474,8 @@ END_PROPERTY
 PROPERTY PUBLIC ManualControlEnabled : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ManualControlEnabled	:= NOT GlobalVars.EmergencyStopActive
 						AND ActState = PACK_ML.State.Stopped OR ActState = PACK_ML.State.Idle
 						AND xGatesAreClosed
@@ -1478,9 +1488,13 @@ END_PROPERTY
 PROPERTY PUBLIC OperationMode : SER_OperationModeType
 %FOLDER Properties
 GET
+VAR
+END_VAR
 OperationMode := _operationMode;
 END_GET
 SET
+VAR
+END_VAR
 _operationMode := OperationMode;
 END_SET
 END_PROPERTY
@@ -1489,6 +1503,8 @@ END_PROPERTY
 PROPERTY PUBLIC SemiAutoNextStep : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IF OperationMode = SER_OperationModeType.SemiAuto
 OR OperationMode = SER_OperationModeType.AutoTakeoutLabels
 THEN

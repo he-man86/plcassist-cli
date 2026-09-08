@@ -225,6 +225,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY TransferBusy : BOOL
 GET
+VAR
+END_VAR
 TransferBusy	:= ActState <> StateNone;
 END_GET
 END_PROPERTY

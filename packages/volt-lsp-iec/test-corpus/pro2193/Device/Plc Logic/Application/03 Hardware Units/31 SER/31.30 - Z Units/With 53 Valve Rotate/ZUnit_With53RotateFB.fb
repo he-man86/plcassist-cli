@@ -613,6 +613,8 @@ END_METHOD
 PROPERTY HasPayload : enumPayload
 %FOLDER Properties
 GET
+VAR
+END_VAR
 (*IF PersistentVars.RecipeVars.ActiveExchangeSet = enumExchangeSets.FourCavDualTakeover THEN
 	IF Clamp[1].Map() AND Clamp[2].Map() THEN
 		HasPayload := enumPayload._All;

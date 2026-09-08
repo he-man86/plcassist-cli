@@ -138,6 +138,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY IsBack : BOOL
 GET
+VAR
+END_VAR
 IsBack := SEL(xInvertOutput, inputIsBack, NOT inputIsBack);
 END_GET
 END_PROPERTY
@@ -147,6 +149,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY IsForward : BOOL
 GET
+VAR
+END_VAR
 IsForward := SEL(xInvertOutput, inputIsForward, NOT inputIsForward);
 END_GET
 END_PROPERTY

@@ -843,6 +843,8 @@ END_METHOD
 PROPERTY HasPayload : enumPayload
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IF Arrays.Vacuum_All(
 							vacuumArray	:= itfVacuumsFlat,
 							condition	:= TRUE,
@@ -869,6 +871,8 @@ END_PROPERTY
 PROPERTY HasProductForTransfer : ARRAY[1..GVL_Constants.ChainProductsForZUnit] OF BOOL;
 %FOLDER Properties
 GET
+VAR
+END_VAR
 HasProductForTransfer := _hasProductForTransfer[gripperPosition];
 END_GET
 END_PROPERTY

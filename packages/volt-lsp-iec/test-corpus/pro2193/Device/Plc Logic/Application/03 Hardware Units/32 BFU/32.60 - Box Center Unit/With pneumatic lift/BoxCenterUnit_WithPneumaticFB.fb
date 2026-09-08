@@ -297,6 +297,8 @@ END_METHOD
 PROPERTY BoxAreaFreeForFanuc : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 BoxAreaFreeForFanuc := Lift.IsOut;	// down
 END_GET
 END_PROPERTY
@@ -305,6 +307,8 @@ END_PROPERTY
 PROPERTY BoxCanBeFilled : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 BoxCanBeFilled := BoxAreaFreeForFanuc
 			AND	OpenBoxLongSide.IsOut
 			AND OpenBoxShortSide.IsOut
@@ -317,6 +321,8 @@ END_PROPERTY
 PROPERTY PUBLIC BoxInFillPosition : IDigitalSensor
 %FOLDER Properties
 GET
+VAR
+END_VAR
 BoxInFillPosition	:= sensorBoxInFillPosition;
 END_GET
 END_PROPERTY
@@ -325,6 +331,8 @@ END_PROPERTY
 PROPERTY BoxIsFull : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 BoxIsFull := Box.ActualNumberOfLayers >= Box.MaxNumberOfLayers;
 END_GET
 END_PROPERTY
@@ -334,6 +342,8 @@ END_PROPERTY
 PROPERTY PUBLIC BoxItemNeeded : enumBoxItem
 %FOLDER Properties
 GET
+VAR
+END_VAR
 CASE Box.State OF
 	enumBoxState.ProductsNeeded:
 		BoxItemNeeded	:= enumBoxItem.ProductLayer;
@@ -349,6 +359,8 @@ END_PROPERTY
 PROPERTY LayerIndex : UINT
 %FOLDER Properties
 GET
+VAR
+END_VAR
 LayerIndex := Box.ActualNumberOfLayers;
 END_GET
 END_PROPERTY

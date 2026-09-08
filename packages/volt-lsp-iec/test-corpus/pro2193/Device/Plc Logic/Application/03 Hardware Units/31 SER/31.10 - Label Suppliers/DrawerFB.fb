@@ -45,9 +45,13 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY IsEmpty : BOOL
 GET
+VAR
+END_VAR
 IsEmpty	:= _isEmpty;
 END_GET
 SET
+VAR
+END_VAR
 _isEmpty := IsEmpty;
 END_SET
 END_PROPERTY
@@ -55,6 +59,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY IsLocked : BOOL
 GET
+VAR
+END_VAR
 IsLocked := Lock.IsActive;
 END_GET
 END_PROPERTY
@@ -62,6 +68,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY Name : enumDrawer
 GET
+VAR
+END_VAR
 Name := DrawerName;
 END_GET
 END_PROPERTY
@@ -69,6 +77,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY ReleaseBrakeCounter : INT
 GET
+VAR
+END_VAR
 ReleaseBrakeCounter := _releaseBrakeCounter;
 END_GET
 END_PROPERTY
@@ -76,6 +86,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY ReleaseBrakeNeeded : BOOL
 GET
+VAR
+END_VAR
 ReleaseBrakeNeeded := _releaseBrakeNeeded;
 END_GET
 SET

@@ -152,6 +152,8 @@ END_VAR
 ExternalManualControlEnabled := manualControlEnabled;
 END_GET
 SET
+VAR
+END_VAR
 manualControlEnabled := ExternalManualControlEnabled;
 END_SET
 END_PROPERTY

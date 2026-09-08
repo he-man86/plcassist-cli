@@ -38,9 +38,13 @@ END_FUNCTION_BLOCK
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC NextCycleHasLabels : BOOL
 GET
+VAR
+END_VAR
 NextCycleHasLabels	:= _nextCycleHasLabels;
 END_GET
 SET
+VAR
+END_VAR
 _nextCycleHasLabels	:= NextCycleHasLabels;
 END_SET
 END_PROPERTY
@@ -49,6 +53,8 @@ END_PROPERTY
 {attribute 'monitoring':='variable'}
 PROPERTY PUBLIC RequestFullMouldOpen : BOOL
 GET
+VAR
+END_VAR
 // Specific for Spies Pro2193: Corepullers are on fixed side of mould and need to be in back position
 // 2025-11-27: oh nee, toch niet :(
 

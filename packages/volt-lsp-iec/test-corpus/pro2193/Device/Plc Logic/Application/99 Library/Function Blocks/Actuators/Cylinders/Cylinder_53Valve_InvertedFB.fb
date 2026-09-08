@@ -40,6 +40,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY IsIn : BOOL
 GET
+VAR
+END_VAR
 IsIn := SUPER^.IsOut;
 END_GET
 END_PROPERTY
@@ -47,6 +49,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY IsOut : BOOL
 GET
+VAR
+END_VAR
 IsOut := SUPER^.IsIn;
 END_GET
 END_PROPERTY
@@ -54,6 +58,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY OnTargetPos : BOOL
 GET
+VAR
+END_VAR
 OnTargetPos	:= NOT SUPER^.OnTargetPos;
 END_GET
 END_PROPERTY

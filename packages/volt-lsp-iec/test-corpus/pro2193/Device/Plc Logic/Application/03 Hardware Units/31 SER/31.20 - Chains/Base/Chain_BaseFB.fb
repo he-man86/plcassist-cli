@@ -857,6 +857,8 @@ END_METHOD
 PROPERTY PUBLIC CycleLength : LREAL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 CycleLength := SEL(ReadMachineData.xValid, -1, ReadMachineData.lrCycleLength);
 END_GET
 END_PROPERTY
@@ -974,9 +976,13 @@ END_PROPERTY
 PROPERTY PUBLIC ProductsNeeded : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ProductsNeeded := _productsNeeded;
 END_GET
 SET
+VAR
+END_VAR
 _productsNeeded := ProductsNeeded;
 END_SET
 END_PROPERTY
@@ -1008,6 +1014,8 @@ END_PROPERTY
 PROPERTY PUBLIC SelectedZUnitPosition : USINT(1..ZUnits.NumberOfTakeoverPositions)
 %FOLDER Properties
 GET
+VAR
+END_VAR
 SelectedZUnitPosition	:= activeOrder[activeOrderSelect];
 END_GET
 END_PROPERTY
@@ -1017,6 +1025,8 @@ END_PROPERTY
 PROPERTY PUBLIC StopToCheckImageBuffer : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 StopToCheckImageBuffer := ImageBufferTimer.Q;
 END_GET
 END_PROPERTY
@@ -1026,6 +1036,8 @@ END_PROPERTY
 PROPERTY PUBLIC TriggerSensorValid : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 TriggerSensorValid	:= ModuloTools.PositionOnStepWithOffset(
 									position		:= Drive.actPos,
 									stepDistance	:= Data.Step.Pos.value,
@@ -1039,6 +1051,8 @@ END_PROPERTY
 PROPERTY PUBLIC ZUnitIsAfterReject : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ZUnitIsAfterReject	:= PersistentVars.RecipeVars.chainPos_ZUnit[1] > PersistentVars.RecipeVars.chainPos_Reject[1];
 END_GET
 END_PROPERTY

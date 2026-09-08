@@ -34,6 +34,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC Q : BOOL
 GET
+VAR
+END_VAR
 Q := TON1.Q;
 END_GET
 END_PROPERTY

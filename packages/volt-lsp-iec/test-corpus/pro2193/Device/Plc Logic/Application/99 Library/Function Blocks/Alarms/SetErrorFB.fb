@@ -50,6 +50,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC ElapsedTime : REAL
 GET
+VAR
+END_VAR
 IF AlarmTimeout.TON1.IN THEN
 	ElapsedTime := TO_REAL(AlarmTimeout.TON1.ET) / 1000;
 END_IF

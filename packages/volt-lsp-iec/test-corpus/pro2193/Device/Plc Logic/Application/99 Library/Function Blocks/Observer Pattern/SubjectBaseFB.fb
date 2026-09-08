@@ -138,6 +138,8 @@ END_METHOD
 {attribute 'monitoring' := 'call'}
 PROPERTY ObserverCount : UINT
 GET
+VAR
+END_VAR
 ObserverCount := _observerCount;
 END_GET
 SET

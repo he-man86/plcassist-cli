@@ -15,9 +15,13 @@ END_FUNCTION_BLOCK
 {attribute 'monitoring' := 'call'}
 PROPERTY ButtonState : BOOL
 GET
+VAR
+END_VAR
 ButtonState := _state;
 END_GET
 SET
+VAR
+END_VAR
 _state := ButtonState;
 END_SET
 END_PROPERTY
@@ -25,9 +29,13 @@ END_PROPERTY
 {attribute 'monitoring' := 'call'}
 PROPERTY ButtonType : enumHWButtons
 GET
+VAR
+END_VAR
 ButtonType := _buttonType;
 END_GET
 SET
+VAR
+END_VAR
 _buttonType := ButtonType;
 END_SET
 END_PROPERTY

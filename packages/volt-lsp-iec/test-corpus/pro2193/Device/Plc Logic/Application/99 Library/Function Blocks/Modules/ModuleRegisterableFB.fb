@@ -112,6 +112,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC InstanceName : STRING(80)
 GET
+VAR
+END_VAR
 InstanceName := _instanceName;
 END_GET
 END_PROPERTY
@@ -122,6 +124,8 @@ PROPERTY PUBLIC InstanceNo : UINT
 
 // Note: this number does not have to be unique for each module...
 GET
+VAR
+END_VAR
 InstanceNo := _instanceNo;
 END_GET
 END_PROPERTY
@@ -130,6 +134,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC MemoryAddress : STRING(8)
 GET
+VAR
+END_VAR
 {IF defined (IsSimulationMode)}
 	MemoryAddress := DWORD_TO_HEXSTRING(TO_DWORD(ADR(THIS^)));
 {ELSE}

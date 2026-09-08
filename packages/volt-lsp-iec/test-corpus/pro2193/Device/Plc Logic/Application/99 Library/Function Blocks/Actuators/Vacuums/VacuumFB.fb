@@ -98,6 +98,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY IsHigh : BOOL
 GET
+VAR
+END_VAR
 IsHigh	:= VacuumHighTimer.Q;
 END_GET
 END_PROPERTY
@@ -106,6 +108,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY IsTurnedOn : BOOL
 GET
+VAR
+END_VAR
 IsTurnedOn	:= Output.Map();
 END_GET
 END_PROPERTY

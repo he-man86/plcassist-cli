@@ -44,6 +44,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY IsIn : BOOL
 GET
+VAR
+END_VAR
 IsIn := inputIn AND NOT inputOut AND NOT xSensorMiddle;
 END_GET
 END_PROPERTY
@@ -51,6 +53,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY IsMiddle : BOOL
 GET
+VAR
+END_VAR
 IsMiddle := NOT inputOut AND NOT inputIn AND xSensorMiddle;
 END_GET
 END_PROPERTY
@@ -58,6 +62,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY IsOut : BOOL
 GET
+VAR
+END_VAR
 IsOut := inputOut AND NOT inputIn AND NOT xSensorMiddle;
 END_GET
 END_PROPERTY

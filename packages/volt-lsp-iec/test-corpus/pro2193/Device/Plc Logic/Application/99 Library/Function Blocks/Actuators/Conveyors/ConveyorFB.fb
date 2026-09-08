@@ -88,6 +88,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC ConveyorState : enumConveyorRunning_State
 GET
+VAR
+END_VAR
 IF NOT beltStopped.Q THEN
 	ConveyorState	:= enumConveyorRunning_State.Standstill;
 ELSIF beltStarted.Q THEN

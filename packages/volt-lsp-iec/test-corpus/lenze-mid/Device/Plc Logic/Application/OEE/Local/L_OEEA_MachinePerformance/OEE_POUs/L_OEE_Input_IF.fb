@@ -217,10 +217,14 @@ END_ACTION
 PROPERTY xLaterShiftStartEnableDisable : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 
 xLaterShiftStartEnableDisable := xLaterShiftStartEnable;
 END_GET
 SET
+VAR
+END_VAR
 
 xLaterShiftStartEnable := xLaterShiftStartEnableDisable;
 END_SET
@@ -229,10 +233,14 @@ END_PROPERTY
 PROPERTY PUBLIC xSetDeactiveShiftContiniousUpdate : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 
 xSetDeactiveShiftContiniousUpdate := xDeactiveShiftContiniousUpdate;
 END_GET
 SET
+VAR
+END_VAR
 
  xDeactiveShiftContiniousUpdate := xSetDeactiveShiftContiniousUpdate;
 END_SET
@@ -241,10 +249,14 @@ END_PROPERTY
 PROPERTY PUBLIC xSetProdSimEventOccurrence : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 
 xSetProdSimEventOccurrence := xProdSimEventOccurrence;
 END_GET
 SET
+VAR
+END_VAR
 
 xProdSimEventOccurrence :=  xSetProdSimEventOccurrence ;
 END_SET
@@ -253,10 +265,14 @@ END_PROPERTY
 PROPERTY PUBLIC xTriggerManualShiftReset : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 
 xTriggerManualShiftReset := xManualShiftReset;
 END_GET
 SET
+VAR
+END_VAR
 
 xManualShiftReset := xTriggerManualShiftReset;
 END_SET
@@ -265,10 +281,14 @@ END_PROPERTY
 PROPERTY PUBLIC xTriggerUpdateJsonOEEKPI : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 
 xTriggerUpdateJsonOEEKPI := xUpdateJsonOEEKPI;
 END_GET
 SET
+VAR
+END_VAR
 
 xUpdateJsonOEEKPI := xTriggerUpdateJsonOEEKPI;
 END_SET

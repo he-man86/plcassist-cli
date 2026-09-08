@@ -118,6 +118,8 @@ END_METHOD
 PROPERTY ReadyForStacking : BOOL;
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ReadyForStacking	:= _readyForStacking;
 END_GET
 SET
@@ -133,6 +135,8 @@ END_PROPERTY
 PROPERTY ReadyForTransfer : BOOL;
 %FOLDER Properties
 GET
+VAR
+END_VAR
 ReadyForTransfer	:= _readyForTransfer;
 END_GET
 SET
@@ -148,6 +152,8 @@ END_PROPERTY
 PROPERTY TorqueCorrected : REAL;
 %FOLDER Properties
 GET
+VAR
+END_VAR
 IF ReadMachineData.xValid AND_THEN ReadMachineData.xOrientation THEN
 	TorqueCorrected	:= Drive.actTorque * -1;
 ELSE

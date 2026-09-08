@@ -47,6 +47,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC InstanceName : STRING(80)
 GET
+VAR
+END_VAR
 InstanceName := _instanceName;
 END_GET
 END_PROPERTY

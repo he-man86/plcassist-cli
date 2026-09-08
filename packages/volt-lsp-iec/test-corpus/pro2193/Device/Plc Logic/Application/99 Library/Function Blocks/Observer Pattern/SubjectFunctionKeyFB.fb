@@ -14,9 +14,13 @@ END_FUNCTION_BLOCK
 {attribute 'monitoring' := 'call'}
 PROPERTY ExtState : enumFunctionKeyPayload
 GET
+VAR
+END_VAR
 ExtState := _extState;
 END_GET
 SET
+VAR
+END_VAR
 _extState := ExtState;
 END_SET
 END_PROPERTY

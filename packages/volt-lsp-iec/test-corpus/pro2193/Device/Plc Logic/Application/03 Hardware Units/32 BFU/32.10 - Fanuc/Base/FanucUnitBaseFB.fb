@@ -1451,12 +1451,15 @@ END_METHOD
 PROPERTY ExternalManualControlEnabled : BOOL
 %FOLDER Properties
 GET
+
 PROTECTED
 VAR
 END_VAR
 ExternalManualControlEnabled := _manualControlEnabled;
 END_GET
 SET
+VAR
+END_VAR
 _manualControlEnabled := ExternalManualControlEnabled;
 END_SET
 END_PROPERTY
@@ -1466,6 +1469,8 @@ END_PROPERTY
 PROPERTY FanucAboveBoxArea : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 FanucAboveBoxArea	:= NOT Fanuc.I.xSPCFree[6];
 END_GET
 END_PROPERTY
@@ -1475,6 +1480,8 @@ END_PROPERTY
 PROPERTY FanucInBufferArea : BOOL
 %FOLDER Properties
 GET
+VAR
+END_VAR
 FanucInBufferArea	:= NOT Fanuc.I.xSPCFree[5];
 END_GET
 END_PROPERTY
@@ -1482,6 +1489,8 @@ END_PROPERTY
 PROPERTY PUBLIC StackStatus : REFERENCE TO StackStatusType
 %FOLDER Properties
 GET
+VAR
+END_VAR
 StackStatus		REF= GripperStatus;
 END_GET
 END_PROPERTY

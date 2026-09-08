@@ -516,6 +516,8 @@ END_METHOD
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC ComBrinkFanuc : UINT
 SET
+VAR
+END_VAR
 uiComBrinkFanuc := ComBrinkFanuc;
 END_SET
 END_PROPERTY
@@ -556,6 +558,8 @@ END_PROPERTY
 {attribute 'monitoring':='call'}
 PROPERTY PUBLIC ProgramRunning : UINT
 GET
+VAR
+END_VAR
 ProgramRunning := uiProgramRunning;
 END_GET
 END_PROPERTY
@@ -566,6 +570,8 @@ GET
 ProgramSelector := uiProgramSelector := SEL(ProgramRunning = uiProgramSelector, uiProgramSelector, 0);
 END_GET
 SET
+VAR
+END_VAR
 uiProgramSelector := ProgramSelector;
 END_SET
 END_PROPERTY
