@@ -9,10 +9,14 @@
 
 .PARAMETER Action  up (open, default) | down (close the ones this script opened)
 .PARAMETER Which   both (default) | 13 | 14 - which fixture(s) to open. 'both' is the multi-XAE scenario.
+.PARAMETER Solution a .sln OUTSIDE the fixtures to open instead - a scratch copy for a migration target, say.
+                    Committed fixtures are the deterministic default; this is for a throwaway that must start
+                    from a known state every run, which a fixture cannot be if a migration empties it.
 #>
 param(
     [ValidateSet("up", "down")] [string]$Action = "up",
-    [ValidateSet("both", "13", "14")] [string]$Which = "both"
+    [ValidateSet("both", "13", "14")] [string]$Which = "both",
+    [string]$Solution = ""
 )
 $ErrorActionPreference = "Stop"
 
@@ -40,12 +44,17 @@ switch ($Action) {
     "up" {
         if (-not (Test-Path $ide)) { throw "TcXaeShell.exe not found: $ide" }
         $pids = @()
-        foreach ($k in $pick) {
-            $sln = $slns[$k]
-            if (-not (Test-Path $sln)) { throw "fixture solution missing: $sln" }
+        # An explicit -Solution replaces the fixture picks entirely: a caller that names a solution wants THAT
+        # one open and nothing else, and silently adding the fixtures beside it would give the connector two
+        # XAE windows to choose between.
+        $open = if ($Solution) { [ordered]@{ "scratch" = $Solution } }
+                else { $picked = [ordered]@{}; foreach ($k in $pick) { $picked[$k] = $slns[$k] }; $picked }
+        foreach ($k in $open.Keys) {
+            $sln = $open[$k]
+            if (-not (Test-Path $sln)) { throw "solution missing: $sln" }
             $p = Start-Process -FilePath $ide -ArgumentList ('"{0}"' -f (Resolve-Path $sln).Path) -PassThru
             $pids += $p.Id
-            Write-Host "opened TwinCAT Project$k (TcXaeShell pid $($p.Id))"
+            Write-Host "opened $(if ($Solution) { Split-Path $sln -Leaf } else { "TwinCAT Project$k" }) (TcXaeShell pid $($p.Id))"
         }
         # MERGE with the instances already tracked, never overwrite. `up -Which 13` then `up -Which 14` used to
         # replace the file, so `down` closed only the second and left the first running — an orphan XAE holding the

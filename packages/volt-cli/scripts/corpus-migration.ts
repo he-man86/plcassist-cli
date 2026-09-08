@@ -31,8 +31,8 @@
  *
  * Budget ~5-20 min per corpus; pro2193 and lenze-mid are ~8k items each. Exits non-zero when anything drifted.
  */
-import { execFileSync } from "node:child_process"
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { execFileSync, spawn } from "node:child_process"
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, relative, sep } from "node:path"
 import { SOURCE_EXTENSIONS } from "@volt/control"
@@ -41,6 +41,11 @@ const REPO = join(import.meta.dir, "..", "..", "..")
 const VOLT = join(REPO, "packages", "volt-cli", "src", "Volt.Cli", "bin", "Release", "net8.0", "volt.exe")
 const CORPUS_ROOT = join(REPO, "packages", "volt-lsp-iec", "test-corpus")
 const LAUNCHER = join(import.meta.dir, "codesys-pipe.ps1")
+const TC_LAUNCHER = join(import.meta.dir, "twincat-instances.ps1")
+const TC_WORKER = join(REPO, "packages", "volt-cli", "src", "Volt.Ide.Twincat", "bin", "Release",
+	"net8.0-windows", "VoltBridgeTwincat.exe")
+/** The worker this run spawned, so `close()` can stop the one it started and not someone else's. */
+let tcWorker: ReturnType<typeof spawn> | null = null
 
 /** The device-root segment, replaced by this placeholder on both sides so a corpus harvested from `Device`
  *  can be compared against a blank project whose controller is `PLCWinNT`. */
@@ -112,10 +117,41 @@ function buildToolchain(): void {
 	}
 }
 
-// TwinCAT has no headless mode and no in-proc host (see test/e2e/README.md), so its blank has to be opened
-// through `twincat-instances.ps1` against an empty solution. Not wired yet — this refuses rather than skipping
-// quietly, because a silent skip is how a vendor stays untested through a whole implementation.
-const BLANKS: Record<string, Blank> = { codesys: CODESYS }
+/** The TwinCAT blank.
+ *
+ * There is NO template to copy — CODESYS ships `Standard.project`, TwinCAT ships nothing — so a committed
+ * FIXTURE solution is copied per corpus and the first push empties it, exactly as the CODESYS path empties the
+ * template's `PLC_PRG`. A copy, never the fixture itself: the fixture is a real project under version control
+ * and a migration would gut it.
+ *
+ * The worker is spawned DIRECTLY (`--xae-pid`) rather than waited for. In production the connector supervises
+ * it, but only once a client declares an interest in that project — a session dance a finder has no business
+ * performing, and one that would make the run depend on the tray being up.
+ */
+const TWINCAT: Blank = {
+	open(label) {
+		const scratch = mkdtempSync(join(tmpdir(), `volt-blank-tc-${label}-`))
+		cpSync(join(REPO, "packages", "volt-cli", "test", "fixtures", "TwinCAT Project13"), scratch, { recursive: true })
+		const sln = join(scratch, "TwinCAT Project13.sln")
+
+		const out = ps(TC_LAUNCHER, ["-Action", "up", "-Solution", sln])
+		const pid = /TcXaeShell pid (\d+)/.exec(out)?.[1]
+		if (!pid) throw new Error(`could not read the TcXaeShell pid from the launcher:\n${out}`)
+
+		// TcXaeShell is Visual-Studio-based: the window exists long before the PLC project is loaded, and the
+		// worker cannot attach to a solution that is still opening.
+		Bun.sleepSync(90_000)
+		tcWorker = spawn(TC_WORKER, ["--xae-pid", pid], { stdio: ["ignore", "ignore", "inherit"] })
+		waitForPipe()
+	},
+	close() {
+		tcWorker?.kill()
+		tcWorker = null
+		ps(TC_LAUNCHER, ["-Action", "down"])
+	},
+}
+
+const BLANKS: Record<string, Blank> = { codesys: CODESYS, twincat: TWINCAT }
 
 function codesysInstall(): string {
 	const dir = "C:\\Program Files\\CODESYS 3.5.21.40"
@@ -220,6 +256,58 @@ function normalizeTasks(tree: Map<string, string>): Map<string, string> {
 	return new Map([...tree].map(([rel, text]) => [rel.startsWith(dir + "/") ? canon + rel.slice(dir.length) : rel, text]))
 }
 
+/**
+ * Rewrite the fields the TARGET vendor cannot express, and SAY SO.
+ *
+ * A `.task` pulled from CODESYS can carry three things TwinCAT has no counterpart for, and `TcTaskSchedule`
+ * refuses each by name rather than dropping it. Measured across the five corpora: 10 of 13 tasks carry a
+ * WATCHDOG and one is `Type: Freewheeling`, so 11 of 13 would be refused before a single POU was judged — the
+ * run would report a wall of task refusals and say nothing about the source round-trip it exists to test.
+ *
+ * The watchdog is the one that matters, and dropping it is a real loss, not a formatting detail: TwinCAT's
+ * `ExceedWarning` counts tolerated overruns, which is NOT CODESYS's time-plus-sensitivity watchdog, and the
+ * driver deliberately refuses to equate them rather than write a number that means something else. So this
+ * is not "normalising a vendor difference" — it is stating, in the report, that **a CODESYS project cannot be
+ * migrated to TwinCAT with its task watchdogs intact**. Silently stripping them would hide exactly that.
+ */
+function adaptForVendor(files: Map<string, string>): { files: Map<string, string>; notes: string[] } {
+	if (VENDOR !== "twincat") return { files, notes: [] }
+
+	// MATCH THE LINE, THEN COMPARE THE VALUE - no negative lookahead. `^Watchdog:( +)(?!off$)...` reads
+	// correctly and is wrong: `( +)` BACKTRACKS, giving back a space so the lookahead is tested at " off",
+	// where `off` does not match, the guard passes, and the line matches after all. It reported
+	// `Watchdog: off` as a dropped watchdog and every `Type: Cyclic` as "Cyclic -> Cyclic". A lookahead behind
+	// a greedy quantifier is not a guard; reading the value and comparing it is.
+	const field = (label: string) => new RegExp("^" + label + ":( +)([^\\r\\n]*)", "m")
+	const WATCHDOG = field("Watchdog")
+	const TYPE = field("Type")
+
+	const notes: string[] = []
+	const out = new Map<string, string>()
+	for (const [rel, text] of files) {
+		if (!rel.endsWith(".task")) {
+			out.set(rel, text)
+			continue
+		}
+		let adapted = text
+		const name = rel.slice(rel.lastIndexOf("/") + 1)
+
+		const watchdog = WATCHDOG.exec(adapted)
+		if (watchdog && watchdog[2].trim() !== "off") {
+			adapted = adapted.replace(watchdog[0], `Watchdog:${watchdog[1]}off`)
+			notes.push(`${name}: watchdog "${watchdog[2].trim()}" DROPPED - TwinCAT has no per-task watchdog ` +
+				`with a time and a sensitivity`)
+		}
+		const type = TYPE.exec(adapted)
+		if (type && type[2].trim() !== "Cyclic") {
+			adapted = adapted.replace(type[0], `Type:${type[1]}Cyclic`)
+			notes.push(`${name}: type "${type[2].trim()}" -> Cyclic - a TwinCAT PLC task is always cyclic`)
+		}
+		out.set(rel, adapted)
+	}
+	return { files: out, notes }
+}
+
 /** Lay the staged files into the workspace, removing any the workspace has and the set does not — so one push
  *  exercises create, update AND delete, which is what a real migration does. `tasksAs` is the TARGET's own name
  *  for its task container, read before the target was emptied — once its tasks are gone the tree no longer says. */
@@ -264,10 +352,14 @@ function migrate(name: string): string[] {
 
 	const all = pushableTree(join(CORPUS_ROOT, name))
 	if (all.size === 0) throw new Error(`${name} has no pushable source — is the corpus stale?`)
-	const staged = new Map([...all].filter(([, text]) => !text.includes(BODY_MARKER)))
-	const unauthorable = all.size - staged.size
+	const authorable = new Map([...all].filter(([, text]) => !text.includes(BODY_MARKER)))
+	const unauthorable = all.size - authorable.size
+	const { files: staged, notes } = adaptForVendor(authorable)
 
 	console.log(`\n── ${name}: ${staged.size} file(s) to migrate${unauthorable ? `, ${unauthorable} unauthorable (CFC/SFC/IL)` : ""}`)
+	// Printed BEFORE the run, never buried in the result: an adapted field is a fact about what this vendor
+	// pair can carry, and it IS the finding - not noise on the way to one.
+	for (const n of notes) console.log(`   adapted  ${n}`)
 
 	blank.open(name)
 	const pusher = initWorkspace(`push-${name}`)
