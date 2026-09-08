@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Volt.Engine.Format.St;
+using Volt.Engine.Ide;
 using Volt.Engine.Item;
 using Xunit;
 
@@ -200,6 +201,56 @@ public class ItemContentIsFullyCarriedTests
         var after = StReader.Read(StWriter.Write(before));
 
         Assert.Equal(body, Assert.Single(after.Members).Body);
+    }
+
+
+    // ── the fake ───────────────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>THE FAKE MUST BE ABLE TO PRODUCE EVERY FIELD TOO, or the tests built on it prove less than
+    /// they look like they prove.
+    ///
+    /// <para><b>This is the exact hole that let the accessor bug live.</b> <c>FakeIde.AccessorOf</c> did not
+    /// exist: every property came back with a null <c>Getter</c> and <c>Setter</c>, so every engine test that
+    /// touched a property agreed with whatever the engine did with accessor declarations — which was to throw
+    /// them away. A fake that cannot express a field cannot disagree about it, and a fake that cannot disagree
+    /// is not a test double, it is an echo.</para>
+    ///
+    /// <para>So the same coverage question is asked from the other side: drive <c>FakeIde.ReadContent</c> over
+    /// a POU that has a method, a folder, and a property with BOTH accessors, and require the result to
+    /// populate every field of the content records. This cannot notice a fake that returns the WRONG value —
+    /// nothing offline can, which is what the live probes are for — but it does notice a fake that returns no
+    /// value at all, and that is how all of this started.</para></summary>
+    [Fact]
+    public void The_fake_ide_can_produce_every_field_the_records_declare()
+    {
+        var ide = new FakeIde(
+            new FakeIde.Item("FB_Everything", ItemKind.PlcPouFb, "", true,
+                             "FUNCTION_BLOCK FB_Everything\nVAR\n\tnCount : INT;\nEND_VAR", "nCount := nCount + 1;",
+                             null, null, Children: new[] { "DoWork", "Level" }),
+            new FakeIde.Item("DoWork", ItemKind.PlcMethod, "Internals", false,
+                             "METHOD PUBLIC DoWork : BOOL", "DoWork := TRUE;", null, null),
+            new FakeIde.Item("Level", ItemKind.PlcProp, "Exposed", false, "PROPERTY PUBLIC Level : INT",
+                             null, null, null, Children: new[] { "Get", "Set" }),
+            new FakeIde.Item("Get", ItemKind.PlcPropGet, "", false, "VAR\nEND_VAR", "Level := nCount;", null, null),
+            new FakeIde.Item("Set", ItemKind.PlcPropSet, "", false, "PRIVATE\nVAR\nEND_VAR", "nCount := Level;",
+                             null, null));
+
+        var content = ide.ReadContent(new ItemRef("FB_Everything"));
+        var covered = new HashSet<string>(StringComparer.Ordinal);
+
+        Cover(typeof(ItemContent), content, nameof(ItemContent), covered);
+        foreach (var m in content.Members) Cover(typeof(Member), m, nameof(Member), covered);
+        foreach (var a in content.Members.SelectMany(m => new[] { m.Getter, m.Setter }).Where(a => a is not null))
+            Cover(typeof(Accessor), a!, nameof(Accessor), covered);
+
+        // `ReturnType`/`DataType` are excluded for the same reason as above and it is the REAL drivers' reason,
+        // not a concession to the fake: both are null coming from an IDE, on every vendor.
+        var unset = Declared().Where(f => !covered.Contains(f) && !NotCarried.ContainsKey(f)).ToList();
+
+        Assert.True(unset.Count == 0,
+            "FakeIde.ReadContent never populates these fields, so no engine test that uses the fake can " +
+            "disagree with the engine about them:\n  " + string.Join("\n  ", unset) +
+            "\nTeach the fake to produce them, the way AccessorOf had to be taught to produce accessors.");
     }
 
     /// <summary>The exception list is not a place to park a field: every entry must name a property that still
