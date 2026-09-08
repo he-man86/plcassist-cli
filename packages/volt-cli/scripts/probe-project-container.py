@@ -13,6 +13,11 @@
 # ASCII ONLY - CODESYS compiles this as ASCII IronPython 2.7.
 import os
 import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG = os.environ.get("VOLT_PROBE_LOG") or os.path.join(HERE, "project-container.log")
@@ -22,24 +27,6 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject")
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
 try:
     import clr
@@ -50,7 +37,7 @@ try:
 
     proj = projects.open(SRC)
     log("project  : %s" % proj.GetType().FullName)
-    base = unwrap(proj)
+    base = vp.unwrap(proj)
     log("unwrapped: %s" % (base.GetType().FullName if base is not None else None))
     if base is not None:
         for i in base.GetType().GetInterfaces():
@@ -76,7 +63,7 @@ try:
         return None
 
     app = find(proj, "Application")
-    appbase = unwrap(app)
+    appbase = vp.unwrap(app)
     log("")
     log("Application unwrapped: %s" % (appbase.GetType().FullName if appbase is not None else None))
     if appbase is not None:

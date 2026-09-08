@@ -13,7 +13,12 @@
 # control-flow bit on the target OPERAND, which the readers lifted for Jump and not for Return.
 import os
 import tempfile
-import traceback
+import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG = os.environ.get("VOLT_PROBE_LOG") or os.path.join(HERE, "nwl-dump.log")
@@ -23,70 +28,9 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
 
-def call(o, name, args):
-    import System
-    t = o.GetType()
-    for src in [t] + list(t.GetInterfaces()):
-        for m in src.GetMethods(_bf()):
-            if m.Name != name or len(m.GetParameters()) != len(args):
-                continue
-            try:
-                return True, m.Invoke(o, System.Array[System.Object](list(args)))
-            except Exception:
-                return False, None
-    return False, None
 
 FLAGBITS = ("Negation", "Set", "Jump", "Return", "Rtrig", "Ftrig")
 WANT = [w.strip() for w in (os.environ.get("VOLT_PROBE_POUS") or "").split(",") if w.strip()]
@@ -94,103 +38,14 @@ WANT = [w.strip() for w in (os.environ.get("VOLT_PROBE_POUS") or "").split(",") 
 def flagstr(fl):
     if fl is None:
         return "-"
-    on = [b for b in FLAGBITS if prop(fl, b)]
+    on = [b for b in FLAGBITS if vp.prop(fl, b)]
     return "+".join(on) if on else "none"
 
 def opdump(o):
     if o is None:
         return "<null>"
-    return "%r type=%r flags=%s" % (prop(o, "OperandExpr"), prop(o, "Type"), flagstr(prop(o, "Flags")))
+    return "%r type=%r flags=%s" % (vp.prop(o, "OperandExpr"), vp.prop(o, "Type"), flagstr(vp.prop(o, "Flags")))
 
-def dump(n, depth, tag):
-    if n is None:
-        log("  " * depth + tag + ": <null>")
-        return
-    tn = n.GetType().Name
-    head = "  " * depth + tag + ": " + tn + "  itemflags=" + flagstr(prop(n, "Flags"))
-    bt = prop(n, "BoxType")
-    if bt:
-        head += "  BoxType=%r" % str(bt)
-    log(head)
-
-    op = prop(n, "Operand")
-    if op is not None:
-        log("  " * (depth + 1) + "Operand = " + opdump(op))
-
-    if tn.startswith("BoxTreeBox"):
-        insn = prop(n, "Instance")
-        if insn is not None:
-            log("  " * (depth + 1) + "Instance = %r" % (prop(insn, "OperandExpr"),))
-        en = prop(n, "En")
-        log("  " * (depth + 1) + "En  = %r (%s)" % (en, en.GetType().Name if en is not None else "null"))
-        eno = prop(n, "Eno")
-        log("  " * (depth + 1) + "Eno = %r (%s)" % (eno, eno.GetType().Name if eno is not None else "null"))
-        log("  " * (depth + 1) + "EnEno=%r  EnEnoPossible=%r" % (prop(n, "EnEno"), prop(n, "EnEnoPossible")))
-        pss = prop(n, "ProvidesSTSnippet")
-        sn = prop(n, "STSnippet")
-        log("  " * (depth + 1) + "ProvidesSTSnippet=%r  STSnippet=%r" % (pss, sn))
-        if sn is not None:
-            for mm in sorted(sn.GetType().GetProperties(_bf()), key=lambda x: x.Name):
-                try: v = mm.GetValue(sn, None)
-                except Exception: v = "<threw>"
-                log("  " * (depth + 2) + "snippet.%-22s = %r" % (mm.Name, v))
-            inner = prop(sn, "Snippet")
-            log("  " * (depth + 2) + ">> Get(snippet,'Snippet') -> %r" % (inner,))
-            if inner is not None:
-                for mm in sorted(inner.GetType().GetProperties(_bf()), key=lambda x: x.Name):
-                    try: v = mm.GetValue(inner, None)
-                    except Exception: v = "<threw>"
-                    sv = repr(v)
-                    log("  " * (depth + 3) + "impl.%-26s = %s" % (mm.Name, sv[:200]))
-        ip = prop(n, "InputParams")
-        names = None
-        if ip is not None:
-            try:
-                names = list(prop(ip, "Names") or [])
-            except Exception:
-                names = "<threw>"
-        items = prop(n, "InputItemList")
-        cnt = 0
-        try:
-            cnt = len(list(items))
-        except Exception:
-            pass
-        op_names = None
-        opp = prop(n, "OutputParams")
-        if opp is not None:
-            try:
-                op_names = [str(x) for x in (prop(opp, "Names") or [])]
-            except Exception:
-                op_names = "<threw>"
-        log("  " * (depth + 1) + "InputItemList count=%d   InputParams.Names=%r" % (cnt, names))
-        log("  " * (depth + 1) + "OutputParams.Names=%r  MainOutputIndex=%r  MainInputIndex=%r"
-            % (op_names, prop(n, "MainOutputIndex"), prop(n, "MainInputIndex")))
-        try:
-            for i, x in enumerate(list(items)):
-                dump(x, depth + 2, "in[%d]" % i)
-        except Exception:
-            pass
-
-    rv = prop(n, "RValue")
-    if rv is not None:
-        dump(rv, depth + 1, "RValue")
-    outs = prop(n, "Outputs")
-    if outs is not None:
-        lst = prop(outs, "List")
-        if lst is not None:
-            for i, x in enumerate(lst):
-                log("  " * (depth + 1) + "out[%d] = %s" % (i, opdump(x)))
-    for single in ("Input", "Merger"):
-        c = prop(n, single)
-        if c is not None:
-            dump(c, depth + 1, single)
-    tr = prop(n, "Trees")
-    if tr is not None:
-        try:
-            for i, x in enumerate(list(tr)):
-                dump(x, depth + 1, "branch[%d]" % i)
-        except Exception:
-            pass
 
 try:
     import clr
@@ -240,14 +95,14 @@ try:
             except Exception:
                 nm = "?"
             if nm in WANT:
-                u = unwrap(k)
-                g = prop(u, "guid")
+                u = vp.unwrap(k)
+                g = vp.prop(u, "guid")
                 if g is not None:
                     try:
-                        meta = objmgr.GetObjectToRead(prop(u, "handle") or 0, g)
-                        iobj = prop(meta, "Object")
-                        impl = prop(iobj, "Implementation") if iobj is not None else None
-                        nets = prop(impl, "NetworkList") if impl is not None else None
+                        meta = objmgr.GetObjectToRead(vp.prop(u, "handle") or 0, g)
+                        iobj = vp.prop(meta, "Object")
+                        impl = vp.prop(iobj, "Implementation") if iobj is not None else None
+                        nets = vp.prop(impl, "NetworkList") if impl is not None else None
                         if nets is not None:
                             log("")
                             log("=" * 78)
@@ -257,12 +112,12 @@ try:
                                 net = nets[i]
                                 log("")
                                 log("-- NETWORK %d  title=%r label=%r comment=%r" %
-                                    (i, prop(net, "Title"), prop(net, "Label"), prop(net, "Comment")))
-                                cnt = int(prop(net, "NetworkItemCount") or 0)
+                                    (i, vp.prop(net, "Title"), vp.prop(net, "Label"), vp.prop(net, "Comment")))
+                                cnt = int(vp.prop(net, "NetworkItemCount") or 0)
                                 for j in range(cnt):
-                                    ok, tree = call(net, "GetTree", [j])
+                                    ok, tree = vp.call(net, "GetTree", [j])
                                     if ok and tree is not None:
-                                        dump(tree, 1, "tree[%d]" % j)
+                                        vp.dump(tree, 1, "tree[%d]" % j)
                     except Exception:
                         log("  !! " + traceback.format_exc())
             visit(k, depth + 1)

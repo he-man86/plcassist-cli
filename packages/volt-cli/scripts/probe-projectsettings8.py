@@ -8,7 +8,12 @@
 # ASCII ONLY - CODESYS compiles this as ASCII IronPython 2.7.
 import os
 import tempfile
-import traceback
+import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG = os.environ.get("VOLT_PROBE_LOG") or os.path.join(HERE, "projectsettings8.log")
@@ -17,75 +22,6 @@ SRC = os.environ.get("VOLT_PROBE_PROJECT") or ""
 f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
-
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
-
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
-
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
-
-def call(o, name, args):
-    import System
-    t = o.GetType()
-    for src in [t] + list(t.GetInterfaces()):
-        for m in src.GetMethods(_bf()):
-            if m.Name != name or len(m.GetParameters()) != len(args):
-                continue
-            try:
-                return True, m.Invoke(o, System.Array[System.Object](list(args)))
-            except Exception:
-                return False, None
-    return False, None
-
-
-
-
 
 
 

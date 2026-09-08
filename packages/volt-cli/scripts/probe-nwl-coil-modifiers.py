@@ -22,6 +22,11 @@ import re
 import shutil
 import tempfile
 import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG = os.environ.get("VOLT_PROBE_LOG") or os.path.join(HERE, "nwl-coil-modifiers.log")
@@ -31,70 +36,9 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
 
-def call(o, name, args):
-    import System
-    t = o.GetType()
-    for src in [t] + list(t.GetInterfaces()):
-        for m in src.GetMethods(_bf()):
-            if m.Name != name or len(m.GetParameters()) != len(args):
-                continue
-            try:
-                return True, m.Invoke(o, System.Array[System.Object](list(args)))
-            except Exception:
-                return False, None
-    return False, None
 
 # The bits ReadFlags reads, in its order. Rtrig/Ftrig are the two AssignOp cannot render.
 FLAGBITS = ("Negation", "Set", "Jump", "Return", "Rtrig", "Ftrig")
@@ -104,12 +48,12 @@ KNOWN = ("none", "Set", "Negation+Set")
 def combo(fl):
     if fl is None:
         return "none"
-    on = [b for b in FLAGBITS if prop(fl, b)]
+    on = [b for b in FLAGBITS if vp.prop(fl, b)]
     return "+".join(on) if on else "none"
 
 def operand_text(o):
     for name in ("OperandExpr", "Operand", "Text", "Name"):
-        v = prop(o, name)
+        v = vp.prop(o, name)
         if v is not None:
             s = str(v)
             if s:
@@ -181,22 +125,22 @@ try:
             bump("tree nodes visited")
             if tn == "BoxTreeAssign":
                 bump("BoxTreeAssign")
-                outs = prop(n, "Outputs")
-                lst = prop(outs, "List") if outs is not None else None
+                outs = vp.prop(n, "Outputs")
+                lst = vp.prop(outs, "List") if outs is not None else None
                 if lst is not None:
                     for x in lst:
                         if x is None:
                             continue
-                        c = combo(prop(x, "Flags"))
+                        c = combo(vp.prop(x, "Flags"))
                         note(c)
                         if c not in KNOWN:
                             exotic.append((label, pou, c, operand_text(x)))
             for single in ("RValue", "Input", "Merger", "Operand"):
-                c = prop(n, single)
+                c = vp.prop(n, single)
                 if c is not None:
                     walk(c, pou)
             for coll in ("InputItemList", "Trees"):
-                c = prop(n, coll)
+                c = vp.prop(n, coll)
                 if c is not None:
                     try:
                         for x in c:
@@ -216,25 +160,25 @@ try:
                     nm = str(k.get_name())
                 except Exception:
                     nm = "?"
-                u = unwrap(k)
-                g = prop(u, "guid")
+                u = vp.unwrap(k)
+                g = vp.prop(u, "guid")
                 bump("tree nodes")
                 if g is not None:
                     try:
-                        meta = objmgr.GetObjectToRead(prop(u, "handle") or 0, g)
-                        iobj = prop(meta, "Object")
-                        impl = prop(iobj, "Implementation") if iobj is not None else None
-                        nl = prop(impl, "NetworkList") if impl is not None else None
+                        meta = objmgr.GetObjectToRead(vp.prop(u, "handle") or 0, g)
+                        iobj = vp.prop(meta, "Object")
+                        impl = vp.prop(iobj, "Implementation") if iobj is not None else None
+                        nl = vp.prop(impl, "NetworkList") if impl is not None else None
                         if nl is not None:
                             bump("POUs with a NetworkList")
                             before = len(exotic)
                             for i in range(len(nl)):
                                 net = nl[i]
                                 bump("networks")
-                                cnt = int(prop(net, "NetworkItemCount") or 0)
+                                cnt = int(vp.prop(net, "NetworkItemCount") or 0)
                                 bump("network items", cnt)
                                 for j in range(cnt):
-                                    ok, tree = call(net, "GetTree", [j])
+                                    ok, tree = vp.call(net, "GetTree", [j])
                                     if ok and tree is not None:
                                         bump("trees")
                                         walk(tree, nm)

@@ -11,7 +11,12 @@
 # SyntaxError before line 1 runs.
 import os
 import tempfile
-import traceback
+import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG = os.environ.get("VOLT_PROBE_LOG") or os.path.join(HERE, "nwl-census.log")
@@ -21,70 +26,8 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
-
-def call(o, name, args):
-    import System
-    t = o.GetType()
-    for src in [t] + list(t.GetInterfaces()):
-        for m in src.GetMethods(_bf()):
-            if m.Name != name or len(m.GetParameters()) != len(args):
-                continue
-            try:
-                return True, m.Invoke(o, System.Array[System.Object](list(args)))
-            except Exception:
-                return False, None
-    return False, None
 
 
 FLAGBITS = ("Negation", "Set", "Jump", "Return", "Rtrig", "Ftrig")
@@ -97,11 +40,11 @@ def bump(k, ex=None):
         EX[k] = ex
 
 def names_of(n):
-    ip = prop(n, "InputParams")
+    ip = vp.prop(n, "InputParams")
     if ip is None:
         return None
     try:
-        return [str(x) for x in (prop(ip, "Names") or [])]
+        return [str(x) for x in (vp.prop(ip, "Names") or [])]
     except Exception:
         return "<threw>"
 
@@ -109,23 +52,23 @@ def walk(n, where):
     if n is None:
         return
     tn = n.GetType().Name
-    fl = prop(n, "Flags")
+    fl = vp.prop(n, "Flags")
     if fl is not None:
         for b in FLAGBITS:
-            if prop(fl, b):
+            if vp.prop(fl, b):
                 bump("itemflag:" + b, where)
 
-    op = prop(n, "Operand")
+    op = vp.prop(n, "Operand")
     if op is not None:
-        ofl = prop(op, "Flags")
+        ofl = vp.prop(op, "Flags")
         if ofl is not None:
             for b in FLAGBITS:
-                if prop(ofl, b):
+                if vp.prop(ofl, b):
                     bump("operandflag:" + b, where)
         walk(op, where)
 
     if tn.startswith("BoxTreeBox"):
-        en = prop(n, "En")
+        en = vp.prop(n, "En")
         ent = "null" if en is None else en.GetType().Name
         bump("En.type=" + ent, where)
         if ent == "Boolean":
@@ -133,7 +76,7 @@ def walk(n, where):
         nm = names_of(n)
         items = []
         try:
-            items = list(prop(n, "InputItemList") or [])
+            items = list(vp.prop(n, "InputItemList") or [])
         except Exception:
             pass
         cnt = len(items)
@@ -145,18 +88,18 @@ def walk(n, where):
         else:
             bump("EnNotTrue: Names[0]==EN -> %s" % has_en_name, where)
             bump("EnNotTrue: inputs==len(Names) -> %s" % (cnt == len(nm or [])), where)
-        opp = prop(n, "OutputParams")
+        opp = vp.prop(n, "OutputParams")
         onames = None
         if opp is not None:
             try:
-                onames = [str(x) for x in (prop(opp, "Names") or [])]
+                onames = [str(x) for x in (vp.prop(opp, "Names") or [])]
             except Exception:
                 onames = None
-        outs = prop(n, "Outputs")
-        lst = prop(outs, "List") if outs is not None else None
+        outs = vp.prop(n, "Outputs")
+        lst = vp.prop(outs, "List") if outs is not None else None
         if lst is not None:
             n_null = sum(1 for x in lst if x is None)
-            n_empty = sum(1 for x in lst if x is not None and not (prop(x, "OperandExpr") or ""))
+            n_empty = sum(1 for x in lst if x is not None and not (vp.prop(x, "OperandExpr") or ""))
             n_real = len(lst) - n_null - n_empty
             bump("OUT slots=%d null=%d empty=%d REAL=%d" % (len(lst), n_null, n_empty, n_real), where)
             if onames is not None:
@@ -164,30 +107,30 @@ def walk(n, where):
                 bump("OUT names[0]==ENO -> %s (EnTrue=%s)"
                      % (len(onames) > 0 and onames[0] == "ENO", ent == "Boolean" and bool(en)), where)
                 for i, x in enumerate(lst):
-                    if x is not None and (prop(x, "OperandExpr") or ""):
+                    if x is not None and (vp.prop(x, "OperandExpr") or ""):
                         nmv = onames[i] if i < len(onames) else "<past end>"
                         bump("OUT real at slot %d named %r" % (i, nmv), where)
         for x in items:
             walk(x, where)
 
     for single in ("RValue", "Input", "Merger"):
-        c = prop(n, single)
+        c = vp.prop(n, single)
         if c is not None:
             walk(c, where)
-    outs = prop(n, "Outputs")
+    outs = vp.prop(n, "Outputs")
     if outs is not None:
-        lst = prop(outs, "List")
+        lst = vp.prop(outs, "List")
         if lst is not None:
             for x in lst:
                 if x is None:
                     bump("assign/box null output entry", where)
                 else:
-                    ofl = prop(x, "Flags")
+                    ofl = vp.prop(x, "Flags")
                     if ofl is not None:
                         for b in FLAGBITS:
-                            if prop(ofl, b):
+                            if vp.prop(ofl, b):
                                 bump("outputflag:" + b, where)
-    tr = prop(n, "Trees")
+    tr = vp.prop(n, "Trees")
     if tr is not None:
         try:
             for x in list(tr):
@@ -223,20 +166,20 @@ try:
         for k in kids:
             try: nm = str(k.get_name())
             except Exception: nm = "?"
-            u = unwrap(k); g = prop(u, "guid")
+            u = vp.unwrap(k); g = vp.prop(u, "guid")
             if g is not None:
                 try:
-                    meta = objmgr.GetObjectToRead(prop(u, "handle") or 0, g)
-                    iobj = prop(meta, "Object")
-                    impl = prop(iobj, "Implementation") if iobj is not None else None
-                    nl = prop(impl, "NetworkList") if impl is not None else None
+                    meta = objmgr.GetObjectToRead(vp.prop(u, "handle") or 0, g)
+                    iobj = vp.prop(meta, "Object")
+                    impl = vp.prop(iobj, "Implementation") if iobj is not None else None
+                    nl = vp.prop(impl, "NetworkList") if impl is not None else None
                     if nl is not None:
                         pous[0] += 1
                         for i in range(len(nl)):
                             net = nl[i]; nets[0] += 1
-                            cnt = int(prop(net, "NetworkItemCount") or 0)
+                            cnt = int(vp.prop(net, "NetworkItemCount") or 0)
                             for j in range(cnt):
-                                ok, tree = call(net, "GetTree", [j])
+                                ok, tree = vp.call(net, "GetTree", [j])
                                 if ok and tree is not None:
                                     walk(tree, "%s net%d" % (nm, i))
                 except Exception:

@@ -1,6 +1,6 @@
-== AWA_Palletizer 09.project                  tasks: 1   entries: 3   with a comment: 0
+== AWA_Palletizer 09_1.project                tasks: 1   entries: 3   with a comment: 0
 == Bakon Nano new VISU v00_90.project         tasks: 3   entries: 3   with a comment: 0
-== Lenze_MID-S100_V5_00_602_T51.project       tasks: 2   entries: 6   with a comment: 0
+== Lenze_MID-S100_V5_00_602_T51_Codesys.project tasks: 2   entries: 6   with a comment: 0
 == Pro2193-94-95-96.project                   tasks: 6   entries: 6   with a comment: 0
 == V71_PackML_Hauzer.project                  tasks: 3   entries: 3   with a comment: 0
 
@@ -13,6 +13,6 @@
 
 === Comment: the distribution ===
 (a CONSTANT means the API synthesizes it; VARIETY means the project stores it)
-  x21    ''                                                 [AWA_Palletizer 09.project / MainTask / pgHMI]
+  x21    ''                                                 [AWA_Palletizer 09_1.project / MainTask / pgHMI]
 
 done

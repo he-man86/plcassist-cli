@@ -9,6 +9,11 @@
 import os
 import tempfile
 import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEST = os.path.join(HERE, "..", "test")
@@ -18,77 +23,15 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
 
-def call(o, name, args):
-    """Invoke a method declared on the type OR on any interface (explicit implementations)."""
-    t = o.GetType()
-    for src in [t] + list(t.GetInterfaces()):
-        for m in src.GetMethods():
-            if m.Name != name or len(m.GetParameters()) != len(args):
-                continue
-            try:
-                import System
-                return True, m.Invoke(o, System.Array[System.Object](list(args)))
-            except Exception:
-                return False, traceback.format_exc().strip().split(chr(10))[-1]
-    return False, "no method " + name
 
 def seq(o):
     """A vendor collection as a python list, via reflection (they are not IronPython-iterable)."""
     if o is None:
         return None
-    n = prop(o, "Count")
+    n = vp.prop(o, "Count")
     if n is None:
         return None
     out = []
@@ -124,8 +67,8 @@ def find(root, want, depth=0):
 
 def validity(net, tag):
     log("  %-22s FBDValid=%s ILValid=%s ILActive=%s items=%s"
-        % (tag, prop(net, "FBDValid"), prop(net, "ILValid"),
-           prop(net, "ILActive"), prop(net, "NetworkItemCount")))
+        % (tag, vp.prop(net, "FBDValid"), vp.prop(net, "ILValid"),
+           vp.prop(net, "ILActive"), vp.prop(net, "NetworkItemCount")))
 
 
 
@@ -136,10 +79,10 @@ REAL_POU = os.environ.get("VOLT_REAL_POU") or "SpeedCalculationDryer"
 
 def dump_all(o, label):
     log("  %s : %s" % (label, o.GetType().FullName))
-    ins = prop(o, "Instance")
+    ins = vp.prop(o, "Instance")
     if ins is not None:
         log("      >> Instance.OperandExpr = %r   Type=%r   IsInstance=%r"
-            % (prop(ins, "OperandExpr"), prop(ins, "Type"), prop(ins, "IsInstance")))
+            % (vp.prop(ins, "OperandExpr"), vp.prop(ins, "Type"), vp.prop(ins, "IsInstance")))
     seen = set()
     for src2 in [o.GetType()] + list(o.GetType().GetInterfaces()):
         for pr in src2.GetProperties():
@@ -153,10 +96,10 @@ def dump_all(o, label):
 
 def find_execute(nets):
     for i in range(len(nets)):
-        cnt = int(prop(nets[i], "NetworkItemCount") or 0)
+        cnt = int(vp.prop(nets[i], "NetworkItemCount") or 0)
         for j in range(cnt):
-            ok, tree = call(nets[i], "GetTree", [j])
-            if ok and tree is not None and str(prop(tree, "BoxType") or "") == "EXECUTE":
+            ok, tree = vp.call(nets[i], "GetTree", [j])
+            if ok and tree is not None and str(vp.prop(tree, "BoxType") or "") == "EXECUTE":
                 return tree
     return None
 
@@ -181,10 +124,10 @@ try:
     app = find(proj, "Application")
     pou = app.create_pou(name="VLT_CMP", type=PouType.FunctionBlock, language=getattr(ImplementationLanguages, "fbd"))
     pou.textual_declaration.replace("FUNCTION_BLOCK VLT_CMP\nVAR\n  iCount : INT;\nEND_VAR")
-    node = unwrap(pou)
-    meta = objmgr.GetObjectToModify(prop(node, "handle") or 0, prop(node, "guid"))
-    impl = prop(prop(meta, "Object"), "Implementation")
-    nets = prop(impl, "NetworkList")
+    node = vp.unwrap(pou)
+    meta = objmgr.GetObjectToModify(vp.prop(node, "handle") or 0, vp.prop(node, "guid"))
+    impl = vp.prop(vp.prop(meta, "Object"), "Implementation")
+    nets = vp.prop(impl, "NetworkList")
     plug = nets[0].GetType().Assembly
     T = {}
     for t in plug.GetTypes(): T[t.Name] = t
@@ -194,27 +137,27 @@ try:
         if tt is not None: T["STImplementationObject"] = tt; break
 
     box = System.Activator.CreateInstance(T["BoxTreeBox"], System.Array[System.Object]([]))
-    box.GetType().GetProperty("BoxType", _bf()).SetValue(box, "EXECUTE", None)
+    box.GetType().GetProperty("BoxType", vp.bf()).SetValue(box, "EXECUTE", None)
     snip = System.Activator.CreateInstance(T["STSnippet"], System.Array[System.Object]([]))
     sti = System.Activator.CreateInstance(T["STImplementationObject"], System.Array[System.Object]([]))
     for src3 in [snip.GetType()] + list(snip.GetType().GetInterfaces()):
         for pr in src3.GetProperties():
             if pr.Name.endswith("Snippet") and pr.CanWrite:
                 pr.SetValue(snip, sti, None)
-    td = prop(sti, "TextDocument")
-    try: call(td, "Insert", [0, ST])
+    td = vp.prop(sti, "TextDocument")
+    try: vp.call(td, "Insert", [0, ST])
     except Exception: pass
-    log("created snippet text = %r" % (prop(td, "Text"),))
-    box.GetType().GetProperty("STSnippet", _bf()).SetValue(box, snip, None)
-    call(nets[0], "AppendTree", [box])
+    log("created snippet text = %r" % (vp.prop(td, "Text"),))
+    box.GetType().GetProperty("STSnippet", vp.bf()).SetValue(box, snip, None)
+    vp.call(nets[0], "AppendTree", [box])
     objmgr.SetObject(meta, True, None)
     proj.save()
     proj.close()
 
     proj = projects.open(dst)
-    n2 = unwrap(find(proj, "VLT_CMP"))
-    meta2 = objmgr.GetObjectToRead(prop(n2, "handle") or 0, prop(n2, "guid"))
-    nets2 = prop(prop(prop(meta2, "Object"), "Implementation"), "NetworkList")
+    n2 = vp.unwrap(find(proj, "VLT_CMP"))
+    meta2 = objmgr.GetObjectToRead(vp.prop(n2, "handle") or 0, vp.prop(n2, "guid"))
+    nets2 = vp.prop(vp.prop(vp.prop(meta2, "Object"), "Implementation"), "NetworkList")
     made = find_execute(nets2)
     log("")
     log("=" * 70)
@@ -248,9 +191,9 @@ try:
         if target[0] is None:
             log("  <POU not found>")
         else:
-            u = unwrap(target[0])
-            m3 = objmgr.GetObjectToRead(prop(u, "handle") or 0, prop(u, "guid"))
-            nets3 = prop(prop(prop(m3, "Object"), "Implementation"), "NetworkList")
+            u = vp.unwrap(target[0])
+            m3 = objmgr.GetObjectToRead(vp.prop(u, "handle") or 0, vp.prop(u, "guid"))
+            nets3 = vp.prop(vp.prop(vp.prop(m3, "Object"), "Implementation"), "NetworkList")
             real = find_execute(nets3)
             if real is None: log("  <no EXECUTE box>")
             else: dump_all(real, "box")

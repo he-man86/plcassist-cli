@@ -11,6 +11,11 @@
 import os
 import tempfile
 import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG = os.environ.get("VOLT_PROBE_LOG") or os.path.join(HERE, "nwl-survey.log")
@@ -20,70 +25,9 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
 
-def call(o, name, args):
-    import System
-    t = o.GetType()
-    for src in [t] + list(t.GetInterfaces()):
-        for m in src.GetMethods(_bf()):
-            if m.Name != name or len(m.GetParameters()) != len(args):
-                continue
-            try:
-                return True, m.Invoke(o, System.Array[System.Object](list(args)))
-            except Exception:
-                return False, None
-    return False, None
 
 FLAGBITS = ("Negation", "Set", "Jump", "Return", "Rtrig", "Ftrig")
 
@@ -122,30 +66,30 @@ def walk_item(n, depth, where):
     if tn not in S.examples:
         S.examples[tn] = where
 
-    fl = prop(n, "Flags")
+    fl = vp.prop(n, "Flags")
     if fl is not None:
         for b in FLAGBITS:
-            if prop(fl, b):
+            if vp.prop(fl, b):
                 S.bump(S.flags, b)
 
-    bt = prop(n, "BoxType")
+    bt = vp.prop(n, "BoxType")
     if bt:
         S.bump(S.boxtypes, str(bt))
-    if prop(n, "EnEno"):
+    if vp.prop(n, "EnEno"):
         S.eneno += 1
-    if prop(n, "ProvidesSTSnippet"):
+    if vp.prop(n, "ProvidesSTSnippet"):
         S.stsnippet += 1
 
-    op = prop(n, "Operand")
+    op = vp.prop(n, "Operand")
     if op is not None:
         walk_item(op, depth + 1, where)
-    rv = prop(n, "RValue")
+    rv = vp.prop(n, "RValue")
     if rv is not None:
         walk_item(rv, depth + 1, where)
 
-    outs = prop(n, "Outputs")
+    outs = vp.prop(n, "Outputs")
     if outs is not None:
-        lst = prop(outs, "List")
+        lst = vp.prop(outs, "List")
         if lst is not None:
             if len(lst) > 1:
                 S.multi_output += 1
@@ -153,7 +97,7 @@ def walk_item(n, depth, where):
                 walk_item(x, depth + 1, where)
 
     for coll in ("InputItemList", "Trees"):
-        c = prop(n, coll)
+        c = vp.prop(n, coll)
         if c is not None:
             try:
                 for x in c:
@@ -161,7 +105,7 @@ def walk_item(n, depth, where):
             except Exception:
                 pass
     for single in ("Input", "Merger"):
-        c = prop(n, single)
+        c = vp.prop(n, single)
         if c is not None:
             walk_item(c, depth + 1, where)
 
@@ -213,24 +157,24 @@ try:
                 nm = str(k.get_name())
             except Exception:
                 nm = "?"
-            u = unwrap(k)
-            g = prop(u, "guid")
+            u = vp.unwrap(k)
+            g = vp.prop(u, "guid")
             if g is not None:
                 try:
-                    meta = objmgr.GetObjectToRead(prop(u, "handle") or 0, g)
-                    iobj = prop(meta, "Object")
+                    meta = objmgr.GetObjectToRead(vp.prop(u, "handle") or 0, g)
+                    iobj = vp.prop(meta, "Object")
                     if iobj is not None and "POUObject" in iobj.GetType().FullName:
-                        impl = prop(iobj, "Implementation")
+                        impl = vp.prop(iobj, "Implementation")
                         if impl is not None:
                             an = impl.GetType().Name
                             aspects[an] = aspects.get(an, 0) + 1
-                            nets = prop(impl, "NetworkList")
+                            nets = vp.prop(impl, "NetworkList")
                             if nets is not None:
                                 if not hasattr(S, "_dumped"):
                                     S._dumped = True
                                     log("")
                                     log("### the implementation aspect's own properties (%s) ###" % nm)
-                                    for pp in sorted(impl.GetType().GetProperties(_bf()), key=lambda x: x.Name):
+                                    for pp in sorted(impl.GetType().GetProperties(vp.bf()), key=lambda x: x.Name):
                                         try:
                                             v = pp.GetValue(impl, None)
                                         except Exception:
@@ -248,30 +192,30 @@ try:
         for i in range(len(nets)):
             net = nets[i]
             S.networks += 1
-            if prop(net, "Title"):
+            if vp.prop(net, "Title"):
                 S.titled += 1
-            if prop(net, "Label"):
+            if vp.prop(net, "Label"):
                 S.labelled += 1
-            if prop(net, "Comment"):
+            if vp.prop(net, "Comment"):
                 S.commented += 1
-            if prop(net, "OutCommented"):
+            if vp.prop(net, "OutCommented"):
                 S.disabled += 1
-            cnt = prop(net, "NetworkItemCount") or 0
+            cnt = vp.prop(net, "NetworkItemCount") or 0
             for j in range(int(cnt)):
-                ok, tree = call(net, "GetTree", [j])
+                ok, tree = vp.call(net, "GetTree", [j])
                 if not ok or tree is None:
                     S.null_trees += 1
                     continue
                 S.trees += 1
                 walk_item(tree, 0, "%s net%d" % (pouname, i))
             for j in range(0, 64):
-                ok, sp = call(net, "GetSplitPoint", [j])
+                ok, sp = vp.call(net, "GetSplitPoint", [j])
                 if not ok or sp is None:
                     break
                 S.splits += 1
                 if len(S.split_examples) < 8:
                     S.split_examples.append("%s net%d split[%d] = %r"
-                                            % (pouname, i, j, prop(sp, "OperandExpr")))
+                                            % (pouname, i, j, vp.prop(sp, "OperandExpr")))
 
     visit(proj, 0)
 
@@ -284,29 +228,29 @@ try:
         pad = " " * indent
         bits = []
         for pn in ("OperandExpr", "BoxType", "VarId", "Mode", "CallType", "EnEno", "IsLValue"):
-            v = prop(n, pn)
+            v = vp.prop(n, pn)
             if v is not None and v != "" and v is not False:
                 bits.append("%s=%s" % (pn, v))
-        fl = prop(n, "Flags")
+        fl = vp.prop(n, "Flags")
         if fl is not None:
-            on = [x for x in FLAGBITS if prop(fl, x)]
+            on = [x for x in FLAGBITS if vp.prop(fl, x)]
             if on:
                 bits.append("Flags=" + ",".join(on))
         log("%s%s %s" % (pad, n.GetType().Name, " ".join(bits)))
         for sub in ("Operand", "RValue", "Input", "Merger"):
-            v = prop(n, sub)
+            v = vp.prop(n, sub)
             if v is not None:
                 log("%s  .%s" % (pad, sub))
                 show(v, indent + 4)
-        outs = prop(n, "Outputs")
+        outs = vp.prop(n, "Outputs")
         if outs is not None:
-            lst = prop(outs, "List")
+            lst = vp.prop(outs, "List")
             if lst is not None and len(lst) > 0:
                 log("%s  .Outputs (%d)" % (pad, len(lst)))
                 for x in lst:
                     show(x, indent + 4)
         for coll in ("InputItemList", "Trees"):
-            c = prop(n, coll)
+            c = vp.prop(n, coll)
             if c is not None:
                 try:
                     k = len(c)
@@ -330,10 +274,10 @@ try:
             except Exception:
                 nm = "?"
             if nm == WANT:
-                u = unwrap(k)
-                meta = objmgr.GetObjectToRead(prop(u, "handle") or 0, prop(u, "guid"))
-                impl = prop(prop(meta, "Object"), "Implementation")
-                nets = prop(impl, "NetworkList")
+                u = vp.unwrap(k)
+                meta = objmgr.GetObjectToRead(vp.prop(u, "handle") or 0, vp.prop(u, "guid"))
+                impl = vp.prop(vp.prop(meta, "Object"), "Implementation")
+                nets = vp.prop(impl, "NetworkList")
                 if nets is None:
                     continue
                 log("")
@@ -342,10 +286,10 @@ try:
                     net = nets[i]
                     log("")
                     log("--- network[%d] Title=%r Comment=%r OutCommented=%s items=%s ---"
-                        % (i, prop(net, "Title"), prop(net, "Comment"),
-                           prop(net, "OutCommented"), prop(net, "NetworkItemCount")))
-                    for j in range(int(prop(net, "NetworkItemCount") or 0)):
-                        ok, tree = call(net, "GetTree", [j])
+                        % (i, vp.prop(net, "Title"), vp.prop(net, "Comment"),
+                           vp.prop(net, "OutCommented"), vp.prop(net, "NetworkItemCount")))
+                    for j in range(int(vp.prop(net, "NetworkItemCount") or 0)):
+                        ok, tree = vp.call(net, "GetTree", [j])
                         if ok and tree is not None:
                             show(tree, 2)
                 return

@@ -10,6 +10,11 @@
 import os
 import tempfile
 import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEST = os.path.join(HERE, "..", "test")
@@ -19,77 +24,15 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
 
-def call(o, name, args):
-    """Invoke a method declared on the type OR on any interface (explicit implementations)."""
-    t = o.GetType()
-    for src in [t] + list(t.GetInterfaces()):
-        for m in src.GetMethods():
-            if m.Name != name or len(m.GetParameters()) != len(args):
-                continue
-            try:
-                import System
-                return True, m.Invoke(o, System.Array[System.Object](list(args)))
-            except Exception:
-                return False, traceback.format_exc().strip().split(chr(10))[-1]
-    return False, "no method " + name
 
 def seq(o):
     """A vendor collection as a python list, via reflection (they are not IronPython-iterable)."""
     if o is None:
         return None
-    n = prop(o, "Count")
+    n = vp.prop(o, "Count")
     if n is None:
         return None
     out = []
@@ -125,8 +68,8 @@ def find(root, want, depth=0):
 
 def validity(net, tag):
     log("  %-22s FBDValid=%s ILValid=%s ILActive=%s items=%s"
-        % (tag, prop(net, "FBDValid"), prop(net, "ILValid"),
-           prop(net, "ILActive"), prop(net, "NetworkItemCount")))
+        % (tag, vp.prop(net, "FBDValid"), vp.prop(net, "ILValid"),
+           vp.prop(net, "ILActive"), vp.prop(net, "NetworkItemCount")))
 
 
 try:
@@ -156,13 +99,13 @@ try:
     pou = app.create_pou(name="VLT_BOXOUT", type=PouType.FunctionBlock, language=L)
     pou.textual_declaration.replace(
         "FUNCTION_BLOCK VLT_BOXOUT\nVAR\n  src : INT;\n  dst : INT;\n  rung : BOOL;\nEND_VAR")
-    node = unwrap(pou)
-    h = prop(node, "handle") or 0
-    g = prop(node, "guid")
+    node = vp.unwrap(pou)
+    h = vp.prop(node, "handle") or 0
+    g = vp.prop(node, "guid")
 
     meta = objmgr.GetObjectToModify(h, g)
-    impl = prop(prop(meta, "Object"), "Implementation")
-    nets = prop(impl, "NetworkList")
+    impl = vp.prop(vp.prop(meta, "Object"), "Implementation")
+    nets = vp.prop(impl, "NetworkList")
     plug = nets[0].GetType().Assembly
 
     T = {}
@@ -173,24 +116,24 @@ try:
 
     def dump_box(b, label):
         log("  -- %s" % label)
-        log("     BoxType   = %r" % prop(b, "BoxType"))
-        log("     CallType  = %r" % prop(b, "CallType"))
-        log("     EnEno     = %r   En = %r" % (prop(b, "EnEno"), prop(b, "En")))
-        ip = prop(b, "InputParams")
-        op = prop(b, "OutputParams")
+        log("     BoxType   = %r" % vp.prop(b, "BoxType"))
+        log("     CallType  = %r" % vp.prop(b, "CallType"))
+        log("     EnEno     = %r   En = %r" % (vp.prop(b, "EnEno"), vp.prop(b, "En")))
+        ip = vp.prop(b, "InputParams")
+        op = vp.prop(b, "OutputParams")
         def names(pl):
             if pl is None: return None
-            try: return [str(x) for x in (prop(pl, "Names") or [])]
+            try: return [str(x) for x in (vp.prop(pl, "Names") or [])]
             except Exception: return "<threw>"
         log("     InputParams.Names  = %r" % names(ip))
         log("     OutputParams.Names = %r" % names(op))
-        try: ii = len(list(prop(b, "InputItemList") or []))
+        try: ii = len(list(vp.prop(b, "InputItemList") or []))
         except Exception: ii = "<threw>"
         log("     InputItemList count = %r" % ii)
-        outs = prop(b, "Outputs")
-        lst = prop(outs, "List") if outs is not None else None
+        outs = vp.prop(b, "Outputs")
+        lst = vp.prop(outs, "List") if outs is not None else None
         log("     Outputs.List = %r" % (None if lst is None else
-            [None if x is None else prop(x, "OperandExpr") for x in lst],))
+            [None if x is None else vp.prop(x, "OperandExpr") for x in lst],))
 
     log("")
     log("=== 1. a bare BoxTreeBox, before BoxType ===")
@@ -199,7 +142,7 @@ try:
 
     log("")
     log("=== 2. after BoxType = MOVE (does the vendor derive the pins?) ===")
-    box.GetType().GetProperty("BoxType", _bf()).SetValue(box, "MOVE", None)
+    box.GetType().GetProperty("BoxType", vp.bf()).SetValue(box, "MOVE", None)
     dump_box(box, "BoxType=MOVE")
 
     log("")
@@ -207,10 +150,10 @@ try:
     src_op = System.Activator.CreateInstance(T["Operand"], System.Array[System.Object](["src"]))
     dst_op = System.Activator.CreateInstance(T["Operand"], System.Array[System.Object](["dst"]))
     bto = System.Activator.CreateInstance(T["BoxTreeOperand"], System.Array[System.Object]([src_op]))
-    ok, res = call(box, "AppendInputItem", [bto])
+    ok, res = vp.call(box, "AppendInputItem", [bto])
     log("  AppendInputItem(src) -> %s %s" % (ok, "" if ok else res))
-    outs = prop(box, "Outputs")
-    ok, res = call(outs, "AppendOutputItem", [dst_op])
+    outs = vp.prop(box, "Outputs")
+    ok, res = vp.call(outs, "AppendOutputItem", [dst_op])
     log("  Outputs.AppendOutputItem(dst) -> %s %s" % (ok, "" if ok else res))
     dump_box(box, "after appends")
 
@@ -218,7 +161,7 @@ try:
     log("=== 4. append to the network and ask the vendor if it is valid ===")
     net0 = nets[0]
     validity(net0, "before")
-    ok, res = call(net0, "AppendTree", [box])
+    ok, res = vp.call(net0, "AppendTree", [box])
     log("  AppendTree -> %s %s" % (ok, "" if ok else res))
     validity(net0, "after append")
     objmgr.SetObject(meta, True, None)
@@ -230,14 +173,14 @@ try:
     proj.close()
     proj = projects.open(dst)
     pou2 = find(proj, "VLT_BOXOUT")
-    n2 = unwrap(pou2)
-    meta2 = objmgr.GetObjectToRead(prop(n2, "handle") or 0, prop(n2, "guid"))
-    impl2 = prop(prop(meta2, "Object"), "Implementation")
-    nets2 = prop(impl2, "NetworkList")
-    cnt = int(prop(nets2[0], "NetworkItemCount") or 0)
+    n2 = vp.unwrap(pou2)
+    meta2 = objmgr.GetObjectToRead(vp.prop(n2, "handle") or 0, vp.prop(n2, "guid"))
+    impl2 = vp.prop(vp.prop(meta2, "Object"), "Implementation")
+    nets2 = vp.prop(impl2, "NetworkList")
+    cnt = int(vp.prop(nets2[0], "NetworkItemCount") or 0)
     log("  network item count = %d" % cnt)
     for j in range(cnt):
-        ok, tree = call(nets2[0], "GetTree", [j])
+        ok, tree = vp.call(nets2[0], "GetTree", [j])
         if ok and tree is not None:
             log("  tree[%d]: %s" % (j, tree.GetType().Name))
             if tree.GetType().Name == "BoxTreeBox":

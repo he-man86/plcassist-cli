@@ -15,6 +15,11 @@
 import os
 import tempfile
 import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEST = os.path.join(HERE, "..", "test")
@@ -24,77 +29,15 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
 
-def call(o, name, args):
-    """Invoke a method declared on the type OR on any interface (explicit implementations)."""
-    t = o.GetType()
-    for src in [t] + list(t.GetInterfaces()):
-        for m in src.GetMethods():
-            if m.Name != name or len(m.GetParameters()) != len(args):
-                continue
-            try:
-                import System
-                return True, m.Invoke(o, System.Array[System.Object](list(args)))
-            except Exception:
-                return False, traceback.format_exc().strip().split(chr(10))[-1]
-    return False, "no method " + name
 
 def seq(o):
     """A vendor collection as a python list, via reflection (they are not IronPython-iterable)."""
     if o is None:
         return None
-    n = prop(o, "Count")
+    n = vp.prop(o, "Count")
     if n is None:
         return None
     out = []
@@ -130,8 +73,8 @@ def find(root, want, depth=0):
 
 def validity(net, tag):
     log("  %-22s FBDValid=%s ILValid=%s ILActive=%s items=%s"
-        % (tag, prop(net, "FBDValid"), prop(net, "ILValid"),
-           prop(net, "ILActive"), prop(net, "NetworkItemCount")))
+        % (tag, vp.prop(net, "FBDValid"), vp.prop(net, "ILValid"),
+           vp.prop(net, "ILActive"), vp.prop(net, "NetworkItemCount")))
 
 try:
     import clr
@@ -166,14 +109,14 @@ try:
     L = getattr(ImplementationLanguages, "fbd")                  # noqa: F821
     pou = app.create_pou(name="VLT_CTOR", type=PouType.FunctionBlock, language=L)   # noqa: F821
     pou.textual_declaration.replace("FUNCTION_BLOCK VLT_CTOR\nVAR\n  a : INT;\n  b : INT;\nEND_VAR")
-    node = unwrap(pou)
-    h = prop(node, "handle") or 0
-    g = prop(node, "guid")
+    node = vp.unwrap(pou)
+    h = vp.prop(node, "handle") or 0
+    g = vp.prop(node, "guid")
     log("created VLT_CTOR with VAR a, b")
 
     meta = objmgr.GetObjectToModify(h, g)
-    impl = prop(prop(meta, "Object"), "Implementation")
-    nets = prop(impl, "NetworkList")
+    impl = vp.prop(vp.prop(meta, "Object"), "Implementation")
+    nets = vp.prop(impl, "NetworkList")
     plug = nets[0].GetType().Assembly
     log("implementation assembly: " + plug.GetName().Name)
 
@@ -195,18 +138,18 @@ try:
     log("  built Operand('b'), Operand('a'), BoxTreeOperand(b), BoxTreeAssign()")
 
     # the r-value is a settable property; the assign target lives in the Outputs collection
-    rp = asg.GetType().GetProperty("RValue", _bf())
+    rp = asg.GetType().GetProperty("RValue", vp.bf())
     rp.SetValue(asg, bto, None)
     log("  RValue <- BoxTreeOperand(b)")
 
     # OutputItemList is not IList: it exposes AppendOutputItem / InsertOutputItem / RemoveOutputItem,
     # and enumerates through `List` (IOperand[]). Measured, not guessed.
-    outs = prop(asg, "Outputs")
-    ok, res = call(outs, "AppendOutputItem", [dst_op])
+    outs = vp.prop(asg, "Outputs")
+    ok, res = vp.call(outs, "AppendOutputItem", [dst_op])
     log("  Outputs.AppendOutputItem('a') -> %s %s" % (ok, "" if ok else res))
-    log("  Outputs.List = %r" % ([prop(x, "OperandExpr") for x in (prop(outs, "List") or [])],))
+    log("  Outputs.List = %r" % ([vp.prop(x, "OperandExpr") for x in (vp.prop(outs, "List") or [])],))
 
-    ok, res = call(net0, "AppendTree", [asg])
+    ok, res = vp.call(net0, "AppendTree", [asg])
     log("  AppendTree -> %s %s" % (ok, "" if ok else res))
     validity(net0, "after append")
 
@@ -222,26 +165,26 @@ try:
     if pou2 is None:
         log(">>> VLT_CTOR GONE after reload")
         raise SystemExit
-    n2 = unwrap(pou2)
-    meta2 = objmgr.GetObjectToRead(prop(n2, "handle") or 0, prop(n2, "guid"))
-    impl2 = prop(prop(meta2, "Object"), "Implementation")
-    nets2 = prop(impl2, "NetworkList")
+    n2 = vp.unwrap(pou2)
+    meta2 = objmgr.GetObjectToRead(vp.prop(n2, "handle") or 0, vp.prop(n2, "guid"))
+    impl2 = vp.prop(vp.prop(meta2, "Object"), "Implementation")
+    nets2 = vp.prop(impl2, "NetworkList")
     net2 = nets2[0]
     validity(net2, "after reload")
 
-    ok, tree = call(net2, "GetTree", [0])
+    ok, tree = vp.call(net2, "GetTree", [0])
     if ok and tree is not None:
-        rv = prop(tree, "RValue")
-        op = prop(rv, "Operand")
-        tgts = prop(prop(tree, "Outputs"), "List")
+        rv = vp.prop(tree, "RValue")
+        op = vp.prop(rv, "Operand")
+        tgts = vp.prop(vp.prop(tree, "Outputs"), "List")
         log("  tree=%s  RValue.Operand.OperandExpr=%r  Outputs=%r"
             % (tree.GetType().Name,
-               prop(op, "OperandExpr"),
-               [prop(x, "OperandExpr") for x in (tgts or [])]))
+               vp.prop(op, "OperandExpr"),
+               [vp.prop(x, "OperandExpr") for x in (tgts or [])]))
     else:
         log("  GetTree(0) -> %s" % tree)
 
-    ok, can = call(net2, "CanConvertToIL", [prop(n2, "guid")])
+    ok, can = vp.call(net2, "CanConvertToIL", [vp.prop(n2, "guid")])
     log("  CanConvertToIL -> %s %s" % (can if ok else "FAILED", "" if ok else can))
 
     log("")

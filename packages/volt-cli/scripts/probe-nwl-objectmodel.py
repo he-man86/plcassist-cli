@@ -14,6 +14,11 @@
 import os
 import tempfile
 import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEST = os.path.join(HERE, "..", "test")
@@ -23,57 +28,8 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
 
 def ifaces(o):
     try:
@@ -83,7 +39,7 @@ def ifaces(o):
 
 def props(o):
     try:
-        return sorted([p.Name for p in o.GetType().GetProperties(_bf())])
+        return sorted([p.Name for p in o.GetType().GetProperties(vp.bf())])
     except Exception:
         return []
 
@@ -124,14 +80,14 @@ def dump_item(it, indent, seen, depth=0):
                     and x not in ("ICloneable", "IComparable", "IGenericObject")]
     bits = []
     for pn in ("Text", "Name", "TypeName", "Expression", "Comment", "Id", "Negated", "OutCommented"):
-        v = prop(it, pn)
+        v = vp.prop(it, pn)
         if v is not None and v != "" and v is not False:
             bits.append("%s=%r" % (pn, v))
-    fl = prop(it, "Flags")
+    fl = vp.prop(it, "Flags")
     if fl is not None:
         on = []
         for b in ("Negation", "Set", "Jump", "Return", "Rtrig", "Ftrig"):
-            if prop(fl, b):
+            if vp.prop(fl, b):
                 on.append(b)
         bits.append("Flags=%s" % (",".join(on) if on else "-"))
     log("%s%s  %s" % (pad, tn, "  ".join(bits)))
@@ -142,7 +98,7 @@ def dump_item(it, indent, seen, depth=0):
                   "SerializableValueNames", "Accepted", "Added", "Changed", "ChangedContents",
                   "Deleted", "DeletedAfter", "DeletedBefore", "Inserted", "Safe"):
             continue
-        v = prop(it, pn)
+        v = vp.prop(it, pn)
         if isinstance(v, (str, int, long, float, bool)) or v is None:
             if v is not None and v != "" and v is not False:
                 prims.append("%s=%r" % (pn, v))
@@ -152,7 +108,7 @@ def dump_item(it, indent, seen, depth=0):
     for pn in props(it):
         if pn in ("ImplObj", "OwnerObject", "Parent", "Network", "GenericObjectService"):
             continue
-        v = prop(it, pn)
+        v = vp.prop(it, pn)
         if v is None:
             continue
         if is_item(v):
@@ -212,10 +168,10 @@ try:
         data = data.lstrip("\xef\xbb\xbf\ufeff")
 
     # mirror CodesysObjectModel.ImportXmlString: import_xml(ConflictResolve.Replace, xml, False)
-    target = unwrap(app)
+    target = vp.unwrap(app)
     t = target.GetType()
     m3 = None
-    for m in t.GetMethods(_bf()):
+    for m in t.GetMethods(vp.bf()):
         ps = m.GetParameters()
         if m.Name == "import_xml" and len(ps) == 3 and ps[0].ParameterType.IsEnum:
             m3 = m
@@ -229,7 +185,7 @@ try:
     done = False
     for label, fn in (("python app.import_xml", lambda: app.import_xml(val, data, False)),
                       ("reflect on app", lambda: m3.Invoke(
-                          unwrap(app), System.Array[System.Object]([val, data, False])))):
+                          vp.unwrap(app), System.Array[System.Object]([val, data, False])))):
         try:
             fn()
             log("imported VltFbd via " + label)
@@ -244,13 +200,13 @@ try:
     if pou is None:
         log("VltFbd not found after import")
         raise SystemExit
-    u = unwrap(pou)
-    h = prop(u, "handle") or 0
-    g = prop(u, "guid")
+    u = vp.unwrap(pou)
+    h = vp.prop(u, "handle") or 0
+    g = vp.prop(u, "guid")
     meta = objmgr.GetObjectToRead(h, g)
-    impl = prop(prop(meta, "Object"), "Implementation")
+    impl = vp.prop(vp.prop(meta, "Object"), "Implementation")
     log("aspect: " + impl.GetType().FullName)
-    nets = prop(impl, "NetworkList")
+    nets = vp.prop(impl, "NetworkList")
     log("networks: %d" % len(nets))
 
     seen = {}
@@ -258,9 +214,9 @@ try:
         net = nets[idx]
         log("")
         log("network[%d] Title=%r Label=%r Comment=%r OutCommented=%r ItemCount=%s"
-            % (idx, prop(net, "Title"), prop(net, "Label"), prop(net, "Comment"),
-               prop(net, "OutCommented"), prop(net, "NetworkItemCount")))
-        cnt = prop(net, "NetworkItemCount")
+            % (idx, vp.prop(net, "Title"), vp.prop(net, "Label"), vp.prop(net, "Comment"),
+               vp.prop(net, "OutCommented"), vp.prop(net, "NetworkItemCount")))
+        cnt = vp.prop(net, "NetworkItemCount")
         n = int(cnt) if cnt else 0
         for i in range(n):
             try:

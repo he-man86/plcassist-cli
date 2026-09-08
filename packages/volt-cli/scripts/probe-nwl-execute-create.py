@@ -9,6 +9,11 @@
 import os
 import tempfile
 import traceback
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import voltprobe as vp
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEST = os.path.join(HERE, "..", "test")
@@ -18,77 +23,15 @@ f = open(LOG, "w")
 def log(s):
     f.write(str(s) + "\n"); f.flush()
 
-BF = None
-def _bf():
-    global BF
-    if BF is None:
-        from System.Reflection import BindingFlags as B
-        BF = B.Public | B.NonPublic | B.Instance | B.FlattenHierarchy
-    return BF
 
-def unwrap(o):
-    for _ in range(10):
-        if o is None:
-            return None
-        try:
-            bp = o.GetType().GetProperty("BaseObject", _bf())
-        except Exception:
-            return o
-        if bp is None:
-            return o
-        try:
-            inner = bp.GetValue(o, None)
-        except Exception:
-            return o
-        if inner is None or inner is o:
-            return o
-        o = inner
-    return o
 
-def prop(o, name):
-    if o is None:
-        return None
-    try:
-        t = o.GetType()
-    except Exception:
-        return None
-    try:
-        p = t.GetProperty(name, _bf())
-        if p is not None:
-            return p.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        for i in t.GetInterfaces():
-            ip = i.GetProperty(name)
-            if ip is not None:
-                return ip.GetValue(o, None)
-    except Exception:
-        pass
-    try:
-        return getattr(o, name)
-    except Exception:
-        return None
 
-def call(o, name, args):
-    """Invoke a method declared on the type OR on any interface (explicit implementations)."""
-    t = o.GetType()
-    for src in [t] + list(t.GetInterfaces()):
-        for m in src.GetMethods():
-            if m.Name != name or len(m.GetParameters()) != len(args):
-                continue
-            try:
-                import System
-                return True, m.Invoke(o, System.Array[System.Object](list(args)))
-            except Exception:
-                return False, traceback.format_exc().strip().split(chr(10))[-1]
-    return False, "no method " + name
 
 def seq(o):
     """A vendor collection as a python list, via reflection (they are not IronPython-iterable)."""
     if o is None:
         return None
-    n = prop(o, "Count")
+    n = vp.prop(o, "Count")
     if n is None:
         return None
     out = []
@@ -124,8 +67,8 @@ def find(root, want, depth=0):
 
 def validity(net, tag):
     log("  %-22s FBDValid=%s ILValid=%s ILActive=%s items=%s"
-        % (tag, prop(net, "FBDValid"), prop(net, "ILValid"),
-           prop(net, "ILActive"), prop(net, "NetworkItemCount")))
+        % (tag, vp.prop(net, "FBDValid"), vp.prop(net, "ILValid"),
+           vp.prop(net, "ILActive"), vp.prop(net, "NetworkItemCount")))
 
 
 
@@ -155,10 +98,10 @@ try:
     L = getattr(ImplementationLanguages, "fbd")
     pou = app.create_pou(name="VLT_EXEC", type=PouType.FunctionBlock, language=L)
     pou.textual_declaration.replace("FUNCTION_BLOCK VLT_EXEC\nVAR\n  iCount : INT;\n  rung : BOOL;\nEND_VAR")
-    node = unwrap(pou)
-    meta = objmgr.GetObjectToModify(prop(node, "handle") or 0, prop(node, "guid"))
-    impl = prop(prop(meta, "Object"), "Implementation")
-    nets = prop(impl, "NetworkList")
+    node = vp.unwrap(pou)
+    meta = objmgr.GetObjectToModify(vp.prop(node, "handle") or 0, vp.prop(node, "guid"))
+    impl = vp.prop(vp.prop(meta, "Object"), "Implementation")
+    nets = vp.prop(impl, "NetworkList")
     plug = nets[0].GetType().Assembly
 
     T = {}
@@ -183,7 +126,7 @@ try:
 
     log("")
     log("=== constructing STSnippet ===")
-    for c in T["STSnippet"].GetConstructors(_bf()):
+    for c in T["STSnippet"].GetConstructors(vp.bf()):
         log("  ctor(%s)" % ", ".join(x.ParameterType.Name for x in c.GetParameters()))
     snip = None
     try:
@@ -193,7 +136,7 @@ try:
         log("  STSnippet() threw: " + traceback.format_exc().splitlines()[-1])
 
     if snip is not None:
-        inner = prop(snip, "Snippet")
+        inner = vp.prop(snip, "Snippet")
         log("  .Snippet on a fresh snippet = %r" % (inner,))
 
         log("")
@@ -206,7 +149,7 @@ try:
                     log("  settable: %s.%s" % (src2.Name, pr.Name))
         if setter is None:
             log("  NO settable Snippet property; members are:")
-            for pr in snip.GetType().GetProperties(_bf()):
+            for pr in snip.GetType().GetProperties(vp.bf()):
                 log("     %-40s canWrite=%r" % (pr.Name, pr.CanWrite))
 
         log("")
@@ -217,7 +160,7 @@ try:
             except Exception: tt = None
             if tt is not None:
                 log("  type in %s" % asm.GetName().Name)
-                for c in tt.GetConstructors(_bf()):
+                for c in tt.GetConstructors(vp.bf()):
                     log("    ctor(%s)" % ", ".join(x.ParameterType.Name for x in c.GetParameters()))
                 try:
                     sti = System.Activator.CreateInstance(tt, System.Array[System.Object]([]))
@@ -226,16 +169,16 @@ try:
                     log("    ctor threw: " + traceback.format_exc().splitlines()[-1])
                 break
         if sti is not None:
-            log("    .TextDocument = %r" % (prop(sti, "TextDocument"),))
+            log("    .TextDocument = %r" % (vp.prop(sti, "TextDocument"),))
             if setter is not None:
                 try:
                     setter.SetValue(snip, sti, None)
-                    log("    set snip.Snippet -> ok; now %r" % (prop(snip, "Snippet"),))
-                    inner = prop(snip, "Snippet")
+                    log("    set snip.Snippet -> ok; now %r" % (vp.prop(snip, "Snippet"),))
+                    inner = vp.prop(snip, "Snippet")
                 except Exception:
                     log("    set snip.Snippet threw: " + traceback.format_exc().splitlines()[-1])
         if inner is not None:
-            td = prop(inner, "TextDocument")
+            td = vp.prop(inner, "TextDocument")
             log("  .TextDocument = %r" % (td,))
             if td is not None:
                 # WHICH WAY OF SETTING THE TEXT IS CLEAN? `Text` lands the value and still throws; if
@@ -256,11 +199,11 @@ try:
                     while inr is not None:
                         log("         inner: %s: %s" % (inr.GetType().FullName, inr.Message))
                         inr = inr.InnerException
-                log("       Text now = %r" % (prop(td, "Text"),))
+                log("       Text now = %r" % (vp.prop(td, "Text"),))
 
                 log("  -- set_Text(st):")
                 try:
-                    td.GetType().GetProperty("Text", _bf()).SetValue(td, ST, None)
+                    td.GetType().GetProperty("Text", vp.bf()).SetValue(td, ST, None)
                     log("       ok, no throw")
                 except System.Exception, ex2:
                     log("       THREW %s: %s" % (ex2.GetType().FullName, ex2.Message))
@@ -270,31 +213,31 @@ try:
                         for ln in (inr.StackTrace or "").splitlines()[:4]:
                             log("            " + ln.strip())
                         inr = inr.InnerException
-                log("       Text now = %r" % (prop(td, "Text"),))
+                log("       Text now = %r" % (vp.prop(td, "Text"),))
                 ok, res = True, ""
                 if not ok:
-                    for m in td.GetType().GetMethods(_bf()):
+                    for m in td.GetType().GetMethods(vp.bf()):
                         if "Text" in m.Name or m.Name in ("Replace", "SetText", "Insert"):
                             log("      td.%s(%s)" % (m.Name, ", ".join(x.ParameterType.Name for x in m.GetParameters())))
-                log("  TextDocument.Text now = %r" % (prop(td, "Text"),))
+                log("  TextDocument.Text now = %r" % (vp.prop(td, "Text"),))
 
     # 2) hang it on a box and commit
     if snip is not None:
         box = System.Activator.CreateInstance(T["BoxTreeBox"], System.Array[System.Object]([]))
-        box.GetType().GetProperty("BoxType", _bf()).SetValue(box, "EXECUTE", None)
+        box.GetType().GetProperty("BoxType", vp.bf()).SetValue(box, "EXECUTE", None)
         for nm in ("STSnippet", "ProvidesSTSnippet"):
-            pr = box.GetType().GetProperty(nm, _bf())
+            pr = box.GetType().GetProperty(nm, vp.bf())
             log("  BoxTreeBox.%s settable: %r" % (nm, pr is not None and pr.CanWrite))
         try:
-            box.GetType().GetProperty("STSnippet", _bf()).SetValue(box, snip, None)
-            log("  set box.STSnippet -> ok; ProvidesSTSnippet now %r" % (prop(box, "ProvidesSTSnippet"),))
+            box.GetType().GetProperty("STSnippet", vp.bf()).SetValue(box, snip, None)
+            log("  set box.STSnippet -> ok; ProvidesSTSnippet now %r" % (vp.prop(box, "ProvidesSTSnippet"),))
         except Exception:
             log("  set box.STSnippet threw: " + traceback.format_exc().splitlines()[-1])
 
         # THE ENO SLOT AND FLAG, one call at a time - the live push NREs somewhere in here.
         log("")
         log("=== ENO slot + flag, isolated ===")
-        outs2 = prop(box, "Outputs")
+        outs2 = vp.prop(box, "Outputs")
         log("  Outputs holder = %r" % (outs2,))
         try:
             emptyop = System.Activator.CreateInstance(T["Operand"], System.Array[System.Object]([""]))
@@ -304,19 +247,19 @@ try:
             log("  Operand(\"\") THREW %s: %s" % (e1.GetType().FullName, e1.Message))
         if emptyop is not None:
             try:
-                call(outs2, "AppendOutputItem", [emptyop])
+                vp.call(outs2, "AppendOutputItem", [emptyop])
                 log("  AppendOutputItem(empty) -> ok")
             except System.Exception, e2:
                 log("  AppendOutputItem(empty) THREW %s: %s" % (e2.GetType().FullName, e2.Message))
         try:
-            op2 = prop(box, "OutputParams")
+            op2 = vp.prop(box, "OutputParams")
             log("  OutputParams = %r" % (op2,))
-            call(op2, "AppendParam", ["ENO", ""])
+            vp.call(op2, "AppendParam", ["ENO", ""])
             log("  OutputParams.AppendParam(ENO) -> ok")
         except System.Exception, e3:
             log("  OutputParams.AppendParam THREW %s: %s" % (e3.GetType().FullName, e3.Message))
         try:
-            box.GetType().GetProperty("Eno", _bf()).SetValue(box, True, None)
+            box.GetType().GetProperty("Eno", vp.bf()).SetValue(box, True, None)
             log("  set box.Eno = True -> ok")
         except System.Exception, e4:
             log("  set box.Eno THREW %s: %s" % (e4.GetType().FullName, e4.Message))
@@ -325,7 +268,7 @@ try:
                 log("      inner: %s: %s" % (inr.GetType().FullName, inr.Message))
                 inr = inr.InnerException
 
-        ok, res = call(nets[0], "AppendTree", [box])
+        ok, res = vp.call(nets[0], "AppendTree", [box])
         log("  AppendTree -> %s %s" % (ok, "" if ok else res))
         objmgr.SetObject(meta, True, None)
         proj.save()
@@ -335,20 +278,20 @@ try:
         log("=== reload and read the ST back ===")
         proj = projects.open(dst)
         pou2 = find(proj, "VLT_EXEC")
-        n2 = unwrap(pou2)
-        meta2 = objmgr.GetObjectToRead(prop(n2, "handle") or 0, prop(n2, "guid"))
-        impl2 = prop(prop(meta2, "Object"), "Implementation")
-        nets2 = prop(impl2, "NetworkList")
-        cnt = int(prop(nets2[0], "NetworkItemCount") or 0)
+        n2 = vp.unwrap(pou2)
+        meta2 = objmgr.GetObjectToRead(vp.prop(n2, "handle") or 0, vp.prop(n2, "guid"))
+        impl2 = vp.prop(vp.prop(meta2, "Object"), "Implementation")
+        nets2 = vp.prop(impl2, "NetworkList")
+        cnt = int(vp.prop(nets2[0], "NetworkItemCount") or 0)
         for j in range(cnt):
-            ok, tree = call(nets2[0], "GetTree", [j])
+            ok, tree = vp.call(nets2[0], "GetTree", [j])
             if ok and tree is not None and tree.GetType().Name == "BoxTreeBox":
-                sn = prop(tree, "STSnippet")
-                log("  BoxType=%r ProvidesSTSnippet=%r" % (prop(tree, "BoxType"), prop(tree, "ProvidesSTSnippet")))
+                sn = vp.prop(tree, "STSnippet")
+                log("  BoxType=%r ProvidesSTSnippet=%r" % (vp.prop(tree, "BoxType"), vp.prop(tree, "ProvidesSTSnippet")))
                 if sn is not None:
-                    i2 = prop(sn, "Snippet")
-                    td2 = prop(i2, "TextDocument") if i2 is not None else None
-                    log("  ST read back = %r" % (prop(td2, "Text") if td2 is not None else None,))
+                    i2 = vp.prop(sn, "Snippet")
+                    td2 = vp.prop(i2, "TextDocument") if i2 is not None else None
+                    log("  ST read back = %r" % (vp.prop(td2, "Text") if td2 is not None else None,))
         proj.close()
     log("")
     log("done")
