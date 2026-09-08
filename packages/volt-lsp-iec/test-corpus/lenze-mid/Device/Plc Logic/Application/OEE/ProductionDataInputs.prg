@@ -84,6 +84,7 @@ call_OEE_Input_IF();
 END_PROGRAM
 
 ACTION act_Assign_Errors_01_09
+
 wCount:=1;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm001;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;
@@ -149,6 +150,7 @@ GVL_FirstErrCapture.ascAddErrorInfo[wCount].sErrDesc:='Error in safety system';
 END_ACTION
 
 ACTION act_Assign_Errors_10_19
+
 wCount:=10;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm010;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;
@@ -221,6 +223,7 @@ GVL_FirstErrCapture.ascAddErrorInfo[wCount].sErrDesc:='Selector Manual/Auto ATF'
 END_ACTION
 
 ACTION act_Assign_Errors_20_29
+
 wCount:=1;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm020;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;
@@ -293,6 +296,7 @@ GVL_FirstErrCapture.ascAddErrorInfo[wCount].sErrDesc:='_';
 END_ACTION
 
 ACTION act_Assign_Errors_30_39
+
 wCount:=1;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm030;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;
@@ -365,6 +369,7 @@ GVL_FirstErrCapture.ascAddErrorInfo[wCount].sErrDesc:='_';
 END_ACTION
 
 ACTION act_Assign_Errors_40_49
+
 wCount:=1;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm040;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;
@@ -437,6 +442,7 @@ GVL_FirstErrCapture.ascAddErrorInfo[wCount].sErrDesc:='Dryer opened';
 END_ACTION
 
 ACTION act_Assign_Errors_50_59
+
 wCount:=1;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm050;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;
@@ -509,6 +515,7 @@ GVL_FirstErrCapture.ascAddErrorInfo[wCount].sErrDesc:='Inpusher trayfiller block
 END_ACTION
 
 ACTION act_Assign_Errors_60_69
+
 wCount:=1;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm060;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;
@@ -581,6 +588,7 @@ GVL_FirstErrCapture.ascAddErrorInfo[wCount].sErrDesc:='_';
 END_ACTION
 
 ACTION act_Assign_Errors_70_79
+
 wCount:=1;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm070;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;
@@ -653,6 +661,7 @@ GVL_FirstErrCapture.ascAddErrorInfo[wCount].sErrDesc:='_';
 END_ACTION
 
 ACTION act_Assign_Errors_80_89
+
 wCount:=1;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm080;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;
@@ -725,6 +734,7 @@ GVL_FirstErrCapture.ascAddErrorInfo[wCount].sErrDesc:='Door 7';
 END_ACTION
 
 ACTION act_Assign_Errors_90_100
+
 wCount:=1;
 GVL_FirstErrCapture.ascErrorInfo[wCount].xError:=Mach1_Alarms.Alm090;
 GVL_FirstErrCapture.ascErrorInfo[wCount].wErrorId:=wCount;

@@ -35,6 +35,7 @@ VAR
 	dRight			: REAL;
 END_VAR
 
+
 //Check if the left and right margins make any sense
 IF settings.marginXMax <= settings.marginXMin THEN
 	xya.bCutPosPossible := FALSE;

@@ -7,6 +7,7 @@ VAR
 	initializeArrays : BOOL := true;
 END_VAR
 
+
 IF initializeArrays THEN
 	Stack_Init_CuttingPos(IQ_dataArray:=g_aCuttingPositions, IQ_dataArrayInfo := g_sCuttingPositionsInfo);
 	Stack_Init_CuttingPos(IQ_dataArray:=g_aWastePositions, IQ_dataArrayInfo := g_sWastePositionsInfo);

@@ -19,6 +19,7 @@ END_VAR
 VAR
 END_VAR
 
+
 // User Program has to add here all FAST Categories links like Machine module name or axes name which make sense for an operator
 IF sErrorCategory = 'MM_Demo_0' THEN
 	GetCategoryfromModuleName := 15;

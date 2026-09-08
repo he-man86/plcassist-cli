@@ -1100,7 +1100,7 @@ END_FOR
 MoveAllCassettesToMiddlePosition := AllCassettesReady;
 END_METHOD
 
-// Copy the target position from the data struct to the setpoints of the selected cassette
+ // Copy the target position from the data struct to the setpoints of the selected cassette
 METHOD PUBLIC MoveSingleCassetteToDataPosition : BOOL
 VAR_INPUT
 	CassetteId	: USINT;

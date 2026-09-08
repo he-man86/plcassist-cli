@@ -23,6 +23,7 @@ VAR
 	sErrorText 		: STRING(255);	// Error text from the Text list
 END_VAR
 
+
 CASE wTextRefId OF
 
 15360:	// User Application TextRef ID

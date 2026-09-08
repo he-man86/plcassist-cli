@@ -10,6 +10,7 @@ END_VAR
 // Update 24-03-2023: Added logic from RANGE_TO_WORD function in Oscat library.
 // Update 08-06-2023: Removed logic here and use RANGE_TO_RANGE method instead (because devide by zero exception was possible)
 
+
 RANGE_TO_WORD := TO_WORD(
 					TRUNC(
 						RANGE_TO_RANGE(

@@ -7,7 +7,7 @@ VAR
 	rt_PressStartToInit	: R_TRIG;
 END_VAR
 
-(*************************************************************************
+ (*************************************************************************
  *
  * Application name				: Snijmachine
  * Module name					: MACH_CLN_Cleaning

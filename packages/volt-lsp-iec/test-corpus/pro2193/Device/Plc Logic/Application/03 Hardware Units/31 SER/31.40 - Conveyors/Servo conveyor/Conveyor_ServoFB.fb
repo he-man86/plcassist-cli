@@ -504,6 +504,7 @@ GET
 VAR
 	i	: INT;
 END_VAR
+
 HighestStackIndex			:= MAX(StackIndex, Data.firstCycleStackHeight);
 
 FOR i := 1 TO iNumberOfAlternatingStacks DO

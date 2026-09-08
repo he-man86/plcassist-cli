@@ -3,7 +3,7 @@ VAR
 	tofResetSafety	: TOF;
 END_VAR
 
-g_bDQ_LampStart				:= 		g_sMACH.ERR.bPressStartForManual
+                        g_bDQ_LampStart				:= 		g_sMACH.ERR.bPressStartForManual
 								OR	g_sMACH.ERR.bPressStartToCleanInit
 								OR	(g_sMACH.ERR.bPressStartToCut AND NOT g_HMI_MachCommand.bScanMode)
 								OR	g_sMACH.ERR.bPressStartToInit;

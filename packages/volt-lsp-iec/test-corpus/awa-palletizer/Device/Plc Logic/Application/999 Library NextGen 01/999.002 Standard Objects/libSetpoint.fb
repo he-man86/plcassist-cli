@@ -129,6 +129,6 @@ END_VAR
 	_HMI.wStatus.2 := xSetpointError;
 	_HMI.rHi := rHi;
 	_HMI.rLo := rLo;		  
-{endregion}
+{endregion}	 
 
 END_FUNCTION_BLOCK

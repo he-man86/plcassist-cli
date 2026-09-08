@@ -115,7 +115,7 @@ END_VAR
 		xEnable:= TRUE, 
 		ModuleHandler:= myModuleHandler, 
 		xForwardFromChildModules:=TRUE);
-{endregion}
+{endregion}	
 
 END_FUNCTION_BLOCK
 

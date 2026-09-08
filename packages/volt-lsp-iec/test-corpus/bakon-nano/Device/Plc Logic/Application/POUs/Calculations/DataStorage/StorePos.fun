@@ -16,6 +16,7 @@ VAR
 	sTempPosition		: XYA_Target;
 END_VAR
 
+
 sTempPosition 			:= defaultXYA;
 sTempPosition.X_Target 	:= I_rX;
 sTempPosition.Y_Target 	:= I_rY;

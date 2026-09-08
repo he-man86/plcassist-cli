@@ -59,6 +59,7 @@ rtReadAfterStartUp	: R_TRIG;
 iReadLoop : INT;
 END_VAR
 
+
 // Call action sequences
 actSequencer();
 actReadFromFile();
@@ -86,6 +87,7 @@ END_NETWORK
 END_ACTION
 
 ACTION actSequencer
+
 tWaitBeforeRead(IN:=FirstScanCycle, PT:=T#3S);
 tWaitAfterDone(IN:=(xDone OR xError) AND NOT xInit AND NOT tWaitAfterDone.Q, PT:=T#3S);
 

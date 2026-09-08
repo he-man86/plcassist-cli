@@ -31,7 +31,8 @@ VAR
 	aEssSet						: ARRAY [1..10] OF L_ETC_STATE ;
 END_VAR
 
-ECatMaster(
+
+	ECatMaster(
 		xReset:= xEcatResetNotifications, 
 		xDone=> , 
 		xBusy=> , 

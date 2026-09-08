@@ -11,6 +11,10 @@ VAR
 
 END_VAR
 
+
+
+
+
 IF(IQ_dataArrayInfo.index < IQ_dataArrayInfo.lowerBound OR IQ_dataArrayInfo.index > IQ_dataArrayInfo.upperbound) THEN
 	//The array is full.
 	g_sMACH.ERR.bStackIsFull	:= TRUE;

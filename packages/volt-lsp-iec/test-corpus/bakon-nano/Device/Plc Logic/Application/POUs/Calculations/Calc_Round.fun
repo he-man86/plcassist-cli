@@ -25,7 +25,7 @@ VAR
 	rStepDistY 					: REAL;
 END_VAR
 
-rDiameterTaart	:= g_HMI_RCP_Parameters.rDiameterRound;
+	rDiameterTaart	:= g_HMI_RCP_Parameters.rDiameterRound;
 	//nFirstPosFirstTray := g_sCuttingPositionsInfo.index;
 	
 	(*Calculate number of cuts*)
@@ -118,5 +118,6 @@ rDiameterTaart	:= g_HMI_RCP_Parameters.rDiameterRound;
 			bToggle := NOT bToggle;
 		END_FOR
 	END_IF
+		
 
 END_FUNCTION

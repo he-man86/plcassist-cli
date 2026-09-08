@@ -124,6 +124,7 @@ xFirstCycleDone	:= TRUE;
 END_FUNCTION_BLOCK
 
 ACTION Call_AssignStructures
+
 //***********************************************************************************************************************
 // Overwriting intern used scProduction and scErrorCategory with actual machine program 
 //***********************************************************************************************************************
@@ -183,6 +184,7 @@ END_IF;
 END_ACTION
 
 ACTION act_Call_Properties
+
 //*********************************************************************************************************
 // Calculation option for part Throughput/hour
 //  0= calculate from actual all time, 1= Calculation for actual planned production time without Breaks,
@@ -215,9 +217,11 @@ END_ACTION
 PROPERTY xLaterShiftStartEnableDisable : BOOL
 %FOLDER Properties
 GET
+
 xLaterShiftStartEnableDisable := xLaterShiftStartEnable;
 END_GET
 SET
+
 xLaterShiftStartEnable := xLaterShiftStartEnableDisable;
 END_SET
 END_PROPERTY
@@ -225,19 +229,23 @@ END_PROPERTY
 PROPERTY PUBLIC xSetDeactiveShiftContiniousUpdate : BOOL
 %FOLDER Properties
 GET
+
 xSetDeactiveShiftContiniousUpdate := xDeactiveShiftContiniousUpdate;
 END_GET
 SET
-xDeactiveShiftContiniousUpdate := xSetDeactiveShiftContiniousUpdate;
+
+ xDeactiveShiftContiniousUpdate := xSetDeactiveShiftContiniousUpdate;
 END_SET
 END_PROPERTY
 
 PROPERTY PUBLIC xSetProdSimEventOccurrence : BOOL
 %FOLDER Properties
 GET
+
 xSetProdSimEventOccurrence := xProdSimEventOccurrence;
 END_GET
 SET
+
 xProdSimEventOccurrence :=  xSetProdSimEventOccurrence ;
 END_SET
 END_PROPERTY
@@ -245,9 +253,11 @@ END_PROPERTY
 PROPERTY PUBLIC xTriggerManualShiftReset : BOOL
 %FOLDER Properties
 GET
+
 xTriggerManualShiftReset := xManualShiftReset;
 END_GET
 SET
+
 xManualShiftReset := xTriggerManualShiftReset;
 END_SET
 END_PROPERTY
@@ -255,9 +265,11 @@ END_PROPERTY
 PROPERTY PUBLIC xTriggerUpdateJsonOEEKPI : BOOL
 %FOLDER Properties
 GET
+
 xTriggerUpdateJsonOEEKPI := xUpdateJsonOEEKPI;
 END_GET
 SET
+
 xUpdateJsonOEEKPI := xTriggerUpdateJsonOEEKPI;
 END_SET
 END_PROPERTY

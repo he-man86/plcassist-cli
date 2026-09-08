@@ -20,6 +20,7 @@ VAR
 	lastInd				: INT;
 END_VAR
 
+
 //Check if the input values are valid
 IF I_lastIndex < I_firstIndex THEN
 	Calc_CopyCutsWithOffset := FALSE;

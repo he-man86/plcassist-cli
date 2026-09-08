@@ -3,6 +3,7 @@
 {attribute 'hide_all_locals'}
 PROGRAM Arrays
 
+
 // Because arrays are value-type, it's not possible to cast an array of fbs to another type.
 // More info here:
 // https://stackoverflow.com/questions/69319659/how-do-i-pass-an-array-of-an-extended-type-in-codesys-twincat3

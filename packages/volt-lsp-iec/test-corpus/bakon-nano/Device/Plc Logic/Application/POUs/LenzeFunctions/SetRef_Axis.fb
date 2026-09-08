@@ -22,6 +22,8 @@ VAR
 	SetHomePosition : MC_SetPosition;
 END_VAR
 
+
+
 CASE byStepper OF (*VERVALLEN, KAN NU VIA HOMING IN AXISBASICS: SET HOME -> SM3_Multiturn eronder aanroepen*)
 
 	0:	Q_bRefDone							:=FALSE;

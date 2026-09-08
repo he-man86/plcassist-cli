@@ -16,6 +16,7 @@ PROGRAM MachineStateSetting
 VAR
 END_VAR
 
+
 //*******************************PackML Sample****************************************************************************************
 //************************************************************************************************************************************
 // Here the machine plc based state and mode handling (operation mode) has to be used; the below code is an sample how to control 
@@ -70,5 +71,11 @@ IF (((GVL_OEE_Var.eStatus_States = eStates.Holding) OR (GVL_OEE_Var.eStatus_Stat
 ELSE
 	GVL_OEE_Var.scMachineData.xScheduledDownTimeActive := FALSE;
 END_IF;
+
+
+
+
+		 
+		 
 
 END_PROGRAM

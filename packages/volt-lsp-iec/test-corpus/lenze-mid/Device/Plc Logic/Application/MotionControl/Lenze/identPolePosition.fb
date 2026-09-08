@@ -20,6 +20,7 @@ VAR_IN_OUT
 	ioAxis				: AXIS_REF; 
 END_VAR
 
+
 CASE iStep OF
 	
 	0:	MC_ReadParameter.Enable:=FALSE;

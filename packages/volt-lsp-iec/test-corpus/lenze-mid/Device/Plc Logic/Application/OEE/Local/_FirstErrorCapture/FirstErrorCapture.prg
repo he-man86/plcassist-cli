@@ -54,6 +54,7 @@ VAR CONSTANT
 	uiMaxError : UINT := 99;		// Max. Numbers of L_SetErrorSingleInfo fb or errors withing the whole PLC Project
 END_VAR
 
+
 //Assignment of scFirstErrorData := GVL_FirstErrCapture.scFirstErrorData;
 xStructError := L_OEEA_Customizable_CopyStruct(pbySource:= ADR(GVL_FirstErrCapture.asErrorCategory),pbyTarget:=ADR(asErrorCategoryLib),
 				uiSizeSource:=SIZEOF(GVL_FirstErrCapture.asErrorCategory),uiSizeTarget:=SIZEOF(asErrorCategoryLib));

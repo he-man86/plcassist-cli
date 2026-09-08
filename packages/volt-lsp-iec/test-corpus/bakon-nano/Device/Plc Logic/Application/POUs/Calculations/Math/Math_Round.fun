@@ -9,6 +9,9 @@ VAR
 	b : INT;
 END_VAR
 
+
+
+
 neg := SEL(value < 0,1,-1);
 a := value * neg;
 b := REAL_TO_INT(a/precision);

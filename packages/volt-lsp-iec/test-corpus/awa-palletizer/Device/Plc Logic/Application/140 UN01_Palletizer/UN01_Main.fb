@@ -111,7 +111,7 @@ END_VAR
 		xEnable:= TRUE, 
 		ModuleHandler:= myModuleHandler, 
 		xForwardFromChildModules:=TRUE);
-{endregion}
+{endregion}		 	 	
 
 END_FUNCTION_BLOCK
 
@@ -211,7 +211,7 @@ UN01_HMI.RecipeSelect_HMI.iPalletPositionId := 0;
 UN01_HMI.RecipeView_HMI.iPalletPositionId := 0;
 UN01_HMI.CoordSystemOffset_HMI.iCoordSystemId := 1;
 
-myState.xCmdResetDone := TRUE;
+myState.xCmdResetDone := TRUE; 
 END_ACTION
 
 ACTION Starting

@@ -12,6 +12,11 @@ VAR
 	ss: REAL;
 END_VAR
 
+
+
+
+
+
 denominator := ((LineA.P2.X - LineA.P1.X) * (LineB.P2.Y - LineB.P1.Y)) - ((LineA.P2.Y - LineA.P1.Y) * (LineB.P2.X - LineB.P1.X));
 numerator1 := ((LineA.P1.Y - LineB.P1.Y) * (LineB.P2.X - LineB.P1.X)) - ((LineA.P1.X - LineB.P1.X) * (LineB.P2.Y - LineB.P1.Y));
 numerator2 := ((LineA.P1.Y - LineB.P1.Y) * (LineA.P2.X - LineA.P1.X)) - ((LineA.P1.X - LineB.P1.X) * (LineA.P2.Y - LineA.P1.Y));

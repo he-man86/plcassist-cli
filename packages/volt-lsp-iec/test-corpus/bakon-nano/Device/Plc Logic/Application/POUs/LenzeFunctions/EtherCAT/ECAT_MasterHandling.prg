@@ -70,5 +70,9 @@ EtherCAT_Master(
 	IF SMC3_ReinitAxis_4.xDone THEN
 		xECATRestart := FALSE;
 	END_IF
+	
+
+	
+	
 
 END_PROGRAM

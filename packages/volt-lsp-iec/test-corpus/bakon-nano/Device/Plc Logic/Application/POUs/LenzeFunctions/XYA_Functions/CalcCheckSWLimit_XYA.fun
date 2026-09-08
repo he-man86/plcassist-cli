@@ -25,7 +25,7 @@ END_VAR
 VAR
 END_VAR
 
-CalcCheckSWLimit_XYA:=FALSE;
+	CalcCheckSWLimit_XYA:=FALSE;
 IF (Point.X_Target < AxisX.lrSWLimitNeg) OR  (Point.X_Target >  AxisX.lrSWLimitPos) OR (Point.Y_Target < AxisY.lrSWLimitNeg) OR 	(Point.Y_Target >  AxisY.lrSWLimitPos) OR (Point.A_Target < AxisA.lrSWLimitNeg) OR  (Point.A_Target >  AxisA.lrSWLimitPos)  THEN
 	CalcCheckSWLimit_XYA:=TRUE;
 END_IF

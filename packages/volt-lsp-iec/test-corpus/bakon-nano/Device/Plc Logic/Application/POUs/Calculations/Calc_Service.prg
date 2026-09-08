@@ -7,7 +7,7 @@ VAR
 	nPos: INT;
 END_VAR
 
-nPos	:= 1;
+	nPos	:= 1;
 
 	(* Ronde taart *)
 	g_aCuttingPositions[nPos].X_Target := g_HMI_MCH_Parameters.rMidPosRoundCake1_X;

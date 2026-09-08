@@ -109,6 +109,6 @@ END_VAR
 	_HMI.wStatus.1 := NOT(_HMI.wCmd.0);		// Manual	
 	_HMI.wStatus.2 := xInterlocked;
 	_HMI.wStatus.3 := xDO;	 	  
-{endregion}
+{endregion}	 	 
 
 END_FUNCTION_BLOCK

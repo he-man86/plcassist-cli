@@ -35,6 +35,7 @@ VAR
 	wTextRefId, wErrorId : WORD;
 END_VAR
 
+
 IF xEnabled THEN
 	
 	// Reset output if no active error is on

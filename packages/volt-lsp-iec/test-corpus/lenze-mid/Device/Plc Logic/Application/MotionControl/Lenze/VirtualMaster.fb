@@ -29,6 +29,7 @@ VAR RETAIN PERSISTENT
 	lrRetainPosition				: LREAL;
 END_VAR
 
+
 ReadInputs();
 VirtualMasterParameters();
 VirtualMaster();
@@ -51,6 +52,7 @@ END_VAR
 VAR
 
 END_VAR
+
 BrakeInterface(
 	Axis:= ioSlaveAxis, 
 	xEnable:= NOT ioSlaveAxis.xVirtual , 
@@ -73,6 +75,7 @@ END_METHOD
 METHOD ReadInputs 
 VAR_INPUT
 END_VAR
+
 //activate internal control
 IF NOT internalControl THEN
 	Control_Local	:= ioDataExchange.Control;
@@ -93,6 +96,7 @@ END_VAR
 VAR
 
 END_VAR
+
 //Max torque on the axis. If the machine doesn't stop due to a programming error, this part ensures that the torque never gets too high. 
 TorqueLimit(											
 	Axis:= ioSlaveAxis, 
@@ -146,6 +150,7 @@ VAR_INST
 	SetIntQspRamp			: L_SetIntQspRamp;
 	lrDecErrorStopOld		: LREAL;	
 END_VAR
+
 AxisControl.scCtrlBasicMotion.xResetHomePosition:=Control_Local.ResetHomePos;
 
 AxisControl(
@@ -261,6 +266,8 @@ END_VAR
 VAR_INST
 
 END_VAR
+
+
 ioDataExchange.Status.DriveCommAlive				:= ioSlaveAxis.xCommunicationOK;
 ioDataExchange.Status.ReadyForOperation				:= AxisControl.xReadyForOperation;
 ioDataExchange.Status.ReadyForMotion				:= AxisControl.xReadyForMotion;

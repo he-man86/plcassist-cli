@@ -118,6 +118,6 @@ END_IF
 
 
 //Return 1 when in window
-fc_CamC_LS_Base2 := FF_Started AND i_xEnable;
+fc_CamC_LS_Base2 := FF_Started AND i_xEnable; 
 
 END_FUNCTION

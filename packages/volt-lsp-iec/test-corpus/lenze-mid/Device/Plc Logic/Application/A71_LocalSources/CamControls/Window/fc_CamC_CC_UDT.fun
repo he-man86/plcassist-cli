@@ -16,6 +16,7 @@ VAR_IN_OUT
 	ioCamControl	: UDT_CamControl;
 END_VAR
 
+
 ioCamControl.MachinePos_HMI:=iMachinePosition;
 fc_CamC_CC_Base(
 	i_xEnable:= 1, 
@@ -23,5 +24,6 @@ fc_CamC_CC_Base(
 	i_intStopCam:=ioCamControl.Stop , 
 	i_lrMachinePosition:=ioCamControl.MachinePos_HMI , 
 	o_xCamControl=>fc_CamC_CC_UDT );
+	
 
 END_FUNCTION

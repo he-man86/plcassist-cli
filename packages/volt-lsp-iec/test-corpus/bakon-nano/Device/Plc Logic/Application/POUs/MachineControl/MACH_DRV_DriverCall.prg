@@ -79,6 +79,7 @@ ELSE
 		g_sMACH.ERR.bCleaningContainerZeroPos	:= FALSE;
 		g_sMACH.ERR.bCleaningContainerEndZero	:= FALSE;
 		g_sMACH.ERR.bCleaningContainerNotSafeToMove	:= FALSE;
-END_IF
+END_IF		
+		
 
 END_PROGRAM
