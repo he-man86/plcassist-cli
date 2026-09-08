@@ -333,7 +333,26 @@ namespace Volt.Ide.Codesys
             }
         }
 
-        /// <summary>The mutation itself, against the WRITEABLE copy: clear, then append in call order.</summary>
+        /// <summary>The mutation itself, against the WRITEABLE copy: clear, then append in call order —
+        /// carrying each entry's COMMENT across, which is the one thing a rebuild would otherwise destroy.
+        ///
+        /// <para><b>The vendor states an entry's whole persisted contract itself</b>, and it is two fields:
+        /// <c>PouObject.SerializableValueNames</c> is exactly <c>('Name', 'Comment')</c>, measured identical on
+        /// all 21 call entries of five real projects (<c>scripts/probe-task-callcomment.py</c>). Volt's
+        /// descriptor carries the name. Clearing and re-minting therefore threw the comment away on every push
+        /// that touched a task's call list — invisibly, because the <c>.task</c> file never showed it, so
+        /// neither the workspace nor git could reveal the loss.</para>
+        ///
+        /// <para><b>This method's own doc comment used to justify that</b>: "an entry carries a per-entry
+        /// COMMENT the descriptor does not, so a positional diff would have to preserve something Volt cannot
+        /// see." The premise is false. <c>PouObject.Comment</c> is an ordinary readable and writable property;
+        /// it is only invisible from the SCRIPTING wrapper, which iterates plain name strings. Volt could see
+        /// it all along and was not looking. Carrying it needs no format change and no descriptor field — which
+        /// is just as well, since the census found all 21 comments EMPTY, so a <c>.task</c> line for it would
+        /// be product surface for something no real project uses.</para>
+        ///
+        /// <para>Matched by NAME, first-come — never by position, which a reorder invalidates, and never by a
+        /// dictionary, which would collapse a task that calls the same POU twice.</para></summary>
         private static void RebuildCallList(object writeable, object taskFacet,
                                             System.Collections.Generic.IReadOnlyList<string> calls)
         {
@@ -342,10 +361,27 @@ namespace Volt.Ide.Codesys
                     $"CODESYS: the writeable call list is a {writeable.GetType().FullName}, which is not an IList " +
                     $"— it offers: {string.Join(", ", writeable.GetType().GetMethods(BF).Select(m => m.Name).Distinct().OrderBy(n => n))}");
 
+            // Read BEFORE the clear: after it the old entries are gone and there is nothing left to carry.
+            var carried = list.Cast<object>()
+                .Select(e => (Name: GetMember(e, "Name") as string, Comment: GetMember(e, "Comment") as string))
+                .Where(e => !string.IsNullOrEmpty(e.Name) && !string.IsNullOrEmpty(e.Comment))
+                .ToList();
+
             list.Clear();
             foreach (var name in calls)
-                list.Add(InvokeMethod(taskFacet, "CreatePouObject", name)
-                         ?? throw new InvalidOperationException($"CODESYS: CreatePouObject('{name}') returned nothing"));
+            {
+                var entry = InvokeMethod(taskFacet, "CreatePouObject", name)
+                            ?? throw new InvalidOperationException($"CODESYS: CreatePouObject('{name}') returned nothing");
+
+                var i = carried.FindIndex(c => string.Equals(c.Name, name, StringComparison.Ordinal));
+                if (i >= 0)
+                {
+                    SetMember(entry, "Comment", carried[i].Comment);
+                    carried.RemoveAt(i);        // one comment per entry, so a repeated call takes the next one
+                }
+
+                list.Add(entry);
+            }
         }
         private object Facet(object node, string facetTypeName)
         {
