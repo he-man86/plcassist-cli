@@ -10,6 +10,24 @@
  *
  * The recorded build oracle (expected-build.<vendor>.json) is captured SEPARATELY (record-corpus-build.ts)
  * and preserved across the swap. Re-record it when a project's source changes.
+ *
+ * ── SERVE THE RIGHT PROJECT FILE, AND CHECK THE COUNT ──────────────────────────────────────────────────────
+ *
+ * Three of the corpora come from a VARIANT of their project file, not the plainly-named one:
+ *
+ *     pro2193        <-  Pro2193-94-95-96_COdesys.project
+ *     lenze-mid      <-  Lenze_MID-S100_V5_00_602_T51_Codesys.project
+ *     awa-palletizer <-  AWA_Palletizer 09_1.project
+ *
+ * Serving the wrong one does NOT fail. It produces a plausible tree from a real project and swaps it in, and
+ * the damage only shows up as a diff — lenze pulled 7,259 files from the plain file against the corpus's
+ * 7,674, quietly deleting a thousand of them. **The file COUNT this prints is the check**: it must match the
+ * corpus, and if it does not, the project being served is not the one the corpus was recorded from.
+ *
+ * And read the DIFF, never `git status`, after a refresh. The corpus is `-diff` in .gitattributes and the
+ * files are rewritten wholesale, so status reports every file it touched — ~1,700 for one project — where
+ * `git diff --numstat --text` reports the handful that actually changed. Taking the status count for the
+ * change count buries the real result completely.
  */
 import { existsSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { execFileSync } from "node:child_process"
