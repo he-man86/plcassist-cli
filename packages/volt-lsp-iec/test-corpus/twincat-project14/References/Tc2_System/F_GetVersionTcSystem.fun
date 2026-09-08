@@ -1,0 +1,5 @@
+FUNCTION F_GetVersionTcSystem : UINT
+VAR_INPUT
+	nVersionElement : INT;
+END_VAR
+END_FUNCTION

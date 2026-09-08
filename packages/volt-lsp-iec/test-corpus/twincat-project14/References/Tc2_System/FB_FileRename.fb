@@ -1,0 +1,15 @@
+FUNCTION_BLOCK FB_FileRename
+VAR_INPUT
+	sNetId : T_AmsNetId;
+	sOldName : T_MaxString;
+	sNewName : T_MaxString;
+	ePath : E_OpenPath;
+	bExecute : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrId : UDINT;
+END_VAR
+END_FUNCTION_BLOCK

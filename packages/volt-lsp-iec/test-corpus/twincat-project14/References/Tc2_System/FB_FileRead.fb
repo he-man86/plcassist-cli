@@ -1,0 +1,17 @@
+FUNCTION_BLOCK FB_FileRead
+VAR_INPUT
+	sNetId : T_AmsNetId;
+	hFile : UINT;
+	pReadBuff : PVOID;
+	cbReadLen : UDINT;
+	bExecute : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrId : UDINT;
+	cbRead : UDINT;
+	bEOF : BOOL;
+END_VAR
+END_FUNCTION_BLOCK

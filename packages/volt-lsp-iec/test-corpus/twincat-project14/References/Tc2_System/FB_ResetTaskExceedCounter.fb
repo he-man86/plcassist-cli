@@ -1,0 +1,11 @@
+FUNCTION_BLOCK FB_ResetTaskExceedCounter
+VAR_INPUT
+	bExecute : BOOL;
+	nTaskAdsPort : UINT;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrorID : UDINT;
+END_VAR
+END_FUNCTION_BLOCK

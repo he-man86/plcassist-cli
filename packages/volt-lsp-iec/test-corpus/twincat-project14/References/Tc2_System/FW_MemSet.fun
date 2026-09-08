@@ -1,0 +1,7 @@
+FUNCTION FW_MemSet : UDINT
+VAR_INPUT
+	pDest : PVOID;
+	nFillByte : USINT;
+	cbLen : UDINT;
+END_VAR
+END_FUNCTION

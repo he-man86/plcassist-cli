@@ -1,0 +1,6 @@
+FUNCTION F_GetMappingStatus : EPlcMappingStatus
+VAR_INPUT
+	p : PVOID;
+	n : UDINT;
+END_VAR
+END_FUNCTION

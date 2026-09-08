@@ -1,0 +1,12 @@
+FUNCTION_BLOCK FB_PcWatchdog
+VAR_INPUT
+	tTimeOut : TIME;
+	bEnable : BOOL;
+END_VAR
+VAR_OUTPUT
+	bEnabled : BOOL;
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrId : UDINT;
+END_VAR
+END_FUNCTION_BLOCK

@@ -1,0 +1,6 @@
+FUNCTION Fw_Trace : DINT
+VAR_INPUT
+	val : DINT;
+	text : STRING(255);
+END_VAR
+END_FUNCTION

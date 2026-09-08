@@ -1,0 +1,8 @@
+TYPE E_UsrLED_Color :
+(
+	eUsrLED_Off,
+	eUsrLED_Red,
+	eUsrLED_Blue,
+	eUsrLED_Green
+);
+END_TYPE

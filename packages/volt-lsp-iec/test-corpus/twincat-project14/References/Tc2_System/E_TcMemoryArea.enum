@@ -1,0 +1,8 @@
+TYPE E_TcMemoryArea :
+(
+	Unknown,
+	Static,
+	Dynamic,
+	CNC
+);
+END_TYPE

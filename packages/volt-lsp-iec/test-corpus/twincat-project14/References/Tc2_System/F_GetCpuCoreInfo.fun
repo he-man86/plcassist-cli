@@ -1,0 +1,6 @@
+FUNCTION F_GetCpuCoreInfo : HRESULT
+VAR_INPUT
+	nCpuCoreIndex : DINT;
+	pInfo : POINTER TO ST_CpuCoreInfo;
+END_VAR
+END_FUNCTION

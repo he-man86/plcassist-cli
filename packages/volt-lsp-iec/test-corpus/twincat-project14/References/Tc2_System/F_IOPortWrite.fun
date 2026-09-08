@@ -1,0 +1,7 @@
+FUNCTION F_IOPortWrite : BOOL
+VAR_INPUT
+	nAddr : UDINT;
+	eSize : E_IOAccessSize;
+	nValue : DWORD;
+END_VAR
+END_FUNCTION

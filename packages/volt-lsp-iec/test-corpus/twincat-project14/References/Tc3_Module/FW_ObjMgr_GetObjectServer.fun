@@ -1,0 +1,6 @@
+FUNCTION FW_ObjMgr_GetObjectServer : HRESULT
+VAR_INPUT
+	oidApp : OTCID;
+	pipSrv : POINTER TO ITComObjectServer;
+END_VAR
+END_FUNCTION

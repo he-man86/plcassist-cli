@@ -1,0 +1,7 @@
+TYPE FW_NoOfByte :
+(
+	NoOfByte_Byte,
+	NoOfByte_Word,
+	NoOfByte_DWord
+);
+END_TYPE

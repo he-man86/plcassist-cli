@@ -12,6 +12,28 @@ skipped. A vendor branch or an early return is the failure mode this change exis
       silently. This is why "nothing routinely drives TwinCAT" was true in practice.
 - [ ] Nothing below.
 
+## 0b. MEASURED on the first live run (2026-09-08) — read before designing
+
+Four failures, in order, each one moving the boundary forward. The first three are FIXED; the fourth reframes
+the change.
+
+- [x] `twincat-instances.ps1` corrupted its own pid file: `$live + $pids` does STRING concatenation when
+      `Get-Content` returns a scalar (a one-line file), writing `"22620" + 10388` = a pid too big for Int32.
+      `down` then threw on binding and closed NOTHING — ten orphaned TcXaeShell windows accumulated unnoticed.
+- [x] A TwinCAT XAE starts every project IDLE and must be TOLD which to serve; `volt init` failed with "the
+      bridge has no PLC project loaded". In production the CONNECTOR selects when a client declares an interest,
+      so a finder — which has no session — selects directly over the pipe.
+- [x] `deviceRoot()` asserted a CODESYS shape and threw `found 0`. It is optional now.
+- [x] **DIALECT N15: a TwinCAT workspace has NO device root.** `src/POUs/…`, with `PlcTask.task`,
+      `External Types.external_types`, the `.tmc` and `References/` as siblings at the top — where CODESYS has
+      three structural levels (`<Device>/Plc Logic/Application`) before the first user item.
+
+**Which reframes the goal.** `Device/Plc Logic/Application/99 Library/Round.fun` has NO TwinCAT counterpart, so
+pushing a CODESYS corpus into a TwinCAT project is a PATH TRANSLATION — cross-vendor migration, a different and
+much larger feature than the same-vendor create-path coverage this finder exists for. **TwinCAT needs a
+TwinCAT-sourced corpus**, and until it has one the finder cannot be pointed at this vendor meaningfully. Task 3
+is therefore a PREREQUISITE for task 2, not a follow-on.
+
 ## 1. A blank TwinCAT project
 
 - [ ] Decide what "empty" IS for TwinCAT. CODESYS copies a shipped `Standard.project`; TwinCAT has no template

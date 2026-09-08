@@ -1,0 +1,19 @@
+FUNCTION_BLOCK FW_AdsLogEvent
+VAR_INPUT
+	sNetId : STRING(23);
+	nPort : UINT;
+	bEvent : BOOL;
+	bEventQuit : BOOL;
+	stEventConfigData : FW_TcEvent;
+	pEventDataAddress : PVOID;
+	cbEventDataLength : UDINT;
+	bFbCleanup : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	nEventState : UDINT;
+	bError : BOOL;
+	nErrId : UDINT;
+	bQuit : BOOL;
+END_VAR
+END_FUNCTION_BLOCK

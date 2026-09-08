@@ -1,0 +1,6 @@
+FUNCTION FW_GetMappingPartner : OTCID
+VAR_INPUT
+	p : PVOID;
+	n : UDINT;
+END_VAR
+END_FUNCTION

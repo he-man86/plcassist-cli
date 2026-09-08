@@ -1,0 +1,21 @@
+FUNCTION_BLOCK FB_BaDeviceIoControl
+VAR_INPUT
+	sNetID : T_AmsNetID;
+	affinity : T_U64KAFFINITY;
+	nModifier : UDINT;
+	nIdxGrp : UDINT;
+	nIdxOffs : UDINT;
+	cbWriteLen : UDINT;
+	cbReadLen : UDINT;
+	pWriteBuff : PVOID;
+	pReadBuff : PVOID;
+	bExecute : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrID : UDINT;
+	cbRead : UDINT;
+END_VAR
+END_FUNCTION_BLOCK

@@ -1,0 +1,11 @@
+FUNCTION_BLOCK FW_AdsReadRes
+VAR_INPUT
+	sNetId : STRING(23);
+	nPort : UINT;
+	nInvokeId : UDINT;
+	nErrId : UDINT;
+	cbReadLen : UDINT;
+	pReadBuff : PVOID;
+	bRespond : BOOL;
+END_VAR
+END_FUNCTION_BLOCK

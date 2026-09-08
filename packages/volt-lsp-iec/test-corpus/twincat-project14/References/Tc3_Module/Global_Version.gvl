@@ -1,0 +1,3 @@
+VAR_GLOBAL
+	stLibVersion_Tc3_Module : ST_LibVersion;
+END_VAR

@@ -1,0 +1,15 @@
+FUNCTION_BLOCK FW_AdsReadDeviceInfo
+VAR_INPUT
+	sNetId : STRING(23);
+	nPort : UINT;
+	bExecute : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrId : UDINT;
+	sDevName : STRING(19);
+	nDevVersion : UDINT;
+END_VAR
+END_FUNCTION_BLOCK

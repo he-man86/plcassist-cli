@@ -1,0 +1,6 @@
+FUNCTION ExCpHndFunc : UDINT
+VAR_INPUT
+	pUsr : PVOID;
+	pExcpHndPara : PVOID;
+END_VAR
+END_FUNCTION

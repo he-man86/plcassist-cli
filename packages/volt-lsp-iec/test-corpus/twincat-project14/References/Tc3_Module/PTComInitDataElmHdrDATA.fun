@@ -1,0 +1,5 @@
+FUNCTION PTComInitDataElmHdrDATA : POINTER TO TComInitDataElmHdr
+VAR_INPUT
+	pTComInitDataElmHdr : POINTER TO TComInitDataElmHdr;
+END_VAR
+END_FUNCTION

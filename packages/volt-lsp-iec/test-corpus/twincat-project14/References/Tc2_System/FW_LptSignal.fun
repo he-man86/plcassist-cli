@@ -1,0 +1,7 @@
+FUNCTION FW_LptSignal : BOOL
+VAR_INPUT
+	nPortAddr : UINT;
+	nPinNo : UINT;
+	bOnOff : BOOL;
+END_VAR
+END_FUNCTION

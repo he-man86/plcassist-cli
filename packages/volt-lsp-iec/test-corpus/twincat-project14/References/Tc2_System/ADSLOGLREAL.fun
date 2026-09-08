@@ -1,0 +1,7 @@
+FUNCTION ADSLOGLREAL : DINT
+VAR_INPUT
+	msgCtrlMask : DWORD;
+	msgFmtStr : T_MaxString;
+	lrealArg : LREAL;
+END_VAR
+END_FUNCTION

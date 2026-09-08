@@ -1,0 +1,7 @@
+FUNCTION ADSLOGDINT : DINT
+VAR_INPUT
+	msgCtrlMask : DWORD;
+	msgFmtStr : T_MaxString;
+	dintArg : DINT;
+END_VAR
+END_FUNCTION

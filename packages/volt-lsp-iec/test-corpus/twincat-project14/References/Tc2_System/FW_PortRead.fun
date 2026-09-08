@@ -1,0 +1,6 @@
+FUNCTION FW_PortRead : DWORD
+VAR_INPUT
+	nPortAddr : UDINT;
+	eNoOfByte : FW_NoOfByte;
+END_VAR
+END_FUNCTION

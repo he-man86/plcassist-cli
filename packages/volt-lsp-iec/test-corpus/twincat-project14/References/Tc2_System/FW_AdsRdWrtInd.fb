@@ -1,0 +1,16 @@
+FUNCTION_BLOCK FW_AdsRdWrtInd
+VAR_INPUT
+	bClear : BOOL;
+END_VAR
+VAR_OUTPUT
+	bValid : BOOL;
+	sNetId : STRING(23);
+	nPort : UINT;
+	nInvokeId : UDINT;
+	nIdxGrp : UDINT;
+	nIdxOffs : UDINT;
+	cbReadLen : UDINT;
+	cbWriteLen : UDINT;
+	pWriteBuff : PVOID;
+END_VAR
+END_FUNCTION_BLOCK

@@ -1,0 +1,5 @@
+FUNCTION FW_GetCpuIndex : DINT
+VAR_INPUT
+	taskIndex : DINT;
+END_VAR
+END_FUNCTION

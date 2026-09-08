@@ -1,0 +1,2 @@
+FUNCTION F_GetStructMemberAlignment : BYTE
+END_FUNCTION

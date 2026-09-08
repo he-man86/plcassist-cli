@@ -1,0 +1,7 @@
+FUNCTION FW_ObjMgr_CreateInstance : HRESULT
+VAR_INPUT
+	clsId : CLSID;
+	iid : IID;
+	pipUnk : POINTER TO ITcUnknown;
+END_VAR
+END_FUNCTION

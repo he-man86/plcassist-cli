@@ -1,0 +1,15 @@
+FUNCTION_BLOCK FB_BaGenGetVersion
+VAR_INPUT
+	sNetID : T_AmsNetID;
+	bExecute : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrID : UDINT;
+	nVersion : BYTE;
+	nRevision : BYTE;
+	nBuild : WORD;
+END_VAR
+END_FUNCTION_BLOCK

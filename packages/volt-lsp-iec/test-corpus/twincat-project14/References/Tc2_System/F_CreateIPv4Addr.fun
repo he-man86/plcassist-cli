@@ -1,0 +1,5 @@
+FUNCTION F_CreateIPv4Addr : T_IPv4Addr
+VAR_INPUT
+	nIds : T_IPv4AddrArr;
+END_VAR
+END_FUNCTION

@@ -1,0 +1,10 @@
+FUNCTION_BLOCK AnalyzeExpressionTable
+VAR_INPUT
+	InputExp : BOOL;
+	DoAnalyze : BOOL;
+END_VAR
+VAR_OUTPUT
+	ExpResult : BOOL;
+	OutTable : ARRAY [0..TABLE_UPPER_BOUND] OF ExpressionResult;
+END_VAR
+END_FUNCTION_BLOCK

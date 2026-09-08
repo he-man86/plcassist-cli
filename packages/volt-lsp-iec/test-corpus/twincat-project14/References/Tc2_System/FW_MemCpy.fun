@@ -1,0 +1,7 @@
+FUNCTION FW_MemCpy : UDINT
+VAR_INPUT
+	pDest : PVOID;
+	pSrc : PVOID;
+	cbLen : UDINT;
+END_VAR
+END_FUNCTION

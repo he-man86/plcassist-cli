@@ -1,0 +1,79 @@
+PROGRAM PLC_PRG
+VAR
+    fbUnit          : FB_PackML_Unit;
+    
+    xAtEmergencyStop: BOOL;
+    xAtSafetyOk     : BOOL;
+    xAtPowerOn      : BOOL;
+    xAtRemoteMode   : BOOL;
+    xAtMachineRun   : BOOL;
+    
+    xHmiStart       : BOOL;
+    xHmiStop        : BOOL;
+    xHmiReset       : BOOL;
+    xHmiClear       : BOOL;
+    xHmiHold        : BOOL;
+    xHmiUnhold      : BOOL;
+    xHmiSuspend     : BOOL;
+    xHmiUnsuspend   : BOOL;
+
+    eState          : E_PackML_State;
+    eMode           : E_PackML_Mode;
+    xIdle           : BOOL;
+    xExecute        : BOOL;
+    xStopped        : BOOL;
+    xComplete       : BOOL;
+    xAborted        : BOOL;
+    xHeld           : BOOL;
+    xSuspended      : BOOL;
+    nStatusWord     : WORD;
+    nControlWord    : WORD;
+    udiGoodCount    : UDINT;
+    udiBadCount     : UDINT;
+    udiTotalCount   : UDINT;
+END_VAR
+
+// ---------------------------------------------------------------------------
+// Drive the PackML unit
+// ---------------------------------------------------------------------------
+fbUnit(
+    xEmergencyStop  := xAtEmergencyStop,
+    xSafetyOk       := xAtSafetyOk,
+    xPowerOn        := xAtPowerOn,
+    xRemoteMode     := xAtRemoteMode,
+    xMachineRunning := xAtMachineRun
+);
+
+// ---------------------------------------------------------------------------
+// Mirror outputs for HMI / SCADA
+// ---------------------------------------------------------------------------
+eState        := fbUnit.eState;
+eMode         := fbUnit.eMode;
+xIdle         := fbUnit.xIdle;
+xExecute      := fbUnit.xExecute;
+xStopped      := fbUnit.xStopped;
+xComplete     := fbUnit.xComplete;
+xAborted      := fbUnit.xAborted;
+xHeld         := fbUnit.xHeld;
+xSuspended    := fbUnit.xSuspended;
+nStatusWord   := fbUnit.nStatusWord;
+nControlWord  := fbUnit.nControlWord;
+udiGoodCount  := fbUnit.udiGoodCount;
+udiBadCount   := fbUnit.udiBadCount;
+udiTotalCount := fbUnit.udiTotalCount;
+
+// ---------------------------------------------------------------------------
+// HMI command mapping — feed control word bits to mode manager
+//   (to be wired via the control word or direct BOOL I/O)
+// ---------------------------------------------------------------------------
+// Example: reading HMI buttons
+// fbUnit.fbModeManager.xStart     := xHmiStart;
+// fbUnit.fbModeManager.xStop      := xHmiStop;
+// fbUnit.fbModeManager.xReset     := xHmiReset;
+// fbUnit.fbModeManager.xClear     := xHmiClear;
+// fbUnit.fbModeManager.xHold      := xHmiHold;
+// fbUnit.fbModeManager.xUnhold    := xHmiUnhold;
+// fbUnit.fbModeManager.xSuspend   := xHmiSuspend;
+// fbUnit.fbModeManager.xUnsuspend := xHmiUnsuspend;
+
+END_PROGRAM

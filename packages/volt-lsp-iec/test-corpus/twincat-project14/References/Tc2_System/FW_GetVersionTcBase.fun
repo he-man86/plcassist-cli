@@ -1,0 +1,5 @@
+FUNCTION FW_GetVersionTcBase : UINT
+VAR_INPUT
+	nVersionElement : INT;
+END_VAR
+END_FUNCTION

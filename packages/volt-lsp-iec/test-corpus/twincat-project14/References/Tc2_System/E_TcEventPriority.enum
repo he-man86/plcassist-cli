@@ -1,0 +1,5 @@
+TYPE E_TcEventPriority :
+(
+	TCEVENTPRIO_IMPLICIT
+);
+END_TYPE

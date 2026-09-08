@@ -1,0 +1,15 @@
+FUNCTION_BLOCK FW_AdsReadState
+VAR_INPUT
+	sNetId : STRING(23);
+	nPort : UINT;
+	bExecute : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrId : UDINT;
+	nAdsState : UINT;
+	nDevState : UINT;
+END_VAR
+END_FUNCTION_BLOCK

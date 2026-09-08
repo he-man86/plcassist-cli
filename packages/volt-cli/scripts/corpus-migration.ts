@@ -36,6 +36,8 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, 
 import { tmpdir } from "node:os"
 import { dirname, join, relative, sep } from "node:path"
 import { SOURCE_EXTENSIONS } from "@volt/control"
+// The e2e harness owns the pipe framing; importing it keeps ONE client rather than a second copy of the wire.
+import { callOn } from "../test/e2e/lib/pipe"
 
 const REPO = join(import.meta.dir, "..", "..", "..")
 const VOLT = join(REPO, "packages", "volt-cli", "src", "Volt.Cli", "bin", "Release", "net8.0", "volt.exe")
@@ -47,17 +49,10 @@ const TC_WORKER = join(REPO, "packages", "volt-cli", "src", "Volt.Ide.Twincat", 
 /** The worker this run spawned, so `close()` can stop the one it started and not someone else's. */
 let tcWorker: ReturnType<typeof spawn> | null = null
 
-/** The device-root segment, replaced by this placeholder on both sides so a corpus harvested from `Device`
- *  can be compared against a blank project whose controller is `PLCWinNT`. */
-const DEV = "<device>"
-/** The TASK CONTAINER's segment, normalized for the same reason and in the same way: the vendor names that node
- *  itself and the name is LOCALIZED — a German CODESYS ships `Taskkonfiguration` where an English project's walk
- *  emits `Task Configuration` — so a task migrated between the two lands at a different path and would read as
- *  MISSING+EXTRA rather than as a successful migration. */
-const TASKS = "<taskconfig>"
 /** A referenced library's files carry SOURCE extensions but are read-only by LOCATION — the push refuses them
- *  and the blank target has different libraries anyway. Excluded by folder, exactly as the CLI does. */
-const LIBRARY_DIR = "Library Manager"
+ *  and the blank target has different libraries anyway. Excluded by folder, exactly as the CLI does.
+ *  Each vendor names that folder itself: `Library Manager` on CODESYS, `References` on TwinCAT. */
+const LIBRARY_DIRS = new Set(["Library Manager", "References"])
 const FOLDER_MARKER = ".gitkeep"
 /** A body with no text form — CFC, SFC, IL. The file carries this instead of source. */
 const BODY_MARKER = "(* @volt-graphical:"
@@ -67,13 +62,13 @@ const VENDOR = process.env.VOLT_VENDOR ?? "codesys"
 // ── vendor lifecycle: open a BLANK project, serve it, close it ────────────────────────────────────────────
 
 interface Blank {
-	/** Opens a throwaway empty project and blocks until its pipe serves. */
-	open(label: string): void
+	/** Opens a throwaway empty project and resolves once its pipe is SERVING a project. */
+	open(label: string): Promise<void>
 	close(): void
 }
 
 const CODESYS: Blank = {
-	open(label) {
+	async open(label) {
 		// A COPY of the shipped template, per corpus — never a committed fixture, and never twice over the same
 		// file: the point is that the target starts empty every single time.
 		const scratch = mkdtempSync(join(tmpdir(), `volt-blank-${label}-`))
@@ -129,7 +124,7 @@ function buildToolchain(): void {
  * performing, and one that would make the run depend on the tray being up.
  */
 const TWINCAT: Blank = {
-	open(label) {
+	async open(label) {
 		const scratch = mkdtempSync(join(tmpdir(), `volt-blank-tc-${label}-`))
 		cpSync(join(REPO, "packages", "volt-cli", "test", "fixtures", "TwinCAT Project13"), scratch, { recursive: true })
 		const sln = join(scratch, "TwinCAT Project13.sln")
@@ -142,7 +137,22 @@ const TWINCAT: Blank = {
 		// worker cannot attach to a solution that is still opening.
 		Bun.sleepSync(90_000)
 		tcWorker = spawn(TC_WORKER, ["--xae-pid", pid], { stdio: ["ignore", "ignore", "inherit"] })
-		waitForPipe()
+		const pipe = waitForPipe()
+
+		// A TwinCAT XAE starts every project IDLE and must be TOLD which to serve — CODESYS serves its loaded
+		// project by default. Without this the first `volt init` fails with "the bridge has no PLC project
+		// loaded", which reads like the IDE never opened and is really "nobody selected it". In production the
+		// CONNECTOR does this select when a client declares an interest; a finder has no session, so it selects
+		// directly. Same framing the e2e harness uses (`callOn`), deliberately not a second copy of it.
+		const deadline = Date.now() + 120_000
+		while (Date.now() < deadline) {
+			const health = await callOn(pipe, "health").catch(() => ({ projects: [] as any[] }))
+			if ((health.projects ?? []).some((p: any) => p.status === "healthy")) return
+			const first = (health.projects ?? [])[0]?.project
+			if (first) await callOn(pipe, "connect", { project: first }).catch(() => {})
+			await new Promise((r) => setTimeout(r, 2000))
+		}
+		throw new Error(`the TwinCAT bridge never served a project on ${pipe} — is the XAE still loading?`)
 	},
 	close() {
 		tcWorker?.kill()
@@ -160,11 +170,12 @@ function codesysInstall(): string {
 }
 
 /** The host serves `volt.bridge.<vendor>.<pid>`; wait for any pipe under the vendor prefix. */
-function waitForPipe(timeoutMs = 300_000): void {
+function waitForPipe(timeoutMs = 300_000): string {
 	const prefix = `volt.bridge.${VENDOR}.`
 	const deadline = Date.now() + timeoutMs
 	while (Date.now() < deadline) {
-		if (readdirSync("\\\\.\\pipe\\").some((p) => p.startsWith(prefix))) return
+		const found = readdirSync("\\\\.\\pipe\\").find((p) => p.startsWith(prefix))
+		if (found) return found
 		Bun.sleepSync(2000)
 	}
 	throw new Error(`no ${prefix}* pipe after ${timeoutMs / 1000}s — did the IDE fail to open the blank project?`)
@@ -200,13 +211,45 @@ function initWorkspace(label: string): { root: string; src: string; dispose: () 
 
 // ── the tree under comparison ─────────────────────────────────────────────────────────────────────────────
 
-/** The single top-level directory holding `Plc Logic` — the controller, whatever it is named. */
-function deviceRoot(root: string): string {
-	const hit = readdirSync(root, { withFileTypes: true }).filter(
+/**
+ * THE STRUCTURAL PREFIX a vendor puts in front of the engineer's own items — stripped so two vendors' trees can
+ * be compared as what they are: the same payload under different plumbing.
+ *
+ * CODESYS puts THREE levels first (`<Device>/Plc Logic/Application`); TwinCAT puts NONE, and materializes the PLC
+ * project's contents at the top of `src/` (DIALECT N15). Everything under `Application` is the payload, and on
+ * TwinCAT that payload IS the root. Normalising only the device SEGMENT — which is what this did — compares
+ * `Device/Plc Logic/Application/99 Library/Round.fun` against `99 Library/Round.fun` and calls every item
+ * MISSING+EXTRA.
+ *
+ * Returns "" when the vendor has no prefix, which is not an error and must not be treated as one.
+ */
+function structuralPrefix(root: string): string {
+	const device = readdirSync(root, { withFileTypes: true }).filter(
 		(e) => e.isDirectory() && existsSync(join(root, e.name, "Plc Logic")),
 	)
-	if (hit.length !== 1) throw new Error(`expected exactly one device root under ${root}, found ${hit.length}`)
-	return hit[0]!.name
+	if (device.length > 1) throw new Error(`expected at most one device root under ${root}, found ${device.length}`)
+	if (device.length === 0) return ""                                  // TwinCAT: the payload is the root
+
+	// `Application` is where the engineer's items begin. A CODESYS project can hold more than one; the finder
+	// handles the single-application shape every corpus has, and says so rather than picking one silently.
+	const plc = join(root, device[0]!.name, "Plc Logic")
+	const apps = readdirSync(plc, { withFileTypes: true }).filter((e) => e.isDirectory())
+	if (apps.length !== 1)
+		throw new Error(`expected exactly one Application under ${plc}, found ${apps.length} — multi-application ` +
+			`projects are not handled by this finder`)
+	return `${device[0]!.name}/Plc Logic/${apps[0]!.name}`
+}
+
+/** Strip the vendor's structural prefix, and the TASK CONTAINER with it.
+ *
+ *  <p>A task's container is structure too, and the vendors disagree about it twice over: CODESYS nests tasks in
+ *  a node it NAMES (`Task Configuration`, or `Taskkonfiguration` on a German install — DIALECT C22), TwinCAT has
+ *  no such node and puts `PlcTask.task` at the root. So the container is dropped on both sides and a task is
+ *  compared by its own name, which is what the wire keys it by anyway.</p> */
+function stripStructure(rel: string, prefix: string): string {
+	let out = prefix && rel.startsWith(prefix + "/") ? rel.slice(prefix.length + 1) : rel
+	if (out.endsWith(".task")) out = out.slice(out.lastIndexOf("/") + 1)
+	return out
 }
 
 /** Every extension a push may CARRY. `SOURCE_EXTENSIONS` is writable *source*; a `.task` is a writable
@@ -225,16 +268,16 @@ function isSource(name: string): boolean {
  * dropped by folder (read-only by location) and reference manifests by extension.
  */
 function pushableTree(root: string): Map<string, string> {
-	const device = deviceRoot(root)
+	const prefix = structuralPrefix(root)
 	const out = new Map<string, string>()
 	const walk = (dir: string): void => {
 		for (const e of readdirSync(dir, { withFileTypes: true })) {
 			if (e.isDirectory()) {
-				if (e.name !== LIBRARY_DIR) walk(join(dir, e.name))
+				if (!LIBRARY_DIRS.has(e.name)) walk(join(dir, e.name))
 			} else if (isSource(e.name) || e.name === FOLDER_MARKER) {
 				const path = join(dir, e.name)
 				const rel = relative(root, path).split(sep).join("/")
-				out.set(rel.startsWith(device + "/") ? DEV + rel.slice(device.length) : rel, readFileSync(path, "utf8"))
+				out.set(stripStructure(rel, prefix), readFileSync(path, "utf8"))
 			}
 		}
 	}
@@ -242,18 +285,27 @@ function pushableTree(root: string): Map<string, string> {
 	return out
 }
 
-/** The directory holding the `.task` files, device-normalized, or null when the tree has none. */
-function taskDir(tree: Map<string, string>): string | null {
-	for (const rel of tree.keys()) if (rel.endsWith(".task")) return rel.slice(0, rel.lastIndexOf("/"))
-	return null
-}
-
-/** Rewrite the task container's own segment to {@link TASKS}, so two projects that name it differently compare. */
-function normalizeTasks(tree: Map<string, string>): Map<string, string> {
-	const dir = taskDir(tree)
-	if (dir === null) return tree
-	const canon = dir.slice(0, dir.lastIndexOf("/") + 1) + TASKS
-	return new Map([...tree].map(([rel, text]) => [rel.startsWith(dir + "/") ? canon + rel.slice(dir.length) : rel, text]))
+/** The folder the TARGET keeps its tasks in, relative to its structural prefix — "" when it keeps them at the
+ *  root, which is what TwinCAT does. Read from a tree that still HAS a task; after the emptying push it cannot
+ *  be recovered. */
+function taskContainer(root: string): string {
+	const prefix = structuralPrefix(root)
+	const walk = (dir: string): string | null => {
+		for (const e of readdirSync(dir, { withFileTypes: true })) {
+			const p = join(dir, e.name)
+			if (e.isDirectory()) {
+				const hit = walk(p)
+				if (hit !== null) return hit
+			} else if (e.name.endsWith(".task")) {
+				const rel = relative(root, p).split(sep).join("/")
+				const within = prefix && rel.startsWith(prefix + "/") ? rel.slice(prefix.length + 1) : rel
+				const cut = within.lastIndexOf("/")
+				return cut < 0 ? "" : within.slice(0, cut)
+			}
+		}
+		return null
+	}
+	return walk(root) ?? ""
 }
 
 /**
@@ -309,13 +361,19 @@ function adaptForVendor(files: Map<string, string>): { files: Map<string, string
 }
 
 /** Lay the staged files into the workspace, removing any the workspace has and the set does not — so one push
- *  exercises create, update AND delete, which is what a real migration does. `tasksAs` is the TARGET's own name
- *  for its task container, read before the target was emptied — once its tasks are gone the tree no longer says. */
+ *  exercises create, update AND delete, which is what a real migration does.
+ *
+ *  <p>The payload arrives with every vendor structure stripped, so it is put back under the TARGET's: its
+ *  prefix (`<Device>/Plc Logic/<Application>` on CODESYS, nothing on TwinCAT) and, for a task, the container
+ *  the target itself uses. `tasksAs` is read from the target BEFORE it is emptied — once its tasks are gone the
+ *  tree no longer says where they live, and on TwinCAT the answer is legitimately "" (the root).</p> */
 function stage(files: Map<string, string>, srcRoot: string, tasksAs: string): void {
-	const device = deviceRoot(srcRoot)
-	const abs = (rel: string): string =>
-		join(srcRoot, rel.replace(DEV, device).replace(TASKS, tasksAs).split("/").join(sep))
-	for (const rel of normalizeTasks(pushableTree(srcRoot)).keys()) if (!files.has(rel)) rmSync(abs(rel))
+	const prefix = structuralPrefix(srcRoot)
+	const abs = (rel: string): string => {
+		const placed = rel.endsWith(".task") && tasksAs ? `${tasksAs}/${rel}` : rel
+		return join(srcRoot, (prefix ? `${prefix}/${placed}` : placed).split("/").join(sep))
+	}
+	for (const rel of pushableTree(srcRoot).keys()) if (!files.has(rel)) rmSync(abs(rel))
 	for (const [rel, text] of files) {
 		const path = abs(rel)
 		mkdirSync(dirname(path), { recursive: true })
@@ -346,7 +404,7 @@ function firstDifference(want: string, got: string): string {
 
 // ── one corpus, end to end ────────────────────────────────────────────────────────────────────────────────
 
-function migrate(name: string): string[] {
+async function migrate(name: string): Promise<string[]> {
 	const blank = BLANKS[VENDOR]
 	if (!blank) throw new Error(`no blank-project launcher for '${VENDOR}' — CODESYS only for now`)
 
@@ -361,7 +419,7 @@ function migrate(name: string): string[] {
 	// pair can carry, and it IS the finding - not noise on the way to one.
 	for (const n of notes) console.log(`   adapted  ${n}`)
 
-	blank.open(name)
+	await blank.open(name)
 	const pusher = initWorkspace(`push-${name}`)
 	try {
 		// EMPTY THE TARGET IN ITS OWN PUSH, then migrate into it. The shipped template is not actually empty — it
@@ -375,12 +433,12 @@ function migrate(name: string): string[] {
 		// before the migration, so the second push is a pure CREATE — which is the path this exists to exercise.
 		// Read BEFORE emptying: the target's own name for its task container is only visible while it still has
 		// a task in it, and the migrating push needs it to place the `.task` files it lays down.
-		const tasksAs = (taskDir(pushableTree(pusher.src)) ?? "").split("/").pop() || "Task Configuration"
+		const tasksAs = taskContainer(pusher.src)
 
 		stage(new Map(), pusher.src, tasksAs)
 		volt(pusher.root, ["push"])
 
-		stage(normalizeTasks(staged), pusher.src, tasksAs)
+		stage(staged, pusher.src, tasksAs)
 		volt(pusher.root, ["push"])
 
 		// A SECOND workspace, so what comes back is a materialization and never a merge. A `volt pull` back into
@@ -388,7 +446,7 @@ function migrate(name: string): string[] {
 		// diff — which hides the one thing this is looking for.
 		const reader = initWorkspace(`read-${name}`)
 		try {
-			return diff(normalizeTasks(staged), normalizeTasks(pushableTree(reader.src)))
+			return diff(staged, pushableTree(reader.src))
 		} finally {
 			// VOLT_KEEP leaves both workspaces on disk and prints them. A DRIFTED line is one line of context; the
 			// bug behind it is usually visible only in the whole file, and the run that produced it is the
@@ -416,7 +474,7 @@ buildToolchain()
 const findings = new Map<string, string[]>()
 for (const name of corpora) {
 	try {
-		findings.set(name, migrate(name))
+		findings.set(name, await migrate(name))
 	} catch (err) {
 		findings.set(name, [`the migration itself failed: ${err instanceof Error ? err.message : String(err)}`])
 	}

@@ -1,0 +1,5 @@
+FUNCTION F_ScanAmsNetIds : T_AmsNetIdArr
+VAR_INPUT
+	sNetID : T_AmsNetID;
+END_VAR
+END_FUNCTION

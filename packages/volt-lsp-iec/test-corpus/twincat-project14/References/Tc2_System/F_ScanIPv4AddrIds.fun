@@ -1,0 +1,5 @@
+FUNCTION F_ScanIPv4AddrIds : T_IPv4AddrArr
+VAR_INPUT
+	sIPv4 : T_IPv4Addr;
+END_VAR
+END_FUNCTION

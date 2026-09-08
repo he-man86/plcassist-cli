@@ -1,0 +1,15 @@
+FUNCTION_BLOCK FB_FileGets
+VAR_INPUT
+	sNetId : T_AmsNetId;
+	hFile : UINT;
+	bExecute : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrId : UDINT;
+	sLine : T_MaxString;
+	bEOF : BOOL;
+END_VAR
+END_FUNCTION_BLOCK

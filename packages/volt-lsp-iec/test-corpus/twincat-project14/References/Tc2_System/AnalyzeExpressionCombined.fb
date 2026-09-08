@@ -1,0 +1,11 @@
+FUNCTION_BLOCK AnalyzeExpressionCombined
+VAR_INPUT
+	InputExp : BOOL;
+	DoAnalyze : BOOL;
+END_VAR
+VAR_OUTPUT
+	ExpResult : BOOL;
+	OutTable : ARRAY [0..TABLE_UPPER_BOUND] OF ExpressionResult;
+	OutString : STRING(STRING_LENGTH_OUTSTRING);
+END_VAR
+END_FUNCTION_BLOCK

@@ -1,0 +1,5 @@
+FUNCTION FW_ObjMgr_DeleteInstance : HRESULT
+VAR_INPUT
+	pipUnk : POINTER TO ITcUnknown;
+END_VAR
+END_FUNCTION

@@ -1,0 +1,5 @@
+FUNCTION F_GetTaskTotalTime : UDINT
+VAR_INPUT
+	nTaskIndex : DINT;
+END_VAR
+END_FUNCTION

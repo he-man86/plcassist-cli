@@ -1,0 +1,12 @@
+FUNCTION_BLOCK FB_SimpleAdsLogEvent
+VAR_INPUT
+	SourceID : INT;
+	EventID : INT;
+	bSetEvent : BOOL;
+	bQuit : BOOL;
+END_VAR
+VAR_OUTPUT
+	ErrId : UDINT;
+	Error : BOOL;
+END_VAR
+END_FUNCTION_BLOCK

@@ -1,0 +1,19 @@
+FUNCTION_BLOCK ADSLOGEVENT
+VAR_INPUT
+	NETID : T_AmsNetId;
+	PORT : UINT;
+	Event : BOOL;
+	EventQuit : BOOL;
+	EventConfigData : TcEvent;
+	EventDataAddress : PVOID;
+	EventDataLength : UDINT;
+	FbCleanup : BOOL;
+	TMOUT : TIME;
+END_VAR
+VAR_OUTPUT
+	EventState : UDINT;
+	Err : BOOL;
+	ErrId : UDINT;
+	Quit : BOOL;
+END_VAR
+END_FUNCTION_BLOCK

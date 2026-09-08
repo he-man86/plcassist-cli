@@ -31,6 +31,11 @@ namespace Volt.Engine.Tests;
 /// </summary>
 public class StFixedPointTests
 {
+    /// <summary>Each vendor's name for the referenced-library tree. Kept beside the sweep that uses it, because
+    /// the finder (`scripts/corpus-migration.ts`) needs the same pair and the two drifting apart is how one
+    /// vendor's signatures quietly enter a gate that was never meant to judge them.</summary>
+    private static readonly string[] LibraryFolders = { "Library Manager", "References" };
+
     private static readonly string FixtureDir =
         Path.Combine(AppContext.BaseDirectory, "fixtures", "st-fixed-point");
 
@@ -188,8 +193,11 @@ public class StFixedPointTests
         foreach (var file in Directory.EnumerateFiles(corpus, "*.*", SearchOption.AllDirectories))
         {
             // A referenced library's signatures carry source extensions but are RENDERED, not pulled — they are
-            // read-only by location and never travel back through a push.
-            if (file.Contains("Library Manager", StringComparison.Ordinal)) continue;
+            // read-only by location and never travel back through a push, so they are not held to the round trip.
+            // BOTH vendors' names for that folder: CODESYS calls it `Library Manager`, TwinCAT `References`.
+            // Only CODESYS was excluded, which was invisible until a TwinCAT corpus existed — and then 216
+            // rendered signature files entered the sweep at once.
+            if (LibraryFolders.Any(f => file.Contains(f, StringComparison.Ordinal))) continue;
             // `WireExtFor` FIRST. A DUT is one wire kind but four FILE extensions (.struct/.enum/.union/.alias),
             // and `KindForWireName` only knows the wire spelling — so asking it about a file extension answered
             // null for every DUT and this sweep silently skipped 290 of the corpus's 902 files, a third of the

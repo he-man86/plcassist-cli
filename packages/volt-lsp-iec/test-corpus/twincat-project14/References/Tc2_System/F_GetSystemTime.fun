@@ -1,0 +1,2 @@
+FUNCTION F_GetSystemTime : ULINT
+END_FUNCTION

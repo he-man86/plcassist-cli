@@ -1,0 +1,2 @@
+FUNCTION FW_GetCurTaskIndexEx : DINT
+END_FUNCTION

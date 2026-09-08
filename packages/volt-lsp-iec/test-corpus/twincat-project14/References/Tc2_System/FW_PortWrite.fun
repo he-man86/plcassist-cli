@@ -1,0 +1,7 @@
+FUNCTION FW_PortWrite : BOOL
+VAR_INPUT
+	nPortAddr : UDINT;
+	eNoOfByte : FW_NoOfByte;
+	nValue : DWORD;
+END_VAR
+END_FUNCTION

@@ -32,10 +32,18 @@ $work    = Join-Path $env:LOCALAPPDATA "volt-bridge"
 if (-not (Test-Path $work)) { New-Item -ItemType Directory -Force $work | Out-Null }
 $pidFile = Join-Path $work "twincat-instances.pids"
 
+# The tracked pids, as INTS, skipping anything that is not one. A corrupt entry must not stop the rest from
+# being closed - the file is written by a previous run and read by this one, so it is the least trustworthy
+# input the script has.
+function Read-Pids([string]$path) {
+    if (-not (Test-Path $path)) { return @() }
+    @(Get-Content $path | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ })
+}
+
 switch ($Action) {
     "down" {
         if (Test-Path $pidFile) {
-            foreach ($procId in Get-Content $pidFile) {
+            foreach ($procId in (Read-Pids $pidFile)) {
                 try { Stop-Process -Id $procId -Force -ErrorAction Stop; Write-Host "closed TcXaeShell pid $procId" } catch {}
             }
             Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
@@ -62,11 +70,13 @@ switch ($Action) {
         # way through so the file cannot grow stale entries.
         $live = @()
         if (Test-Path $pidFile) {
-            $live = Get-Content $pidFile | Where-Object { $_ } | Where-Object {
-                (Get-Process -Id $_ -ErrorAction SilentlyContinue) -ne $null
-            }
+            $live = @(Read-Pids $pidFile | Where-Object { (Get-Process -Id $_ -ErrorAction SilentlyContinue) -ne $null })
         }
-        ($live + $pids | Select-Object -Unique) | Out-File $pidFile
+        # `@(...)` on BOTH sides. `$live + $pids` did STRING concatenation whenever the file held exactly ONE
+        # pid, because Get-Content returns a scalar for a one-line file: "22620" + 10388 wrote "2262010388", a
+        # number too large for Int32. `down` then failed to kill anything and left every IDE running - which is
+        # how ten orphaned TcXaeShell windows accumulated before anyone noticed.
+        (@($live) + @($pids) | Select-Object -Unique) | Out-File $pidFile -Encoding ascii
         Write-Host ""
         Write-Host "TcXaeShell is loading; give it ~30-60s to open the PLC project(s). The connector worker then"
         Write-Host "attaches over the COM ROT. Run the multi-XAE e2e from packages/volt-cli:"

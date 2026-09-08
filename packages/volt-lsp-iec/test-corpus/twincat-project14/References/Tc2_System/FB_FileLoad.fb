@@ -1,0 +1,16 @@
+FUNCTION_BLOCK FB_FileLoad
+VAR_INPUT
+	sNetId : T_AmsNetId;
+	sPathName : T_MaxString;
+	pReadBuff : PVOID;
+	cbReadLen : UDINT;
+	bExecute : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrId : UDINT;
+	cbRead : UDINT;
+END_VAR
+END_FUNCTION_BLOCK

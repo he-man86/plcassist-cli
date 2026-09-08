@@ -1,0 +1,5 @@
+FUNCTION FW_GetTaskTotalTime : UDINT
+VAR_INPUT
+	taskIndex : DINT;
+END_VAR
+END_FUNCTION

@@ -1,0 +1,6 @@
+FUNCTION F_IOPortRead : DWORD
+VAR_INPUT
+	nAddr : UDINT;
+	eSize : E_IOAccessSize;
+END_VAR
+END_FUNCTION

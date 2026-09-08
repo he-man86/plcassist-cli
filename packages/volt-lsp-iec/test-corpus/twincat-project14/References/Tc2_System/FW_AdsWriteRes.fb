@@ -1,0 +1,9 @@
+FUNCTION_BLOCK FW_AdsWriteRes
+VAR_INPUT
+	sNetId : STRING(23);
+	nPort : UINT;
+	nInvokeId : UDINT;
+	nErrId : UDINT;
+	bRespond : BOOL;
+END_VAR
+END_FUNCTION_BLOCK

@@ -1,0 +1,2 @@
+FUNCTION F_GetTaskInfo : PlcTaskSystemInfo
+END_FUNCTION

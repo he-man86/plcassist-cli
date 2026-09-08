@@ -1,0 +1,5 @@
+FUNCTION F_GetCpuCoreIndex : DINT
+VAR_INPUT
+	nTaskIndex : DINT;
+END_VAR
+END_FUNCTION

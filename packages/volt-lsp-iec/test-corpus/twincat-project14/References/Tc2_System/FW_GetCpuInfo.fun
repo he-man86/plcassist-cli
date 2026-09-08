@@ -1,0 +1,6 @@
+FUNCTION FW_GetCpuInfo : HRESULT
+VAR_INPUT
+	cpuIndex : DINT;
+	pInfo : POINTER TO ST_CpuCoreInfo;
+END_VAR
+END_FUNCTION

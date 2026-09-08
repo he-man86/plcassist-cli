@@ -1,0 +1,15 @@
+FUNCTION_BLOCK FW_AdsReadIndEx
+VAR_INPUT
+	bClear : BOOL;
+	nMinIdxGrp : UDINT;
+END_VAR
+VAR_OUTPUT
+	bValid : BOOL;
+	sNetId : STRING(23);
+	nPort : UINT;
+	nInvokeId : UDINT;
+	nIdxGrp : UDINT;
+	nIdxOffs : UDINT;
+	cbReadLen : UDINT;
+END_VAR
+END_FUNCTION_BLOCK

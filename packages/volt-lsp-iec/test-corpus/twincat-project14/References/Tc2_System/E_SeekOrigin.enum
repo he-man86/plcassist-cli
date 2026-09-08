@@ -1,0 +1,7 @@
+TYPE E_SeekOrigin :
+(
+	SEEK_SET,
+	SEEK_CUR,
+	SEEK_END
+);
+END_TYPE

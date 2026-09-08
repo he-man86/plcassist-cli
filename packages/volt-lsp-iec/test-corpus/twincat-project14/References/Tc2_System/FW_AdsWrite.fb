@@ -1,0 +1,17 @@
+FUNCTION_BLOCK FW_AdsWrite
+VAR_INPUT
+	sNetId : STRING(23);
+	nPort : UINT;
+	nIdxGrp : UDINT;
+	nIdxOffs : UDINT;
+	cbWriteLen : UDINT;
+	pWriteBuff : PVOID;
+	bExecute : BOOL;
+	tTimeout : TIME;
+END_VAR
+VAR_OUTPUT
+	bBusy : BOOL;
+	bError : BOOL;
+	nErrId : UDINT;
+END_VAR
+END_FUNCTION_BLOCK
