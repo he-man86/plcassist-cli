@@ -509,6 +509,7 @@ public static class PushService
         // evidence there is — see `BodyFormatGuard.RequireAuthorable`, called on that arm.
 
         ItemRef pou;
+        ItemRef? createdParent = null;   // set only when THIS op creates the item; drives the rollback at the end
         ItemContent? live = null;
         if (existing is not { } existingPou)
         {
@@ -525,6 +526,7 @@ public static class PushService
             // language at creation; CODESYS takes it from the content. There is no create-arm per language - the
             // language is data.
             pou = ide.CreateChild(targetParent, name, itemType, NetworkText.LanguageOf(impl));
+            createdParent = targetParent;      // for the rollback below — the item did not exist before this op
             // The COM reference from CreateChild is stale for interface items - re-find before writing anything,
             // and FAIL if the re-find misses rather than writing through the handle this very line calls dead. On
             // TwinCAT a write to a detached COM object can succeed silently, so the interface would land EMPTY
@@ -631,7 +633,54 @@ public static class PushService
         //   - `BodyFormatGuard.RequireChildFormatWritable` over a parsed document: the guard's POLICY (decide
         //     from the IDE's LIVE body language, never from the incoming text) is right and survives - inside
         //     the driver, which is the only layer that can ask the IDE cheaply.
-        ide.WriteContent(pou, OnlyChanged(live, split), pushedDeclarations);
+        // A REFUSED CREATE LEAVES NOTHING BEHIND.
+        //
+        // The create site above already says this — "a refused push must not leave an orphaned, unlisted stub
+        // POU behind that blocks the next create" — and validates the text before creating. But the text is
+        // only the half that is knowable up front. TwinCAT's graphical CREATE resolves the body through a
+        // PLCopen import, and the importer can come back with FEWER networks than were pushed (PLCopen has no
+        // element for an empty one, D25); `Stamp` then refuses, correctly, from inside this write.
+        //
+        // MEASURED: pushing a two-network LD body whose second network holds only a label was refused with
+        // "the number of networks changes (1 -> 2)" — and left `PROGRAM X / VAR / END_VAR / NETWORK 0 FBD` in
+        // the project. An empty shell wearing the engineer's POU name, which the next pull then materializes as
+        // if they had written it. That shell is what a corpus migration read back as five separate losses;
+        // there was no silent success anywhere, only a refusal whose wreckage looked like one.
+        //
+        // Best-effort, and deliberately: the rollback must never replace the REAL refusal with its own failure.
+        // The engineer needs the reason the push was refused; a delete that also fails is a second problem, not
+        // a better message.
+        try
+        {
+            ide.WriteContent(pou, OnlyChanged(live, split), pushedDeclarations);
+        }
+        catch when (createdParent is { } parent && Rollback(ide, parent, name))
+        {
+            throw;   // unreachable: the filter returns false. Present so the compiler sees a complete catch.
+        }
+    }
+
+    /// <summary>Delete an item this push had just created, from an exception FILTER so the original exception
+    /// keeps its stack and is the one that reaches the client.
+    ///
+    /// <para>Always returns FALSE, so the catch block never runs and the throw propagates untouched. A filter
+    /// is the right place because it runs BEFORE the stack unwinds and cannot swallow what it is reacting to —
+    /// the alternative, catch-delete-rethrow, is one stray `throw ex;` away from losing the reason.</para></summary>
+    private static bool Rollback(IIdeDriver ide, ItemRef parent, string name)
+    {
+        try
+        {
+            ide.Delete(parent, Materializer.Bare(name));
+            VoltLog.Debug($"push: rolled back the create of '{name}' after its content write was refused");
+        }
+        catch (Exception ex)
+        {
+            // The shell survives. Say so — it is the state the engineer's project is actually in, and a silent
+            // failure here is how it would be discovered by a later push refusing to create over it.
+            VoltLog.Warn($"push: '{name}' was created and its content refused, and the create could NOT be " +
+                         $"rolled back — an empty item is left in the project: {ex.Message}");
+        }
+        return false;
     }
 
     /// <summary>Drop the members whose content the IDE already has, so a push writes what an engineer CHANGED

@@ -37,6 +37,14 @@ setDefaultTimeout(30000)
 
 const CASES = [["CFC", "VltFixtureCfc"], ["SFC", "VltFixtureSfc"]] as const
 
+/** A well-formed ST body of the SAME KIND as the item named — so a push carries only the change under test. */
+function stOfSameKind(fullName: string): string {
+	const [bare, ext] = [fullName.split(".")[0]!, fullName.split(".").pop()!]
+	const kw = ext === "prg" ? "PROGRAM" : ext === "fun" ? "FUNCTION" : "FUNCTION_BLOCK"
+	const head = kw === "FUNCTION" ? `${kw} ${bare} : INT` : `${kw} ${bare}`
+	return `${head}\nVAR\n\tnHacked : INT;\nEND_VAR\n\nnHacked := 1;\nEND_${kw}\n`
+}
+
 describe(`graphical / unsupported bodies are never overwritten (${BASE})`, () => {
 	// bare fixture name -> full wire name, resolved once (`.fb` on CODESYS, `.prg` on TwinCAT).
 	const wire = new Map<string, string>()
@@ -92,10 +100,15 @@ describe(`graphical / unsupported bodies are never overwritten (${BASE})`, () =>
 				ops: [{
 					op: "set",
 					name,
-					// A WELL-FORMED program. The refusal has to come from the body being a diagram, not from a parse
-					// error: without END_PROGRAM the push is rejected for "Missing END_PROGRAM" and the test goes green
-					// while proving nothing about diagram protection.
-					sourceText: `PROGRAM ${name.split(".")[0]}\nVAR\n\tnHacked : INT;\nEND_VAR\n\nnHacked := 1;\nEND_PROGRAM\n`,
+					// A WELL-FORMED body OF THE ITEM'S OWN KIND. The refusal has to come from the body being a
+					// diagram, and every guard that fires EARLIER hides the one under test:
+					//   - without `END_...` the push is rejected for "Missing END_..." — a parse error;
+					//   - as a `PROGRAM` over these `.fb` fixtures it is rejected for changing the item's KIND
+					//     ("a push writes an object's TEXT and cannot change what it IS"), which is a correct
+					//     refusal for the wrong reason and is what this test started reporting when that guard
+					//     landed.
+					// So the keyword is derived from the item's extension rather than hard-coded.
+					sourceText: stOfSameKind(name),
 					ifVersion: refs.items[name],
 				}],
 			})

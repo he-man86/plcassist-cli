@@ -381,10 +381,17 @@ function stage(files: Map<string, string>, srcRoot: string, tasksAs: string): vo
 	}
 }
 
-/** A readable report: what is missing, what is extra, and the first line that differs. */
-function diff(expected: Map<string, string>, actual: Map<string, string>): string[] {
+/**
+ * A readable report: what is missing, what is extra, and the first line that differs.
+ *
+ * An item the bridge REFUSED BY NAME is not a finding here. It was deliberately not pushed, the refusal is
+ * already printed as its own line, and reporting it a second time as `MISSING` says the run failed at something
+ * it in fact handled — which is exactly how a known vendor limit starts reading as noise and gets ignored.
+ */
+function diff(expected: Map<string, string>, actual: Map<string, string>, refused: Map<string, string>): string[] {
 	const problems: string[] = []
 	for (const [rel, want] of expected) {
+		if (refused.has(rel)) continue
 		const got = actual.get(rel)
 		if (got === undefined) problems.push(`${rel}: MISSING — did not survive the migration`)
 		else if (got !== want) problems.push(`${rel}: DRIFTED\n${firstDifference(want, got)}`)
@@ -426,8 +433,8 @@ function pushAllItCan(
 	pusher: { root: string; src: string },
 	staged: Map<string, string>,
 	tasksAs: string,
-): string[] {
-	const refused: string[] = []
+): Map<string, string> {
+	const refused = new Map<string, string>()
 	const remaining = new Map(staged)
 
 	// One attempt per refusable item, plus one that must succeed. A bound rather than `while (true)`: if a
@@ -447,7 +454,7 @@ function pushAllItCan(
 
 			for (const k of named) {
 				remaining.delete(k)
-				refused.push(`${k} — ${lines.get(k.split("/").pop()!)}`)
+				refused.set(k, lines.get(k.split("/").pop()!) ?? "refused by the bridge")
 			}
 			// RE-STAGE FIRST, THEN PULL. `stage` deletes what is no longer in the map, so this drops the
 			// refused file from the workspace before the merge sees it. The other order conflicts on exactly
@@ -458,7 +465,7 @@ function pushAllItCan(
 			volt(pusher.root, ["pull"])
 		}
 	}
-	throw new Error("the push kept being refused after " + staged.size + " attempts. Refusals so far:\n" + refused.join("\n"))
+	throw new Error("the push kept being refused after " + staged.size + " attempts. Refusals so far:\n" + [...refused].map((e) => e[0] + " - " + e[1]).join("\n"))
 }
 
 /**
@@ -519,14 +526,14 @@ async function migrate(name: string): Promise<string[]> {
 
 		stage(staged, pusher.src, tasksAs)
 		const refused = pushAllItCan(pusher, staged, tasksAs)
-		for (const r of refused) console.log(`   refused  ${r}`)
+		for (const [k, r] of refused) console.log(`   refused  ${k} — ${r}`)
 
 		// A SECOND workspace, so what comes back is a materialization and never a merge. A `volt pull` back into
 		// the pusher would be a git merge, so a genuine reshape shows up as a CONFLICT rather than a readable
 		// diff — which hides the one thing this is looking for.
 		const reader = initWorkspace(`read-${name}`)
 		try {
-			return diff(staged, pushableTree(reader.src))
+			return diff(staged, pushableTree(reader.src), refused)
 		} finally {
 			// VOLT_KEEP leaves both workspaces on disk and prints them. A DRIFTED line is one line of context; the
 			// bug behind it is usually visible only in the whole file, and the run that produced it is the

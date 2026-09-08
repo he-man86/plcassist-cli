@@ -595,9 +595,25 @@ public sealed class FakeIde : DriverBase, IIdeDriver
     /// document and nothing else, so a member added by a push was invisible to any later tree walk — which made
     /// the member transport untestable offline, and would have let "the member cannot be found after its own
     /// write" pass here and fail live.</summary>
+    /// <summary>Make the next content write FAIL, the way a vendor's own import can.
+    ///
+    /// <para>A refusal that only a live IDE can produce still has consequences the engine owns — a create that
+    /// is refused mid-write must roll back, and that rule is testable offline only if the write can be made to
+    /// refuse. Set to the exception to throw; left null, this fake behaves exactly as before.</para>
+    ///
+    /// <para>An explicit hook rather than a subclass: <c>FakeIde</c> is sealed on purpose, so that every test
+    /// shares ONE model of the drivers and cannot quietly grow a second by overriding a member.</para></summary>
+    public Func<ItemRef, Exception?>? RefuseContentWrite { get; init; }
+
+    /// <summary>Is this item in the project? For assertions about what a failed push LEFT BEHIND, which is not
+    /// visible through any transport the fake records.</summary>
+    public bool Exists(string bareName) => _items.Any(i => i.Name == bareName);
+
     public void WriteContent(ItemRef item, ItemContent content,
                              IReadOnlyDictionary<string, string> pushedDeclarations)
     {
+        if (RefuseContentWrite?.Invoke(item) is { } refusal) throw refusal;
+
         var name = NameOf(item);
         Recorded.Add($"writecontent:{name}");
         WrittenContent[name] = content;
