@@ -58,7 +58,8 @@ pwsh scripts/build-cli.ps1                           # publish volt.exe + pipe w
 ```
 
 Headless CODESYS dev loop: `pwsh scripts/codesys-pipe.ps1 up|down|logs` loads the in-proc pipe host into a
-headless CODESYS against a fixture project; then `VOLT_PIPE=volt.bridge.codesys bun test test/e2e`.
+CODESYS against a fixture project - through the SHIPPED host, so the IDE stays usable and the e2e drives the
+same path a user does; then `bun run test:e2e:codesys`.
 
 ### Where a test goes
 

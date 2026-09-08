@@ -1,4 +1,4 @@
-# scripts
+﻿# scripts
 
 **One job: ship + verify the whole product.** Everything here spans *all* the `volt-*` packages — so it can't
 live in any single package. Package-specific scripts live in that package's `scripts/` dir (map at the bottom).
@@ -99,7 +99,7 @@ VS Code extension manifest). Offline and key-free, so **CI runs it on every push
 
 | Script | Home |
 |---|---|
-| `build-cli.ps1` (publish the toolchain), `codesys-pipe.ps1` (headless CODESYS dev loop), `start_pipe.py`/`run_pipe_headless.py` | `packages/volt-cli/scripts/` |
+| `build-cli.ps1` (publish the toolchain), `codesys-pipe.ps1` (CODESYS dev loop, through the shipped host), `run_pipe_production.py` | `packages/volt-cli/scripts/` |
 | LSP corpus/conformance recorders + oracles | `packages/volt-lsp-iec/scripts/` |
 
 The installer itself lives at **`installer/`** — `Volt.iss` plus a `README.md` documenting every location Volt

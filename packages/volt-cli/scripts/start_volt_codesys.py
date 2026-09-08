@@ -6,7 +6,7 @@ Runs inside the LIVE CODESYS IDE: loads Volt.Ide.Codesys and hands PipeHost
 the live scripting objects, so the Volt toolchain talks to THIS IDE session over
 the named pipe `volt.bridge.codesys.<pid>` (per-instance, so several CODESYS can
 run at once). PipeHost.Start returns immediately; the IDE's own message loop keeps
-the pipe served (no pump needed here — unlike run_pipe_headless.py).
+the pipe served (no pump needed here — the IDE has one).
 
 Stop it again with stop_volt_codesys.py.
 

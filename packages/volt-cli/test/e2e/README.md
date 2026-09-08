@@ -76,7 +76,7 @@ The TwinCAT fixtures are committed **source-only** — a `test/.gitignore` strip
 `scripts/codesys-pipe.ps1` loads the in-proc pipe host into CODESYS against the committed **fixture** (never
 your live IDE). Two modes:
 
-> It opens the fixture **in place** — `run_pipe_headless.py` calls `projects.open(path)` on the committed file.
+> It opens the fixture **in place** — `run_pipe_production.py` calls `projects.open(path)` on the committed file.
 > This said "a copy" until 2026-09-03 and there has never been one; the claim had also reached CLAUDE.md and
 > a change proposal, where it was used to argue TwinCAT should copy too.
 >
@@ -87,12 +87,8 @@ your live IDE). Two modes:
 > reason `twincat-e2e-fixture-hygiene` exists.
 
 ```powershell
-# headless (fast dev/CI-ish loop) — no window, --noUI
+# ONE mode: a normal GUI CODESYS running the SHIPPED start_volt_codesys.py
 pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up
-# GUI — the real IDE, still driven by the HARNESS script (it opens the fixture and pumps the loop)
-pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up -Ui
-# PRODUCTION — the SHIPPED start_volt_codesys.py, in a normal GUI IDE (implies -Ui)
-pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up -Production
 # multiple instances (per-pid pipes): -Instance a / -Instance b
 pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up -Instance a
 pwsh packages/volt-cli/scripts/codesys-pipe.ps1 down          # (add -Instance a to stop that one)
@@ -100,14 +96,22 @@ pwsh packages/volt-cli/scripts/codesys-pipe.ps1 down          # (add -Instance a
 bun run test:e2e:codesys   # discovers the live codesys pipe + runs the suite
 ```
 
-**`-Production` is the one that matches what users do**, and the difference from `-Ui` is not cosmetic.
-`run_pipe_headless.py` is a test harness: it loads the bridge straight from the build output and PUMPS the
-message loop itself, because a headless IDE has none. `start_volt_codesys.py` — the script that ships, run
-verbatim by `run_pipe_production.py` — stages the bridge into a **per-session temp copy** (which is what
-lets an install update while the IDE is open) and returns immediately, leaving the **IDE's own message loop**
-to serve the pipe. Measured 2026-09-05: 189 pass / 0 fail on both, so the harness was not hiding anything —
-but only `-Production` proves the path an engineer actually takes. Stop it the way they do, from the IDE:
-`stop_volt_codesys.py`.
+**There is one way to serve CODESYS, and it is the way users do it.** There used to be three — `-Ui`, and a
+HEADLESS default that opened the IDE with `--noUI` and pumped the message loop from `run_pipe_headless.py`,
+because a headless IDE has none running. That harness is deleted. It loaded the bridge straight from the build
+output and owned the loop, so the e2e tier spent its life proving a path that ships with nothing — and the IDE
+was unusable while it served, because the pump held the primary thread.
+
+`start_volt_codesys.py` — the script that ships, run verbatim by `run_pipe_production.py` — stages the bridge
+into a **per-session temp copy** (which is what lets an install update while the IDE is open) and returns
+immediately, leaving the **IDE's own message loop** to serve the pipe. The window is then a normal CODESYS you
+can click around in while the suite drives it. Measured 2026-09-05, before the deletion: 189 pass / 0 fail on
+both hosts, so the harness was not hiding a defect — it was hiding a difference. Stop it the way a user does,
+from the IDE: `stop_volt_codesys.py` (or `codesys-pipe.ps1 down`, which kills the pid it launched).
+
+The one thing the harness did that the shipped script does not is silence .NET assertion dialogs; that moved
+into `run_pipe_production.py`, which is the right home — an engineer at their desk wants to see an assertion,
+an unattended sweep must never stop on a modal window, and a modal window blocks COM outright.
 
 > SP21's scripting engine is **Python 3**. Several comments in the shipped scripts still say "IronPython
 > 2.7" — true of SP18, not of SP21. It matters: `execfile()` does not exist there, and the

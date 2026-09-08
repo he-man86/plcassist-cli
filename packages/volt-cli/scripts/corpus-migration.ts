@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CORPUS MIGRATION — a GAP FINDER, not a gate.
  *
  * It pushes a real customer project into an EMPTY one and materializes the result back, so every item is a
@@ -80,10 +80,21 @@ const CODESYS: Blank = {
 		// ships INSIDE the bridge, so a fix compiled into volt.exe alone leaves the wire serving the old code and
 		// the run measures a binary that no longer exists. That is the stale-bridge trap, and it has cost a
 		// re-recorded corpus before.
+		// VOLT_SHOW serves the blank through the PRODUCTION host and leaves the IDE open at the end, so the
+		// migrated project can be looked at AND DRIVEN. The on-disk `Blank.project` is useless for that on its
+		// own: a push writes into the IDE's in-memory project and nothing here saves, so the file on disk is
+		// still the untouched template.
+		//
+		// Nothing is needed to make the IDE usable: the launcher serves every project through the SHIPPED host,
+		// so the IDE's own message loop answers the pipe and the window stays clickable while the push runs.
 		ps(LAUNCHER, ["-Action", "up", "-NoBuild", "-Project", project])
 		waitForPipe()
 	},
 	close() {
+		if (process.env.VOLT_SHOW) {
+			console.log("  VOLT_SHOW: leaving the IDE open on the migrated project — close it yourself when done")
+			return
+		}
 		ps(LAUNCHER, ["-Action", "down"])
 	},
 }

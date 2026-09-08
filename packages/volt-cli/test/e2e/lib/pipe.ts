@@ -1,4 +1,4 @@
-/**
+﻿/**
  * THE WIRE — discovering the live bridge pipe and making one call on it. Nothing above this layer knows what a
  * socket is.
  *
@@ -114,7 +114,7 @@ export function call(op: string, body?: unknown): Promise<any> {
 	if (!livePipes().includes(pipe))
 		throw new Error(
 			`no live ${PIPE_PREFIX}* pipe — is the IDE running with its project loaded? ` +
-				`(CODESYS: scripts/codesys-pipe.ps1 up -Production · TwinCAT: scripts/twincat-instances.ps1 up, connector running)`,
+				`(CODESYS: scripts/codesys-pipe.ps1 up · TwinCAT: scripts/twincat-instances.ps1 up, connector running)`,
 		)
 	return callOn(pipe, op, body)
 }

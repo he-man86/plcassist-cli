@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 # Build the unified Volt CLI toolchain + the user-facing Connector (pipe transport):
 #   - volt.exe:            the PLC CLI (Volt.Cli) — git-native sync over the named pipe.
 #   - VoltBridgeTwincat:   standalone worker that attaches to TwinCAT over COM, serves pipe `volt.bridge.twincat`.
@@ -60,7 +60,7 @@ Write-Output "  OK -> dist\Twincat\VoltBridgeTwincat.exe"
 Write-Output "`n[3/4] Volt.Ide.Codesys (in-proc DLL)"
 & $DOTNET build "$ROOT\src\Volt.Ide.Codesys\Volt.Ide.Codesys.csproj" @VERARGS -c Release -o "$DIST\Codesys" --nologo -v q
 if ($LASTEXITCODE -ne 0) { Write-Output "  FAILED"; exit 1 }
-# Ship only the user-facing activation scripts; run_pipe_headless.py is a dev/test launcher, not for the installer.
+# Ship only the user-facing activation scripts; run_pipe_production.py is the dev/test launcher around them.
 Copy-Item "$ROOT\scripts\start_volt_codesys.py","$ROOT\scripts\stop_volt_codesys.py" -Destination "$DIST\Codesys\" -Force
 Write-Output "  OK -> dist\Codesys\ (Volt.Ide.Codesys.dll + deps + pipe scripts)"
 

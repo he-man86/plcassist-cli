@@ -93,9 +93,16 @@ bun test test/e2e                                          # TS e2e parity suite
 pwsh scripts/build-cli.ps1                                 # publish volt.exe + pipe workers + the connector bundle
 ```
 
-Headless CODESYS dev/test loop (Windows/PowerShell): `pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up|down|logs`
-loads the in-proc pipe host into a headless CODESYS against a committed **fixture** project (never the
-engineer's live IDE); then run `bun test test/e2e` with `VOLT_PIPE=volt.bridge.codesys`.
+CODESYS dev/test loop (Windows/PowerShell): `pwsh packages/volt-cli/scripts/codesys-pipe.ps1 up|down|logs`
+serves a committed **fixture** project (never the engineer's live IDE); then `bun run test:e2e:codesys`, which
+discovers the live pipe by prefix — it is `volt.bridge.codesys.<pid>`, one per IDE, so there is nothing to
+hand it.
+
+**There is one way to serve an IDE and it is the way a user does it**: a normal GUI CODESYS running the SHIPPED
+`start_volt_codesys.py`, whose own message loop answers the pipe — so the IDE stays clickable while the suite
+drives it. The headless harness that opened with `--noUI` and pumped the loop itself is DELETED; it was faster
+and it was the default, which meant the whole e2e tier proved a path that ships with nothing (a different DLL
+load, and a pump no user has).
 
 ## Volt architecture (big picture)
 
