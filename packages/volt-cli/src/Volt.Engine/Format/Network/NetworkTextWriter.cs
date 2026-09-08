@@ -35,6 +35,72 @@ public static class NetworkTextWriter
         return sb.ToString();
     }
 
+    /// <summary>The reason this body has no faithful text form, or null when every flag in it can be spelled.
+    /// A body that answers non-null MUST materialize as <c>BodyMarker.For(reason)</c> instead of being written.
+    ///
+    /// <para><b>Why this exists at all.</b> <c>AssignOp</c> spells a coil's STORAGE and nothing else: a target
+    /// carrying <c>Negated</c>, <c>Rising</c> or <c>Falling</c> renders as a plain <c>:=</c>, so a negated coil
+    /// and a rising-edge coil both pull as ordinary coils. That is a DIFFERENT MACHINE, written into the
+    /// engineer's file as if it were their own code, and nothing downstream can notice: the fixed-point round
+    /// trip compares Volt's output against Volt's output, so a flag dropped on the PULL is absent from both
+    /// sides and re-emits identically forever. Same shape as the reset-coil bug, which inverted 128 coils in
+    /// one real project and showed up in no diff.</para>
+    ///
+    /// <para><b>Why a MARKER, and not a throw, and not a new spelling.</b> Throwing loses the whole POU —
+    /// <c>Versioning.SafeVersion</c> swallows it to UNREADABLE and <c>FetchService</c> then drops the item, its
+    /// declaration and every sibling method from refs and fetch, which is exactly the disaster the IL arm in
+    /// <c>CodesysDriver.ReadBody</c> documents. Inventing text for these coils is the other extreme:
+    /// <c>scripts/probe-nwl-coil-modifiers.py</c> censused every assignment target in five real customer
+    /// projects — 576 targets, 48 graphical POUs, 427 networks, including the 34-ladder Lenze project — and
+    /// found <b>none</b> of the three (<c>scripts/nwl-coil-modifiers.log</c>). A format extension for a
+    /// construct that occurs zero times is a guess at syntax nobody has asked for; the marker is this
+    /// codebase's own existing answer for "no editable text form" (CFC, SFC, IL), and it degrades a body Volt
+    /// cannot express into one the engineer is TOLD about rather than one that silently lies.</para>
+    ///
+    /// <para><see cref="Flags.Jump"/> and <see cref="Flags.Return"/> are deliberately NOT here: they are
+    /// spelled, by the control-flow path rather than by <c>AssignOp</c>. The census found one real
+    /// <c>Return</c> target — Lenze's <c>ATD_FQI</c> — and it round-trips as
+    /// <c>IF ioAxis.xVirtual THEN RETURN; END_IF</c>.</para></summary>
+    public static string? Unspellable(NetworkBody body)
+    {
+        foreach (var net in body.Networks)
+            foreach (var tree in net.Trees)
+                if (UnspellableIn(tree) is { } why)
+                    return $"{body.Language.ToString().ToUpperInvariant()} ({why})";
+        return null;
+    }
+
+    private static string? UnspellableIn(Node? n)
+    {
+        switch (n)
+        {
+            case Assign a:
+                foreach (var t in a.Targets)
+                {
+                    // A coil kind is ONE enum (Flags.CoilFromVendor): none / set / reset / negated, and
+                    // `AssignOp` spells the first three. Rising and Falling are separate bits, orthogonal to it.
+                    if (t.Flags is not { } f) continue;
+                    if (f.Negated) return "negated coil";
+                    if (f.Rising) return "rising-edge coil";
+                    if (f.Falling) return "falling-edge coil";
+                }
+                return UnspellableIn(a.Value);
+            case Box b:
+                if (UnspellableIn(b.Enable) is { } be) return be;
+                foreach (var p in b.Inputs)
+                    if (UnspellableIn(p.Value) is { } pe) return pe;
+                return null;
+            case Demux d: return UnspellableIn(d.Input);
+            case Parallel p2:
+                if (UnspellableIn(p2.Input) is { } ie) return ie;
+                foreach (var br in p2.Branches)
+                    if (UnspellableIn(br) is { } bre) return bre;
+                return null;
+            case Terminator t2: return UnspellableIn(t2.Input);
+            default: return null;
+        }
+    }
+
     /// <summary>Per-network emission state: the minted-name counters, the names that must not be shadowed, and
     /// the prelude that hoisted <c>LET</c> statements accumulate into while an expression is being rendered.</summary>
     private sealed class Emitter

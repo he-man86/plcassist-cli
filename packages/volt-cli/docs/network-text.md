@@ -426,6 +426,20 @@ This is a property of the **coil**, so it is written on the coil. It used to be 
   writer rendered no modifier on a target at all. `GeneralProgramFlags` network 0, comment *"Always Off"*,
   pulled as `AlwaysOff := AlwaysOff SET;`. Pushed back, the flag that must stay false latches true.
 
+**Three coil kinds have no spelling here, and a body containing one materializes as the marker rather than as
+text.** A coil can also be *negated* (the fourth value of that same enum — `Negation` without `Set`) or
+*edge-triggered* (the vendor's separate `Rtrig`/`Ftrig` bits, the Edge Detection command applied to a coil
+output, `<coil edge="rising">` in PLCopen). The operator spells storage and only storage, so all three used to
+render as a plain `:=` — the same silent inversion the reset coil suffered above, and just as invisible, since
+re-emitting the text reproduces it byte-for-byte. They are now refused at materialization
+(`NetworkTextWriter.Unspellable`), so the file says `(* @volt-graphical: LD (rising-edge coil) *)` and the
+engineer is told.
+
+No syntax was invented for them because there is nothing to calibrate it against: a census of every assignment
+target in five real customer projects — 576 targets, 48 graphical POUs, 427 networks, including a 34-ladder
+project — found **zero** of the three (`scripts/probe-nwl-coil-modifiers.py`, `scripts/nwl-coil-modifiers.log`).
+If one ever turns up in a real body, that measurement is what a spelling should be designed from.
+
 `S=`/`R=` are recognised only as a token of their own — preceded by whitespace, not followed by `=` — so a
 comparison, or an l-value whose name ends in those letters, is never mistaken for one.
 A modifier on a *bare-leaf operand inside a group* turns that leaf into an **opaque leaf** (because `NOT b` is no

@@ -127,6 +127,12 @@ public sealed partial class CodesysDriver
                 if (language is null) return (null, BodyMarker.For("IL"));
 
                 var model = CodesysNetworkReader.Read(impl, language.Value);
+
+                // A coil modifier the text form cannot spell makes the body a MARKER, never a plain coil. The
+                // silent alternative writes a different machine into the engineer's file; see
+                // `NetworkTextWriter.Unspellable`. Same arm as IL and for the same reason.
+                if (NetworkTextWriter.Unspellable(model) is { } why) return (null, BodyMarker.For(why));
+
                 var text = NetworkTextWriter.Write(model).Trim();
                 return (language, text.Length == 0 ? null : text);
             }

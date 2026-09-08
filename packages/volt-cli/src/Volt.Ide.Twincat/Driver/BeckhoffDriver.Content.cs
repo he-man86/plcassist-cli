@@ -274,6 +274,11 @@ public sealed partial class BeckhoffDriver
             if (TcArchive.HasUnreadableExecuteBox(impl)) return BodyMarker.For("EXECUTE");
 
             var model = TcNetworkReader.Read(impl, language.Value);
+
+            // Byte-identical with CODESYS: a coil modifier the text form cannot spell is a MARKER on both
+            // vendors, because the model is the same model (DIALECT N1) and the format is the same format.
+            if (NetworkTextWriter.Unspellable(model) is { } why) return BodyMarker.For(why);
+
             var text = NetworkTextWriter.Write(model).Trim();
             return text.Length == 0 ? null : text;
         }
