@@ -675,8 +675,16 @@ public static class PushService
         a is null ? b is null
         : b is not null && Text(a.Declaration) == Text(b.Declaration) && Text(a.Body) == Text(b.Body);
 
-    /// <summary>Compare on the text as it LANDS: the drivers trim, so a trailing newline is not a change.</summary>
-    private static string Text(string? s) => (s ?? "").TrimEnd();
+    /// <summary>Compare on the text as it LANDS: both drivers trim exactly ONE thing on write, the line
+    /// terminator the wire adds, so a trailing newline is not a change and everything else is.
+    ///
+    /// <para><c>TrimEnd('\n')</c>, matching <c>BodyText</c> in both drivers. This read <c>TrimEnd()</c> under
+    /// a comment asserting "the drivers trim" — they trim NEWLINES; trailing SPACES on the last line survive
+    /// the write. No reachable loss is known through it today (<c>StReader</c> normalises a declaration's
+    /// trailing whitespace before it ever gets here), so this is alignment rather than a fix — but a
+    /// change-detector that is laxer than the writer it gates can only ever fail one way: by deciding an edit
+    /// is not an edit.</para></summary>
+    private static string Text(string? s) => (s ?? "").TrimEnd('\n');
 
     /// <summary>Bring the member SET into line with the pushed source: create what the source declares and the
     /// project lacks, remove what the project has and the source dropped.
