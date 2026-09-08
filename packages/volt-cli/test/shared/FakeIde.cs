@@ -40,9 +40,29 @@ public sealed class FakeIde : DriverBase, IIdeDriver
         string? Declaration, string? Implementation, string? BodyLang, string? UnreadableReason,
         string[]? Children = null)
     {
-        /// <summary>A plain textual (ST) POU — materializes via the declaration/implementation transports.</summary>
+        /// <summary>A plain textual (ST) POU — materializes via the declaration/implementation transports.
+        ///
+        /// <para>The TREE CODE is derived from the declaration HERE, when the fixture is authored — which is
+        /// legitimate, because a fixture is describing a project that already exists. It used to be hard-coded
+        /// <c>PlcPouProg</c> for every one of ~84 fixtures, most of which declare a FUNCTION_BLOCK, and the
+        /// mismatch was hidden by <c>KindOf</c> re-deriving the kind from the declaration TEXT on every read —
+        /// a transformation no driver performs. Deriving once at authoring time keeps the fixture honest AND
+        /// the read path faithful; the two are different jobs and only the second is the driver's.</para></summary>
         public static Item TextualPou(string name, string decl, string impl, string folder = "") =>
-            new Item(name, ItemKind.PlcPouProg, folder, true, decl, impl, null, null);
+            new Item(name, CodeForDeclaration(decl), folder, true, decl, impl, null, null);
+
+        /// <summary>The tree code a declaration describes — the fixture-side twin of PushService's
+        /// <c>PouKindToCode</c>, which is what a real create would have used to make this object.</summary>
+        private static int CodeForDeclaration(string decl) =>
+            Volt.Engine.Format.St.CodeHelper.ParseCodeHeader(decl) switch
+            {
+                ItemKind.Kinds.FunctionBlock => ItemKind.PlcPouFb,
+                ItemKind.Kinds.Function => ItemKind.PlcPouFunc,
+                ItemKind.Kinds.Interface => ItemKind.PlcItf,
+                ItemKind.Kinds.Dut => ItemKind.PlcDut,
+                ItemKind.Kinds.Gvl => ItemKind.PlcGvl,
+                _ => ItemKind.PlcPouProg,
+            };
 
         /// <summary>An item the driver CANNOT read — the offline stand-in for the orphaned LD POU that bricked
         /// <c>/refs</c> for a whole project. What made it unreadable used to be a PLCopen export with no body
@@ -491,13 +511,18 @@ public sealed class FakeIde : DriverBase, IIdeDriver
         _ => ItemKind.Map(code) ?? throw new System.InvalidOperationException($"FakeIde: unmapped member code {code}"),
     };
 
-    private static string KindOf(Item it)
-    {
-        var header = Volt.Engine.Format.St.CodeHelper.ParseCodeHeader(it.Declaration ?? "");
-        return string.IsNullOrEmpty(header)
-            ? ItemKind.Map(it.KindCode) ?? ItemKind.Kinds.FunctionBlock
-            : header;
-    }
+    /// <summary>An item's KIND, from its TREE CODE — never from its declaration text.
+    ///
+    /// <para>This used to parse the declaration's header and fall back to the code, which made the fake perform
+    /// a transformation NEITHER driver performs: both take the kind from the tree
+    /// (<c>ItemKind.Map(KindCode(item))</c>) and refuse when it does not map. A fake that re-types an item from
+    /// the text it was just handed reports whatever a push asserted — so a push rewriting `FUNCTION_BLOCK X`
+    /// as `PROGRAM X` reads back as a program and every offline test agrees with it, while a real IDE still
+    /// holds a function block. A fake must store raw and derive nothing its driver does not; deriving MORE is
+    /// how it invents agreement.</para></summary>
+    private static string KindOf(Item it) =>
+        ItemKind.Map(it.KindCode)
+        ?? throw new System.InvalidOperationException($"FakeIde: unmapped item code {it.KindCode} for '{it.Name}'");
 
     /// <summary>An item's body AS A DRIVER WOULD RETURN IT. A language Volt cannot author has no text form, so
     /// a real driver materializes it as the marker; a fake that returned the raw stored text instead would let a
@@ -538,8 +563,31 @@ public sealed class FakeIde : DriverBase, IIdeDriver
                 child.Name,
                 child.KindCode == ItemKind.PlcAction ? $"ACTION {child.Name}" : child.Declaration ?? "",
                 BodyTextOf(child),
-                string.IsNullOrEmpty(child.Folder) ? null : child.Folder);
+                string.IsNullOrEmpty(child.Folder) ? null : child.Folder,
+                AccessorOf(child, ItemKind.PlcPropGet),
+                AccessorOf(child, ItemKind.PlcPropSet));
         }
+    }
+
+    /// <summary>A property's GET or SET, from the property's own children — or null when it has none.
+    ///
+    /// <para><b>The fake modelled no accessors at all</b>, so every property came back with null Getter and
+    /// Setter however its children were declared. That is not a small omission: it made the whole accessor READ
+    /// path untestable offline, and it is why `AccessorDeclaration.Keep` could silently drop the empty
+    /// `VAR`/`END_VAR` block CODESYS really holds (~320 getters in one corpus) with 600 tests green. A fake that
+    /// cannot express a field cannot fail on it.</para>
+    ///
+    /// <para>Goes through the same <see cref="AccessorDeclaration.Keep"/> the drivers use, so the fake agrees
+    /// with them about when a declaration EXISTS rather than having a second opinion.</para></summary>
+    private Accessor? AccessorOf(Item property, int accessorKind)
+    {
+        foreach (var name in property.Children ?? System.Array.Empty<string>())
+        {
+            var acc = FindOrNull(Ref(name));
+            if (acc is null || acc.KindCode != accessorKind) continue;
+            return new Accessor(AccessorDeclaration.Keep(acc.Declaration), BodyTextOf(acc));
+        }
+        return null;
     }
 
     /// <summary>A write brings its members into existence, because that is what the real one does: afterwards a

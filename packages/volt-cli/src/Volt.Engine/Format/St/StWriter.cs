@@ -110,7 +110,10 @@ public static class StWriter
 
     private static string AssembleAccessor(string keyword, string? decl, string? impl)
     {
-        var d = (decl ?? "").Trim('\n');
+        // NOT trimmed. `AccessorDeclaration.Keep` already dropped the trailing newlines this join would
+        // double, and a LEADING newline is the engineer's blank line - six accessors in pro2193 hold one.
+        // Trimming here took back exactly what the read had just been fixed to preserve.
+        var d = decl ?? "";
         var i = impl ?? "";
         var lines = new List<string> { keyword };
         if (d.Length > 0) lines.Add(d);

@@ -544,6 +544,26 @@ public static class PushService
             // must never be overwritten by a textual push, and a marker must not be written over one it can.
             live = ide.ReadContent(pou);
 
+            // A PUSH MAY NOT RE-TYPE AN EXISTING ITEM. The IDE's kind comes from the TREE — the object really is
+            // a function block, a program, a DUT — and a declaration write cannot change that: it writes TEXT
+            // into an object whose type is already decided. Accepting one wrote `PROGRAM X` over a live function
+            // block (CODESYS additionally CLEARS the body), reported `updated`, and the CLI then saved a receipt
+            // and ref pair asserting the workspace and the IDE agree — over a project that no longer builds.
+            //
+            // It is reachable from an ordinary edit: renaming `X.fb` to `X.prg` produces `ToName = "X.prg"`
+            // whose BARE name is unchanged, so the rename compare degrades it to a plain content write. And when
+            // git does not pair the two paths as a rename, the ops are `set X.prg` + `delete X.fb`, which land on
+            // the SAME object — the set re-types it and the delete then removes it, under an accepted push.
+            //
+            // Delete-and-recreate is the only honest route, and it is the engineer's call because it loses the
+            // object's identity. `ReconcileMembers` already reasons exactly this way one level down, for a
+            // MEMBER whose kind changed; this is the same rule for the item.
+            if (!string.Equals(live.Kind, split.Kind, StringComparison.Ordinal))
+                throw new BridgeException(BridgeErrorCodes.Unsupported,
+                    $"'{name}' is a {live.Kind} in the IDE and this push declares it a {split.Kind}. A push " +
+                    "writes an object's TEXT and cannot change what it IS. Delete it and create it again if that " +
+                    "is what you mean — that discards the object's identity, so it is not done for you.");
+
             // LAST-MOMENT CHECK, against the state the IDE is in RIGHT NOW.
             //
             // The per-item `ifVersion` gate runs once, in the pre-apply walk, and a real push then does a lot

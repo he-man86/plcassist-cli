@@ -46,24 +46,28 @@ public sealed record Member(
 /// either its code or its declaration was non-null), which is a rule every reader of the record had to know and
 /// apply identically. A bodiless accessor — the interface case, where an accessor declares that a getter exists
 /// and nothing more — is an Accessor with an empty <see cref="Body"/>, NOT a null one.</summary>
-/// <summary>Is an accessor declaration worth keeping? Null, blank, or a bare empty <c>VAR</c> block carries
-/// nothing, and an accessor whose declaration is "nothing" must read back as having none — otherwise a pull
-/// writes an empty VAR block the engineer did not author and the next push writes it back.
+/// <summary>An accessor's declaration, as the IDE holds it — minus only the trailing NEWLINES the file format
+/// cannot carry.
 ///
-/// <para>Shared because it was duplicated byte-for-byte in both drivers, and it is a pure function over a
-/// string: no vendor appears in it. Two copies of a rule that decides whether content EXISTS is exactly the
-/// drift that loses data when only one copy is later corrected.</para></summary>
+/// <para><b>It used to drop a bare <c>VAR</c>/<c>END_VAR</c> entirely</b>, justified in this very comment as "an
+/// empty VAR block the engineer did not author". CENSUSED against live SP21 over pro2193's 464 accessor nodes
+/// (<c>scripts/probe-accessor-census.py</c>): the vendor returns 35 DISTINCT declaration values, including 263
+/// bare <c>VAR\nEND_VAR\n</c>, 107 genuinely EMPTY, and 6 with a LEADING newline. A synthesized default would be
+/// one constant for every accessor that has none; three different "empty-looking" values, kept distinct, is
+/// STORED CONTENT. Dropping the block put 223 of pro2193's getters at odds with the project.</para>
+///
+/// <para><b>And <c>Trim()</c> was the same bug one layer down.</b> A trailing newline is not representable —
+/// <see cref="Volt.Engine.Format.St.StWriter"/> joins an accessor's parts with one — but a LEADING one is, and
+/// six accessors in that census hold one. Same rule as everywhere else in the format: drop the newlines the
+/// format cannot express, keep every other character.</para>
+///
+/// <para>Whitespace-only stays "no declaration": the writer would emit it as a blank line, which is
+/// indistinguishable from absence in the file, so claiming to preserve it would be a promise the format cannot
+/// keep.</para></summary>
 public static class AccessorDeclaration
 {
-    public static string? Keep(string? decl)
-    {
-        var d = decl?.Trim();
-        if (string.IsNullOrEmpty(d)) return null;
-        var lines = d!.Split('\n');
-        var empty = lines.Length <= 2 && d.StartsWith("VAR", System.StringComparison.Ordinal)
-                                      && d.EndsWith("END_VAR", System.StringComparison.Ordinal);
-        return empty ? null : d;
-    }
+    public static string? Keep(string? decl) =>
+        string.IsNullOrWhiteSpace(decl) ? null : decl!.TrimEnd('\n');
 }
 
 public sealed record Accessor(string? Declaration, string? Body)
