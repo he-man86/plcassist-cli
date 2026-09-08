@@ -24,12 +24,14 @@ public static class StWriter
     public static string Write(ItemContent item)
     {
         if (!HasBody(item.Kind))
-            return item.Declaration.TrimEnd() + "\n";
+            return item.Declaration.TrimEnd('\n') + "\n";
 
         var sb = new StringBuilder();
-        sb.Append(item.Declaration.TrimEnd());
+        sb.Append(item.Declaration.TrimEnd('\n'));
 
-        var impl = (item.Body ?? "").Trim();
+        // NOT trimmed: the reader already dropped the ONE blank line this join re-inserts, so a newline still
+        // leading the body is the engineer's and has to survive the round trip.
+        var impl = item.Body ?? "";
         if (impl.Length > 0)
             sb.Append('\n').Append('\n').Append(impl);
 
@@ -81,8 +83,8 @@ public static class StWriter
     {
         if (child.Kind is ItemKind.Kinds.Property or ItemKind.Kinds.InterfaceProperty)
             return AssembleProperty(child);
-        var decl = child.Declaration.TrimEnd();
-        var impl = PrependFolder(child.Folder, (child.Body ?? "").Trim());
+        var decl = child.Declaration.TrimEnd('\n');
+        var impl = PrependFolder(child.Folder, child.Body ?? "");
         var end = child.Kind switch
         {
             // An interface's members are the same ST constructs as a POU's; only the WIRE kind differs.
@@ -96,7 +98,7 @@ public static class StWriter
 
     private static string AssembleProperty(Member child)
     {
-        var parts = new List<string> { child.Declaration.TrimEnd() };
+        var parts = new List<string> { child.Declaration.TrimEnd('\n') };
         if (!string.IsNullOrEmpty(child.Folder)) parts.Add($"%FOLDER {child.Folder}");
         // Presence is the object. This used to re-derive it from two nullable fields — the same rule the reader
         // applied, spelled a second time, which is exactly the kind of duplication ItemContent exists to remove.
@@ -108,8 +110,8 @@ public static class StWriter
 
     private static string AssembleAccessor(string keyword, string? decl, string? impl)
     {
-        var d = (decl ?? "").Trim();
-        var i = (impl ?? "").Trim();
+        var d = (decl ?? "").Trim('\n');
+        var i = impl ?? "";
         var lines = new List<string> { keyword };
         if (d.Length > 0) lines.Add(d);
         if (i.Length > 0) lines.Add(i);

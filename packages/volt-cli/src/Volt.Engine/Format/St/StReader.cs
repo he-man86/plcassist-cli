@@ -129,16 +129,32 @@ public static class StReader
 	/// `SplitChildren` attaches them to the child, so the declaration must not swallow them first.</summary>
 	private static int BackOverMemberTrivia(IList<string> lines, int keywordLine)
 	{
+		// The trivia map is built in ONE FORWARD PASS, because a per-line probe cannot see block comments. It used
+		// to start a fresh ScanContext on each line walked back, so ` *)` — the TAIL of a comment opened twenty
+		// lines earlier — read as code and stopped the walk dead. `IModuleBase` then kept its 23-line usage
+		// example in the INTERFACE's declaration instead of on the method it documents, and the interface came
+		// back from a round trip with a blank line inserted above that method.
+		// A blank line ends the walk — but only a blank line that is really a SEPARATOR. An empty line INSIDE a
+		// block comment is part of that comment, and treating it as a separator stopped the walk in the middle of
+		// `IModuleBase`'s usage example, handing SplitChildren a region that opens on ` *)` and refusing the file
+		// outright ("Expected METHOD/ACTION/PROPERTY").
+		var trivia = new bool[lines.Count];
+		var separator = new bool[lines.Count];
+		var inBlockComment = false;
+		for (int i = 0; i < lines.Count; i++)
+		{
+			var openBefore = inBlockComment;
+			var code = CodeHelper.CodeOn(lines[i], ref inBlockComment);
+			trivia[i] = code.Trim().Length == 0;
+			separator[i] = !openBefore && string.IsNullOrWhiteSpace(lines[i]);
+		}
+
 		int start = keywordLine;
 		while (start - 1 >= 0)
 		{
-			var previous = lines[start - 1];
-			if (string.IsNullOrWhiteSpace(previous)) break;   // a blank line separates the member from the header
-
-			var probe = new ScanContext();
-			probe.Update(previous);
-			if (probe.Code.Trim().Length != 0) break;         // real code: the declaration ends here
-			start--;                                          // a comment or pragma: it belongs to the member
+			if (separator[start - 1]) break;   // a blank line separates the member from the declaration
+			if (!trivia[start - 1]) break;     // real code: the declaration ends here
+			start--;                           // a comment or pragma: it documents the member, not the header
 		}
 		return start;
 	}
@@ -279,14 +295,28 @@ public static class StReader
 	}
 
 	/// <summary>Split at a line index: lines before it are the declaration, the line and everything
-	/// after are the implementation.</summary>
-	private static (string decl, string impl) SplitAtLine(IList<string> lines, int implStart)
+	/// after are the implementation.
+	///
+	/// <para><paramref name="separatorLines"/> is how many blank lines <see cref="StWriter"/> puts BETWEEN the
+	/// two — one for a top-level POU, none for a member or an accessor — and exactly that many are dropped here.
+	/// Every OTHER blank line at the boundary is the engineer's and belongs to the implementation. Dropping all
+	/// of them (a bare <c>Trim()</c>) flattened `END_VAR` / blank / blank / `(*` down to one blank line in
+	/// `Round.fun`, and swallowed the blank under a method's opening comment in five more files.</para>
+	///
+	/// <para><c>TrimEnd('\n')</c>, never <c>TrimEnd()</c>: the trailing SPACES on a real line are text, not
+	/// separator. Trimming whitespace deleted them — `//Selection of the cam. ` came back a character shorter in
+	/// four Lenze files — and a pull that silently edits a line is a pull that cannot round-trip.</para></summary>
+	private static (string decl, string impl) SplitAtLine(IList<string> lines, int implStart, int separatorLines = 0)
 	{
 		var d = new StringBuilder();
 		for (int i = 0; i < implStart; i++) { if (i > 0) d.Append('\n'); d.Append(lines[i]); }
 		var im = new StringBuilder();
 		for (int i = implStart; i < lines.Count; i++) { if (i > implStart) im.Append('\n'); im.Append(lines[i]); }
-		return (d.ToString().TrimEnd(), im.ToString().Trim());
+
+		var impl = im.ToString();
+		for (int i = 0; i < separatorLines && impl.StartsWith("\n", StringComparison.Ordinal); i++)
+			impl = impl.Substring(1);
+		return (d.ToString().TrimEnd('\n'), impl.TrimEnd('\n'));
 	}
 
 	private static (string decl, string impl) SplitDeclImpl(IList<string> pouLines, string kind)
@@ -304,16 +334,70 @@ public static class StReader
 		int gfx = FirstMarkerLine(pouLines, includeFolder: false);
 		if (gfx >= 0) return SplitAtLine(pouLines, gfx);
 
-		// Walk backward: declaration ends at the LAST END_VAR (the parent POU's
-		// own var sections, not a child's). Anything after is implementation.
-		// If no END_VAR present (e.g. FB with no VAR section), declaration is
-		// just the first non-blank/non-comment line (the header) and the rest
-		// is impl.
+		// Walk backward: the declaration's STRUCTURE ends at the LAST END_VAR (the parent POU's own var
+		// sections, not a child's); with no VAR section at all it ends at the end of the wrapped header.
+		// Trailing trivia then belongs to the declaration too — see DeclarationEnd.
+		// NOT DeclarationEnd here, unlike a child: StWriter separates a TOP-LEVEL declaration from its body with
+		// a BLANK LINE, so `END_VAR` / blank / comment / code means the comment is the body's first line and the
+		// blank is the separator. A child is joined with a single newline, so the same shape there means the
+		// blank and the comment are both inside the declaration. Identical text, different split — which is the
+		// price of the separator being implicit, and the reason the two cases cannot share one rule.
 		int lastEndVar = LastCodeLine(pouLines, "END_VAR");
-		if (lastEndVar < 0)
-			// Header line = first non-trivia line; line 0 if the whole block reads as trivia.
-			return SplitAtLine(pouLines, Math.Max(FirstCodeLine(pouLines), 0) + 1);
-		return SplitAtLine(pouLines, lastEndVar + 1);
+		return SplitAtLine(pouLines, lastEndVar >= 0 ? lastEndVar + 1 : HeaderEnd(pouLines), separatorLines: 1);
+	}
+
+	/// <summary>Where the IMPLEMENTATION starts, given the line after the declaration's last STRUCTURAL line.
+	///
+	/// <para><b>Trailing trivia belongs to the DECLARATION</b>, because that is where the vendor keeps it —
+	/// measured on live SP21 against `pro2193`, whose `BitLogic` has fourteen members: several of their
+	/// declarations end `END_VAR`, a blank line, then a comment, and NOT ONE body begins with a comment. Reading
+	/// that comment as the first line of the implementation moved it across the boundary on push, and the next
+	/// pull then wrote it back one line higher — twenty files in one project drifted on exactly this.</para>
+	///
+	/// <para>Blank lines, line comments, block comments and pragmas are all trivia; the implementation begins at
+	/// the first line carrying CODE. A declaration-only item (everything after the header is trivia) keeps all of
+	/// it and gets an empty body.</para></summary>
+	private static int DeclarationEnd(IList<string> lines, int structuralEnd)
+	{
+		var ctx = new ScanContext();
+		int end = structuralEnd;
+		for (int i = 0; i < lines.Count; i++)
+		{
+			ctx.Update(lines[i]);           // from line 0, so an open block comment is tracked correctly
+			if (i < structuralEnd) continue;
+			// The unauthorable-body MARKER is a comment by spelling and a BODY by meaning: it is what stands in
+			// for a CFC/SFC/IL implementation, and the push reads the body to decide whether the item can be
+			// written at all. Swept into the declaration it left an empty body, and a POU holding a read-only
+			// child stopped being editable.
+			if (BodyMarker.Is(lines[i])) break;
+			if (!ctx.InsideTrivia) break;                                  // real code — the body starts here
+			if (lines[i].Trim().Length > 0) end = i + 1;                   // a comment or pragma — declaration
+		}
+		return end;
+	}
+
+	/// <summary>The line after a POU header that has NO var section — and the header LEGALLY WRAPS.
+	///
+	/// <para>`FUNCTION_BLOCK PUBLIC Cylinder_52Valve_InvertedFB` / `EXTENDS Cylinder_52ValveFB` /
+	/// `IMPLEMENTS IActuator` is ONE declaration on three lines, and CODESYS stores it that way. Ending the
+	/// declaration at the first line put `EXTENDS`/`IMPLEMENTS` into the IMPLEMENTATION, so a push wrote a
+	/// derived function block's base class into its body — measured migrating `pro2193` into a blank project,
+	/// where four function blocks came back with the clause below a blank line instead of in the header.</para></summary>
+	private static int HeaderEnd(IList<string> lines)
+	{
+		int header = FirstCodeLine(lines);
+		if (header < 0) return 0;           // the whole block reads as trivia
+
+		var ctx = new ScanContext();
+		int end = header + 1;
+		for (int i = 0; i < lines.Count; i++)
+		{
+			ctx.Update(lines[i]);
+			if (i <= header || ctx.InsideTrivia) continue;
+			if (!LineStartsWithKeyword(ctx.Code, "EXTENDS") && !LineStartsWithKeyword(ctx.Code, "IMPLEMENTS")) break;
+			end = i + 1;
+		}
+		return end;
 	}
 
 	// ─── Child blocks (composite POU's siblings) ─────────────────────
@@ -476,7 +560,7 @@ public static class StReader
 		// mean "no such accessor" and would delete it on push).
 		if (accLines.Count <= 1) return new Accessor("", "");
 		var inner = SliceLines(accLines, 1, accLines.Count - 2);
-		var (decl, impl) = SplitAtLine(inner, LastCodeLine(inner, "END_VAR") + 1);
+		var (decl, impl) = SplitAtLine(inner, DeclarationEnd(inner, LastCodeLine(inner, "END_VAR") + 1));
 		return new Accessor(decl, impl);
 	}
 
@@ -488,12 +572,11 @@ public static class StReader
 		int gfx = FirstMarkerLine(innerLines, includeFolder: true);
 		if (gfx >= 0) return SplitAtLine(innerLines, gfx);
 
+		// No VAR sections — the declaration is the signature line (first non-trivia line) + any preceding
+		// pragmas. Either way the trailing trivia after it is declaration, not body (see DeclarationEnd).
 		int lastEndVar = LastCodeLine(innerLines, "END_VAR");
-		if (lastEndVar < 0)
-			// No VAR sections — declaration is the signature line (first non-trivia line) + any
-			// preceding pragmas; implementation is everything after the signature line.
-			return SplitAtLine(innerLines, FirstCodeLine(innerLines) + 1);
-		return SplitAtLine(innerLines, lastEndVar + 1);
+		return SplitAtLine(innerLines,
+			DeclarationEnd(innerLines, lastEndVar >= 0 ? lastEndVar + 1 : HeaderEnd(innerLines)));
 	}
 
 	// ─── Signature parsing helpers (METHOD/ACTION/PROPERTY headers) ──
@@ -563,7 +646,11 @@ public static class StReader
 			}
 			kept.Add(line);
 		}
-		return (folder, string.Join("\n", kept).Trim());
+		// NOT `.Trim()`. Peeling a directive is not licence to reformat what is left: SplitAtLine has already
+		// decided which blank lines are separator and which are the engineer's, and trimming here undid that
+		// decision for every child — the blank under a method's opening comment vanished on the way through.
+		// When there is no %FOLDER at all this returns the text it was given, unchanged.
+		return (folder, string.Join("\n", kept).TrimEnd('\n'));
 	}
 
 	// ─── Line scanning helpers ───────────────────────────────────────

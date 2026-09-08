@@ -1,0 +1,20 @@
+// Modules that react to EStop and Stop events from the machine
+INTERFACE IModuleBase
+EXTENDS IAbleToRegister, __SYSTEM.IQueryInterface
+
+(* Command to reset the module in case of E-Stop
+
+Add code here to handle emergency stops. For example:
+
+// Reset the state of the unit.
+State := MyUnit_State.None;
+
+ *)
+METHOD PUBLIC EStop : BOOL	// Returns true when drives are in standstill
+END_METHOD
+
+// Command to stop a module
+METHOD PUBLIC Stop : BOOL
+END_METHOD
+
+END_INTERFACE

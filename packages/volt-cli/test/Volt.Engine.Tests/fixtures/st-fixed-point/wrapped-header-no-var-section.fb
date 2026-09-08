@@ -1,0 +1,15 @@
+// Control a single output. The output is inverted
+{attribute 'symbol' := 'none'}
+FUNCTION_BLOCK PUBLIC Cylinder_52Valve_InvertedFB
+EXTENDS Cylinder_52ValveFB
+IMPLEMENTS IActuator
+
+// Execute base cylinder fb
+SUPER^();
+
+END_FUNCTION_BLOCK
+
+METHOD PROTECTED Alarms
+// Set the alarm messages (inverted)
+SetSensorOutAlarm(inputIn XOR NOT Output.Map());
+END_METHOD
