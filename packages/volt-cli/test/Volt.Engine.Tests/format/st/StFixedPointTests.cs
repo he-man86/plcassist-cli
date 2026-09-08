@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -31,6 +31,10 @@ namespace Volt.Engine.Tests;
 /// </summary>
 public class StFixedPointTests
 {
+    private readonly Xunit.Abstractions.ITestOutputHelper _out;
+
+    public StFixedPointTests(Xunit.Abstractions.ITestOutputHelper output) => _out = output;
+
     /// <summary>Each vendor's name for the referenced-library tree. Kept beside the sweep that uses it, because
     /// the finder (`scripts/corpus-migration.ts`) needs the same pair and the two drifting apart is how one
     /// vendor's signatures quietly enter a gate that was never meant to judge them.</summary>
@@ -190,6 +194,7 @@ public class StFixedPointTests
 
         var drifted = new List<string>();
         var checkedCount = 0;
+        var skipped = 0;
         foreach (var file in Directory.EnumerateFiles(corpus, "*.*", SearchOption.AllDirectories))
         {
             // A referenced library's signatures carry source extensions but are RENDERED, not pulled — they are
@@ -197,13 +202,13 @@ public class StFixedPointTests
             // BOTH vendors' names for that folder: CODESYS calls it `Library Manager`, TwinCAT `References`.
             // Only CODESYS was excluded, which was invisible until a TwinCAT corpus existed — and then 216
             // rendered signature files entered the sweep at once.
-            if (LibraryFolders.Any(f => file.Contains(f, StringComparison.Ordinal))) continue;
+            if (LibraryFolders.Any(f => file.Contains(f, StringComparison.Ordinal))) { skipped++; continue; }
             // `WireExtFor` FIRST. A DUT is one wire kind but four FILE extensions (.struct/.enum/.union/.alias),
             // and `KindForWireName` only knows the wire spelling — so asking it about a file extension answered
             // null for every DUT and this sweep silently skipped 290 of the corpus's 902 files, a third of the
             // evidence, while reporting a pass.
             var ext = ItemKind.WireExtFor(Path.GetExtension(file).ToLowerInvariant());
-            if (!ItemKind.IsSourceKind(ItemKind.KindForWireName("x." + ext) ?? "")) continue;
+            if (!ItemKind.IsSourceKind(ItemKind.KindForWireName("x." + ext) ?? "")) { skipped++; continue; }
 
             var text = Read(file);
             checkedCount++;
@@ -212,6 +217,13 @@ public class StFixedPointTests
             catch (Exception ex) { drifted.Add($"{file}: THREW {ex.Message}"); continue; }
             if (back != text) drifted.Add($"{file}: {FirstDifference(text, back)}");
         }
+
+        // SAY HOW MUCH IT COVERED. `checkedCount > 0` stops a sweep of the wrong directory from passing, but it
+        // cannot tell 10 files from 900 — and a corpus whose source is 4% of its file count (twincat-project14:
+        // 10 of 247, the rest rendered `References/` signatures) passes in under a millisecond either way. A
+        // gate that reports only pass/fail invites "the sweep is green" to be read as "the corpus is covered".
+        _out.WriteLine($"corpus {corpus}: {checkedCount} source file(s) round-tripped, {skipped} skipped " +
+                       "(library signatures + non-source kinds)");
 
         Assert.True(checkedCount > 0, $"VOLT_CORPUS='{corpus}' holds no source files — wrong directory?");
         Assert.Empty(drifted);

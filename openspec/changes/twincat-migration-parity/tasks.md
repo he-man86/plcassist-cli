@@ -10,7 +10,6 @@ skipped. A vendor branch or an early return is the failure mode this change exis
 - [x] `ConnectorSetup.TwincatExe()`'s dev-build fallback path fixed — it resolved to
       `packages/volt-cli/volt-cli/src/…`, so TwinCAT was undetectable in a dev build and the probe failed
       silently. This is why "nothing routinely drives TwinCAT" was true in practice.
-- [ ] Nothing below.
 
 ## 0b. MEASURED on the first live run (2026-09-08) — read before designing
 
@@ -36,18 +35,20 @@ is therefore a PREREQUISITE for task 2, not a follow-on.
 
 ## 1. A blank TwinCAT project
 
-- [ ] Decide what "empty" IS for TwinCAT. CODESYS copies a shipped `Standard.project`; TwinCAT has no template
-      to copy. Candidates: a committed empty solution under `test/fixtures/`, or one created through the DTE.
-      Whichever it is, the target must start empty EVERY run — the CODESYS path copies per corpus for exactly
-      that reason.
-- [ ] Record the answer in `Ide/DIALECT.md`. "There is no blank-project template" is a vendor fact, not a note.
-- [ ] Wire it as a `Blank` in `corpus-migration.ts` beside `CODESYS`. Open through `twincat-instances.ps1`,
+- [x] Decide what "empty" IS for TwinCAT. **A committed fixture solution, copied per run.** CODESYS copies a
+      shipped `Standard.project`; TwinCAT ships no template, so the target is `test/fixtures/TwinCAT Project13`
+      copied per corpus and emptied by its own first push — which is what makes it start empty EVERY run, the
+      property the CODESYS path gets from copying the vendor's template.
+- [x] Record the answer in `Ide/DIALECT.md`. **DIALECT N15** carries it: TwinCAT ships no template, so an
+      "empty" target is a committed fixture copied per run and emptied by its own first push.
+- [x] Wire it as a `Blank` in `corpus-migration.ts` beside `CODESYS`. Open through `twincat-instances.ps1`,
       wait for the pipe, close it again.
 
 ## 2. Run it, and believe the result
 
-- [ ] `VOLT_VENDOR=twincat bun run scripts/corpus-migration.ts <corpus>` reaches the comparison — not the
-      "no blank-project launcher" throw.
+- [x] `VOLT_VENDOR=twincat bun run scripts/corpus-migration.ts <corpus>` reaches the comparison. It ran, got 6
+      of 9 items in, and was refused on `POUexecute.prg` — TwinCAT cannot re-import an Execute box it authored
+      itself (C20). A real result, not a throw.
 - [ ] Every drift it reports is triaged the way the CODESYS ones were: a gap gets a fix and an OFFLINE test in
       `volt-cli` that fails without it. The corpus run is a finder, never the standing coverage.
 - [ ] Expect the importer's grouping (D25) to show up here as reshaped bodies. That is a KNOWN vendor
@@ -55,14 +56,24 @@ is therefore a PREREQUISITE for task 2, not a follow-on.
 
 ## 3. TwinCAT evidence for the ST layer
 
-- [ ] Pull a real TwinCAT project and run the `VOLT_CORPUS` sweep in `StFixedPointTests` over it. Today every
-      one of the eight fixtures and all five corpora are CODESYS pulls, so the fixed-point invariant has never
-      been tested against a TwinCAT tree.
-- [ ] Commit any boundary shape the TC archive produces that a CODESYS pull does not, as a fixture. **If there
-      are none, record that** — "measured, no TwinCAT-specific shapes" is a result; assuming it is not.
-- [ ] Commit one TwinCAT corpus under `test-corpus/` so the LSP gates have TC input at all.
+- [x] Pull a real TwinCAT project and run the `VOLT_CORPUS` sweep in `StFixedPointTests` over it. **Clean over
+      10 source files** (the corpus's other 237 are rendered `References/` signatures). The sweep now REPORTS
+      its coverage — 10 here against 535 for pro2193 — because `checkedCount > 0` cannot tell 10 files from 900
+      and both pass in under a millisecond.
+- [x] Commit any boundary shape the TC archive produces that a CODESYS pull does not. **Measured: no
+      TwinCAT-specific ST shape** — all 10 files round-trip against the same rules, on thin but real evidence.
+      Two TwinCAT-authored files are committed as fixtures anyway (`fixtures/tc-workspace/`), because the
+      corpus sweep is opt-in behind `VOLT_CORPUS` and never runs in CI. `ladderLabel.prg` does carry two
+      network-level shapes no hand-written fixture had: a network whose LABEL is its only content, and a coil
+      with nothing driving it (`coil := ;`, read back as the terminator the archive holds).
+      **The gap that remains, measured rather than assumed:** not one TwinCAT corpus file declares a METHOD,
+      ACTION or PROPERTY, so member splitting has no TwinCAT-sourced evidence anywhere.
+- [x] Commit one TwinCAT corpus under `test-corpus/` so the LSP gates have TC input at all. **`twincat-project14`**;
+      corpus gates 20 → 22.
 
 ## 4. Close the loop
 
-- [ ] `test/Volt.Ide.Twincat.Tests` gains at least one test that reaches `StReader`/`StWriter` through the
-      Beckhoff driver, so a regression in the shared format layer cannot stay green on the TwinCAT side.
+- [x] `test/Volt.Ide.Twincat.Tests` gains a test that reaches `StReader`/`StWriter` — `TcSharedFormatTests`,
+      driving TwinCAT-authored text through the shared ST layer and a TwinCAT-drawn ladder through
+      `NetworkTextGate`. Verified live: a one-character regression in `StWriter`'s body separator fails 2 of
+      its 3 cases (and 6 in the engine's own), so it is a gate and not decoration.
