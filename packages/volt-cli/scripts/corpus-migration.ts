@@ -13,7 +13,7 @@
  * produced `Volt.Engine.Tests/sync/CreateUnauthorableBodyTests.cs` — the create path wrote a CFC/SFC body
  * marker as if it were source and landed an EMPTY function block, with the push reporting success.
  *
- * WHAT IS COMPARED. Writable source only (`SOURCE_EXTENSIONS` + folder markers), because that is all a push may
+ * WHAT IS COMPARED. Writable items only (`SOURCE_EXTENSIONS`, `.task`, folder markers), because that is all a push may
  * carry: library signatures, device/task descriptors and project settings belong to the TARGET project, and a
  * blank one legitimately has different ones. Paths are normalized on the device-root segment (`Device` in every
  * corpus, `PLCWinNT` in the CODESYS blank template) so the comparison is about structure, not about what the
@@ -45,6 +45,11 @@ const LAUNCHER = join(import.meta.dir, "codesys-pipe.ps1")
 /** The device-root segment, replaced by this placeholder on both sides so a corpus harvested from `Device`
  *  can be compared against a blank project whose controller is `PLCWinNT`. */
 const DEV = "<device>"
+/** The TASK CONTAINER's segment, normalized for the same reason and in the same way: the vendor names that node
+ *  itself and the name is LOCALIZED — a German CODESYS ships `Taskkonfiguration` where an English project's walk
+ *  emits `Task Configuration` — so a task migrated between the two lands at a different path and would read as
+ *  MISSING+EXTRA rather than as a successful migration. */
+const TASKS = "<taskconfig>"
 /** A referenced library's files carry SOURCE extensions but are read-only by LOCATION — the push refuses them
  *  and the blank target has different libraries anyway. Excluded by folder, exactly as the CLI does. */
 const LIBRARY_DIR = "Library Manager"
@@ -157,9 +162,15 @@ function deviceRoot(root: string): string {
 	return hit[0]!.name
 }
 
+/** Every extension a push may CARRY. `SOURCE_EXTENSIONS` is writable *source*; a `.task` is a writable
+ *  DESCRIPTOR (`ItemKind.WritableReferenceKinds`) and is pushed by exactly the same wire, so leaving it out
+ *  meant the finder never staged, created or compared a single task — a blind spot sitting directly over the
+ *  most recently fixed create path. */
+const PUSHABLE_EXTENSIONS = new Set([...SOURCE_EXTENSIONS, "task"])
+
 function isSource(name: string): boolean {
 	const dot = name.lastIndexOf(".")
-	return dot >= 0 && SOURCE_EXTENSIONS.has(name.slice(dot + 1).toLowerCase())
+	return dot >= 0 && PUSHABLE_EXTENSIONS.has(name.slice(dot + 1).toLowerCase())
 }
 
 /**
@@ -184,12 +195,28 @@ function pushableTree(root: string): Map<string, string> {
 	return out
 }
 
+/** The directory holding the `.task` files, device-normalized, or null when the tree has none. */
+function taskDir(tree: Map<string, string>): string | null {
+	for (const rel of tree.keys()) if (rel.endsWith(".task")) return rel.slice(0, rel.lastIndexOf("/"))
+	return null
+}
+
+/** Rewrite the task container's own segment to {@link TASKS}, so two projects that name it differently compare. */
+function normalizeTasks(tree: Map<string, string>): Map<string, string> {
+	const dir = taskDir(tree)
+	if (dir === null) return tree
+	const canon = dir.slice(0, dir.lastIndexOf("/") + 1) + TASKS
+	return new Map([...tree].map(([rel, text]) => [rel.startsWith(dir + "/") ? canon + rel.slice(dir.length) : rel, text]))
+}
+
 /** Lay the staged files into the workspace, removing any the workspace has and the set does not — so one push
- *  exercises create, update AND delete, which is what a real migration does. */
-function stage(files: Map<string, string>, srcRoot: string): void {
+ *  exercises create, update AND delete, which is what a real migration does. `tasksAs` is the TARGET's own name
+ *  for its task container, read before the target was emptied — once its tasks are gone the tree no longer says. */
+function stage(files: Map<string, string>, srcRoot: string, tasksAs: string): void {
 	const device = deviceRoot(srcRoot)
-	const abs = (rel: string): string => join(srcRoot, rel.replace(DEV, device).split("/").join(sep))
-	for (const rel of pushableTree(srcRoot).keys()) if (!files.has(rel)) rmSync(abs(rel))
+	const abs = (rel: string): string =>
+		join(srcRoot, rel.replace(DEV, device).replace(TASKS, tasksAs).split("/").join(sep))
+	for (const rel of normalizeTasks(pushableTree(srcRoot)).keys()) if (!files.has(rel)) rmSync(abs(rel))
 	for (const [rel, text] of files) {
 		const path = abs(rel)
 		mkdirSync(dirname(path), { recursive: true })
@@ -243,10 +270,14 @@ function migrate(name: string): string[] {
 		//
 		// Two pushes is also the more faithful shape: "migrate into an empty project" means the target IS empty
 		// before the migration, so the second push is a pure CREATE — which is the path this exists to exercise.
-		stage(new Map(), pusher.src)
+		// Read BEFORE emptying: the target's own name for its task container is only visible while it still has
+		// a task in it, and the migrating push needs it to place the `.task` files it lays down.
+		const tasksAs = (taskDir(pushableTree(pusher.src)) ?? "").split("/").pop() || "Task Configuration"
+
+		stage(new Map(), pusher.src, tasksAs)
 		volt(pusher.root, ["push"])
 
-		stage(staged, pusher.src)
+		stage(normalizeTasks(staged), pusher.src, tasksAs)
 		volt(pusher.root, ["push"])
 
 		// A SECOND workspace, so what comes back is a materialization and never a merge. A `volt pull` back into
@@ -254,12 +285,17 @@ function migrate(name: string): string[] {
 		// diff — which hides the one thing this is looking for.
 		const reader = initWorkspace(`read-${name}`)
 		try {
-			return diff(staged, pushableTree(reader.src))
+			return diff(normalizeTasks(staged), normalizeTasks(pushableTree(reader.src)))
 		} finally {
-			reader.dispose()
+			// VOLT_KEEP leaves both workspaces on disk and prints them. A DRIFTED line is one line of context; the
+			// bug behind it is usually visible only in the whole file, and the run that produced it is the
+			// expensive part.
+			if (process.env.VOLT_KEEP) console.log(`  kept: read  ${reader.root}`)
+			else reader.dispose()
 		}
 	} finally {
-		pusher.dispose()
+		if (process.env.VOLT_KEEP) console.log(`  kept: push  ${pusher.root}`)
+		else pusher.dispose()
 		blank.close()
 	}
 }

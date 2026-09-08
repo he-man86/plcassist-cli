@@ -276,7 +276,7 @@ public static class PushService
         }
         else
         {
-            task = ide.CreateChild(TreeNav.ResolveTopLevelFolder(ide, op.ToFolder), name, ItemKind.PlcTask);
+            task = ide.CreateChild(TreeNav.ResolveTaskParent(ide, op.ToFolder), name, ItemKind.PlcTask);
             action = "created";
         }
 

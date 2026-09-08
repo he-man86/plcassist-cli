@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Volt.Engine.Format.Body;
 using Volt.Engine.Item;
 
@@ -33,6 +34,31 @@ internal static class TreeNav
         foreach (var part in FolderPath.Segments(folder))   // decode each segment back to its real IDE name
             node = DescendOrCreateFolder(ide, node, part);
         return node;
+    }
+
+    /// <summary>The node a TASK is created under.
+    ///
+    /// <para><b>The task container's NAME is LOCALIZED; its KIND is not.</b> A German CODESYS ships the Standard
+    /// template with <c>Taskkonfiguration</c> where an English project's walk emits <c>Task Configuration</c>, so
+    /// resolving a pushed task's folder by name missed the container entirely, <see cref="DescendOrCreateFolder"/>
+    /// created a plain user folder in its place, and the vendor then refused the create on a node with no task
+    /// facet — <c>node has no ScriptTaskConfigObject facet</c>, with the junk folder left behind. Found migrating
+    /// a real project into the shipped blank; measured with <c>scripts/probe-task-config-survives-delete.py</c>,
+    /// which also rules out the other candidate (the container survives its last task being deleted).</para>
+    ///
+    /// <para>So the ANCESTRY is walked by name (Device / Plc Logic / Application are real, non-localized
+    /// container names) and the last segment is resolved by KIND. TwinCAT has no such node — its PLC tasks are
+    /// children of the PLC project itself — so nothing there matches and the by-name walk stays the answer.</para></summary>
+    internal static ItemRef ResolveTaskParent(IIdeDriver ide, string? folder)
+    {
+        var segments = new List<string>(FolderPath.Segments(folder));
+        if (segments.Count > 0)
+        {
+            var node = ide.GetTreeRoot();
+            for (var i = 0; i < segments.Count - 1; i++) node = DescendOrCreateFolder(ide, node, segments[i]);
+            if (FirstChild(ide, node, c => ide.KindCode(c) == ItemKind.TaskConfig) is { } config) return config;
+        }
+        return ResolveTopLevelFolder(ide, folder);
     }
 
     /// <summary>Match a container child (a structural node like Device/Plc Logic/Application, or an existing user

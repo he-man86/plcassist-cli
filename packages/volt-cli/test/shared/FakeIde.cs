@@ -192,7 +192,16 @@ public sealed class FakeIde : DriverBase, IIdeDriver
             .ToList();
         return new WalkResult(items, UnwalkableFolders);
     }
-    public int KindCode(ItemRef item) => IsTreeNode(item) ? ItemKind.PlcFolder : Find(item).KindCode;
+    /// <summary>Folder paths that are the vendor's TASK CONTAINER rather than a plain user folder. A real tree
+    /// has typed containers; this fake synthesizes its folders from item paths, so every one of them read as
+    /// <see cref="ItemKind.PlcFolder"/> and no test could tell the two apart — which is exactly the distinction
+    /// a task's create has to make, because the container's NAME is localized and its KIND is not.</summary>
+    public readonly HashSet<string> TaskConfigFolders = new(StringComparer.Ordinal);
+
+    public int KindCode(ItemRef item) =>
+        IsTreeNode(item)
+            ? (TaskConfigFolders.Contains(NameOf(item)) ? ItemKind.TaskConfig : ItemKind.PlcFolder)
+            : Find(item).KindCode;
     public int ChildCount(ItemRef item)
     {
         if (FaultingNodes.Contains(NameOf(item)))

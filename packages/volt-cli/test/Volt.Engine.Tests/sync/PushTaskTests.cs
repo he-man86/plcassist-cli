@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using Xunit;
 using Volt.Contracts;
 using Volt.Engine.Format.Task;
@@ -100,6 +100,38 @@ public class PushTaskTests
         Assert.Contains("create:FastTask", ide.Recorded);
         Assert.Equal(ItemKind.PlcTask, ide.CreatedKinds["FastTask"]);
         Assert.Contains("writetask:FastTask", ide.Recorded);
+    }
+
+    [Fact]
+    public void A_task_is_created_in_the_task_CONTAINER_even_when_it_is_named_in_another_LANGUAGE()
+    {
+        // MIGRATION, not editing: the task comes from an ENGLISH project and lands in a target whose container
+        // the vendor named in German. A German CODESYS ships the Standard template with "Taskkonfiguration"
+        // where the walk of an English project emits "Task Configuration", so resolving the pushed folder by
+        // NAME found nothing, created a plain user folder in its place, and the vendor refused the create on a
+        // node with no task facet — `node has no ScriptTaskConfigObject facet` — leaving the junk folder behind.
+        // Found by `scripts/corpus-migration.ts` pushing a real project into the shipped blank.
+        var ide = new FakeIde(new FakeIde.Item("MainTask", ItemKind.PlcTask,
+                                               "Device/Plc Logic/Application/Taskkonfiguration",
+                                               true, null, null, null, null));
+        ide.TaskConfigFolders.Add("Device/Plc Logic/Application/Taskkonfiguration");
+        var pv = RefsService.Handle(ide).ProjectVersion!;
+
+        var resp = Push(ide, pv, new SetItemOp
+        {
+            Name = "FastTask.task",
+            IfVersion = null,
+            ToFolder = "Device/Plc Logic/Application/Task Configuration",
+            SourceText = Body,
+        });
+
+        Assert.True(resp.Accepted);
+        Assert.Equal(ItemKind.PlcTask, ide.CreatedKinds["FastTask"]);
+        // The REAL container, resolved by kind…
+        Assert.Equal("Device/Plc Logic/Application/Taskkonfiguration", ide.CreatedParents["FastTask"]);
+        // …and no folder invented from the incoming name. This half is the damage: the folder outlived the
+        // failed push and was left in the engineer's project.
+        Assert.DoesNotContain("create:Task Configuration", ide.Recorded);
     }
 
     [Fact]
