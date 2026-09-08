@@ -60,14 +60,19 @@ is therefore a PREREQUISITE for task 2, not a follow-on.
       10 source files** (the corpus's other 237 are rendered `References/` signatures). The sweep now REPORTS
       its coverage — 10 here against 535 for pro2193 — because `checkedCount > 0` cannot tell 10 files from 900
       and both pass in under a millisecond.
-- [x] Commit any boundary shape the TC archive produces that a CODESYS pull does not. **Measured: no
-      TwinCAT-specific ST shape** — all 10 files round-trip against the same rules, on thin but real evidence.
+- [x] Commit any boundary shape the TC archive produces that a CODESYS pull does not. **One found, and it took
+      the right input to find it.** Over the corpus's 10 member-less files there is no TwinCAT-specific shape.
+      Push a POU that HAS a method and a property, though, and TwinCAT hands back a blank line between the SET
+      accessor's `END_VAR` and its body — and none in the GET, from identical pushed text (DIALECT D33, stable,
+      cosmetic). Committed as `FB_VltMembers.fb`: pushed into a live scratch project and pulled back in a fresh
+      workspace, so the bytes are the IDE's rather than the ones that were sent.
       Two TwinCAT-authored files are committed as fixtures anyway (`fixtures/tc-workspace/`), because the
       corpus sweep is opt-in behind `VOLT_CORPUS` and never runs in CI. `ladderLabel.prg` does carry two
       network-level shapes no hand-written fixture had: a network whose LABEL is its only content, and a coil
       with nothing driving it (`coil := ;`, read back as the terminator the archive holds).
-      **The gap that remains, measured rather than assumed:** not one TwinCAT corpus file declares a METHOD,
-      ACTION or PROPERTY, so member splitting has no TwinCAT-sourced evidence anywhere.
+      **The member gap this exposed is now closed**: no TwinCAT corpus file declares a METHOD, ACTION or
+      PROPERTY, so member splitting had no TwinCAT-sourced evidence at all until that POU was pushed and
+      pulled back.
 - [x] Commit one TwinCAT corpus under `test-corpus/` so the LSP gates have TC input at all. **`twincat-project14`**;
       corpus gates 20 → 22.
 

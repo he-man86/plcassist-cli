@@ -1,0 +1,34 @@
+FUNCTION_BLOCK FB_VltMembers
+VAR
+	_level : INT;
+END_VAR
+
+_level := _level + 1;
+
+METHOD PUBLIC Scale : INT
+VAR_INPUT
+	factor : INT;
+END_VAR
+VAR
+	tmp : INT;
+END_VAR
+
+tmp := _level * factor;
+Scale := tmp;
+END_METHOD
+
+PROPERTY PUBLIC Level : INT
+GET
+VAR
+END_VAR
+Level := _level;
+END_GET
+SET
+VAR
+END_VAR
+
+_level := Level;
+END_SET
+END_PROPERTY
+
+END_FUNCTION_BLOCK

@@ -24,12 +24,16 @@ namespace Volt.Ide.Twincat.Tests;
 /// opt-in behind `VOLT_CORPUS` and therefore never runs in CI. A gate that only fires when someone remembers to
 /// set an environment variable is not the gate this task asked for.</para>
 ///
-/// <para><b>What the TwinCAT corpus does NOT cover, measured rather than assumed:</b> not one of its ten source
-/// files declares a METHOD, ACTION or PROPERTY, so member splitting — the part of the ST format with the most
-/// boundary rules and the most history of bugs — has no TwinCAT-sourced evidence anywhere. The `.TcPOU`
-/// archives in `fixtures/tc-pou/` include one (`MembersSt.TcPOU`), but turning a vendor archive into
-/// `ItemContent` needs the driver's live tree, so it cannot be reached offline. Recorded here because
-/// "the TwinCAT side is covered" would otherwise be read off a green suite.</para>
+/// <para><b>Member splitting needed its own text, and the corpus had none.</b> Not one of twincat-project14's
+/// ten source files declares a METHOD, ACTION or PROPERTY — so the part of the ST format with the most boundary
+/// rules and the most history of bugs had no TwinCAT-sourced evidence at all. `FB_VltMembers.fb` closes that:
+/// a POU with a method and a property, PUSHED into a live TwinCAT project and then pulled back from it in a
+/// fresh workspace, so the bytes are the IDE's rather than the ones that were sent.</para>
+///
+/// <para><b>And pushing it found a shape nothing had:</b> TwinCAT gives a property's SET accessor a BLANK LINE
+/// between its `END_VAR` and its body, and its GET none — from identical pushed text. Measured stable (a second
+/// forced write and pull leaves exactly one), so it is a create-time normalisation rather than drift, and it is
+/// cosmetic rather than lossy. It is in the fixture because a hand-written sample would never have had it.</para>
 /// </summary>
 public class TcSharedFormatTests
 {
@@ -50,6 +54,7 @@ public class TcSharedFormatTests
     [Theory]
     [InlineData("FB_PackML_Unit.fb")]
     [InlineData("ladderLabel.prg")]
+    [InlineData("FB_VltMembers.fb")]
     public void Twincat_authored_text_survives_the_st_round_trip(string name)
     {
         var text = Read(name);
