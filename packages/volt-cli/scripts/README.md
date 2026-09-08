@@ -29,6 +29,7 @@ file that makes that checkable rather than a claim is `accessor-census.log`.
 | `codesys-pipe.ps1` | serve a CODESYS project over the pipe, **the way a user does** — a normal GUI IDE running the shipped `start_volt_codesys.py`. `up` / `down` / `logs` / `pipe`. |
 | `twincat-instances.ps1` | the same for TwinCAT XAE (`-Solution`), which needs its PLC project selected before it will serve |
 | `corpus-migration.ts` | the migration finder: pull a corpus, push it into an empty project, pull again, compare |
+| `e2e-graphical-coverage.ts` | which network-text constructs the live suite actually PUSHES — a report, not a gate. 20 of 25 today. |
 | `start_volt_codesys.py` | **shipped** — the in-IDE host; CODESYS's own message loop answers the pipe, so the IDE stays clickable |
 | `stop_volt_codesys.py` | its counterpart |
 | `run_pipe_production.py` | the launcher `codesys-pipe.ps1` hands to `--runscript` (dialog suppression + a file log) |
