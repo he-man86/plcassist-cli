@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -223,8 +223,9 @@ namespace Volt.Ide.Codesys
         /// member for member, so the pair cannot drift.
         ///
         /// <para>Every field written here is a real setter, MEASURED rather than assumed
-        /// (`scripts/probe-task-writable.py`, live SP21). Two carry a trap worth naming: <c>priority</c> is a
-        /// STRING even though it reads as a number — handing it an int raises `TypeError: expected str, got
+        /// (`scripts/probe-task-writable.py` and `probe-task-kind.py`, live SP21). Three carry a trap worth
+        /// naming: <c>kind_of_task</c> takes ONLY the vendor enum (see <see cref="TaskKind"/>), <c>priority</c>
+        /// is a STRING even though it reads as a number — handing it an int raises `TypeError: expected str, got
         /// int`, which looks exactly like a read-only property and is not — and <c>interval</c> /
         /// <c>interval_unit</c> are separate, so a TIME literal (`t#4ms`) carries no unit and writing one back
         /// would double it. The engine's format keeps the two apart for that reason.</para>
@@ -236,6 +237,7 @@ namespace Volt.Ide.Codesys
         public void WriteTask(object node, TaskSettings t)
         {
             var f = Facet(node, "ScriptTaskObject");
+            SetMember(f, "kind_of_task", TaskKind(t.Type));
             SetMember(f, "priority", t.Priority);
             SetMember(f, "interval", t.Interval);
             if (t.IntervalUnit.Length > 0) SetMember(f, "interval_unit", t.IntervalUnit);
@@ -255,6 +257,34 @@ namespace Volt.Ide.Codesys
             }
 
             if (GetMember(f, "pous") is { } pous) WriteCallList(f, pous, t.Calls);
+        }
+
+
+        /// <summary>The vendor's <c>KindOfTask</c> for a `.task` file's <c>Type:</c> line.
+        ///
+        /// <para><b>The type was the one scheduling field WriteTask did not write.</b> Every other member was
+        /// set and this one was not, so a task pushed into a project that did not already have it kept the
+        /// vendor's default: `EdgePcTask` migrated out of pro2193 as <c>Freewheeling</c> where the file said
+        /// <c>Cyclic</c> — a task running flat out instead of on a 10 ms cycle, reported by the push as success.
+        /// Found by `scripts/corpus-migration.ts`.</para>
+        ///
+        /// <para>MEASURED (`scripts/probe-task-kind.py`, live SP21): the member IS writable, and takes ONLY a
+        /// real <c>_3S.CoDeSys.TaskConfig.KindOfTask</c>. A string raises `TypeError: expected KindOfTask, got
+        /// str` and an int raises `Cannot convert numeric value 1 to KindOfTask` — the exact inverse of
+        /// <c>priority</c>'s trap two lines up, and the reason both are written down rather than inferred. The
+        /// legal names come from the enum itself: Cyclic, Freewheeling, Event, ExternalEvent, Status,
+        /// ParentSynchron — which is also the vocabulary the READ side renders, so the file's `Type:` line and
+        /// this lookup cannot drift.</para></summary>
+        private static object TaskKind(string type)
+        {
+            try { return EnumValue("KindOfTask", type); }
+            catch (ArgumentException)
+            {
+                throw new InvalidOperationException(
+                    $"CODESYS: '{type}' is not a task type. A `.task` file's `Type:` line must name one of " +
+                    string.Join(", ", Enum.GetNames(Reflection.FindEnum("KindOfTask")
+                        ?? throw new InvalidOperationException("CODESYS enum KindOfTask not found"))) + ".");
+            }
         }
 
         /// <summary>Replace a task's call list with exactly the POUs named, in order.

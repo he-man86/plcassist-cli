@@ -81,13 +81,72 @@ public class StFixedPointTests
         Assert.Contains("EXTENDS IAbleToRegister", item.Declaration);
     }
 
+    /// <summary>An ACTION's trailing comment is BODY, and this is the one boundary question the byte gate above
+    /// cannot answer.
+    ///
+    /// <para>An action is the single member with no declaration to write: IEC gives it a name and a body and
+    /// nothing else, so both drivers pass <c>null</c> where every other member passes its declaration. A line
+    /// that lands in an action's declaration is therefore not misplaced, it is DELETED on the next push — and
+    /// the file still round-trips byte for byte, because the writer joins declaration and body with the single
+    /// newline the reader split on. Twelve actions across the corpora are comment-ONLY; for those the whole
+    /// content would go. The assertion has to be about the split, not about the text.</para></summary>
+    [Fact]
+    public void An_actions_trailing_comment_is_body_because_an_action_has_no_declaration()
+    {
+        var item = StReader.Read(Read(Path.Combine(FixtureDir, "action-with-a-leading-comment.fb")));
+
+        var action = item.Members.Single(m => m.Kind == ItemKind.Kinds.Action);
+        Assert.Equal("ACTION Reset", action.Declaration);
+        Assert.Contains("Put every axis back to its home position", action.Body);
+    }
+
+    /// <summary>A header's `: type` wraps too, and the wrapped line is DECLARATION.
+    ///
+    /// <para>`EXTENDS`/`IMPLEMENTS` were already understood as continuations; a return type on its own line is
+    /// the same shape and CODESYS writes it that way. The rule needs no vocabulary — no valid ST statement
+    /// begins with a colon — so this is the one continuation form that can be recognised without knowing a
+    /// keyword. Byte-identical either way, like every member-level boundary move, so the assertion is about the
+    /// split.</para></summary>
+    [Fact]
+    public void A_wrapped_return_type_is_declaration_not_the_first_line_of_the_body()
+    {
+        var item = StReader.Read(Read(Path.Combine(FixtureDir, "wrapped-return-type-no-var-section.fun")));
+
+        Assert.Contains(": REAL", item.Declaration);
+        Assert.DoesNotContain("REAL", item.Body ?? "");
+        Assert.Equal("Compute := 2.0;", item.Body);
+    }
+
+    /// <summary>A PROPERTY signature's trailing comment is not part of its DATA TYPE.
+    ///
+    /// <para>The method parser strips comments before matching and says why; the property parser matched the raw
+    /// line, so `PROPERTY Ready : BOOL // the ready flag` produced a data type of `BOOL // the ready flag` —
+    /// which <c>PushService.CreateSeed</c> hands to TwinCAT as the property's declared type. No corpus property
+    /// carries a comment today and 207 method signatures do, so this was latent rather than absent: the same
+    /// ordinary habit, arriving at the one parser that could not take it.</para></summary>
+    [Fact]
+    public void A_property_signatures_trailing_comment_is_not_part_of_its_type()
+    {
+        var item = StReader.Read(
+            "FUNCTION_BLOCK Machine\nVAR\nEND_VAR\n\n;\n\nEND_FUNCTION_BLOCK\n\n" +
+            "PROPERTY PUBLIC Ready : BOOL\t// TRUE once every axis has homed\n" +
+            "GET\nReady := TRUE;\nEND_GET\n" +
+            "END_PROPERTY\n");
+
+        var ready = item.Members.Single(m => m.Name == "Ready");
+        Assert.Equal("BOOL", ready.DataType);
+    }
+
     /// <summary>The sweep, over whatever `VOLT_CORPUS` points at. Skipped — not failed — when it is unset, which
     /// is every CI run: a corpus is a real customer project and cannot be committed here.</summary>
     [Fact]
     public void Every_file_in_a_real_corpus_survives_a_round_trip()
     {
+        // Unset means "not asked for" and skips. SET BUT MISSING means the operator asked and got nothing, and
+        // silently passing there is how a sweep reports success on zero files.
         var corpus = Environment.GetEnvironmentVariable("VOLT_CORPUS");
-        if (string.IsNullOrEmpty(corpus) || !Directory.Exists(corpus)) return;
+        if (string.IsNullOrEmpty(corpus)) return;
+        Assert.True(Directory.Exists(corpus), $"VOLT_CORPUS='{corpus}' does not exist — pass an absolute path");
 
         var drifted = new List<string>();
         var checkedCount = 0;
@@ -96,7 +155,11 @@ public class StFixedPointTests
             // A referenced library's signatures carry source extensions but are RENDERED, not pulled — they are
             // read-only by location and never travel back through a push.
             if (file.Contains("Library Manager", StringComparison.Ordinal)) continue;
-            var ext = Path.GetExtension(file).TrimStart('.').ToLowerInvariant();
+            // `WireExtFor` FIRST. A DUT is one wire kind but four FILE extensions (.struct/.enum/.union/.alias),
+            // and `KindForWireName` only knows the wire spelling — so asking it about a file extension answered
+            // null for every DUT and this sweep silently skipped 290 of the corpus's 902 files, a third of the
+            // evidence, while reporting a pass.
+            var ext = ItemKind.WireExtFor(Path.GetExtension(file).ToLowerInvariant());
             if (!ItemKind.IsSourceKind(ItemKind.KindForWireName("x." + ext) ?? "")) continue;
 
             var text = Read(file);

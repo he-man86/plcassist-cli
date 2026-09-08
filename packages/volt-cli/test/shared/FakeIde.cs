@@ -493,7 +493,7 @@ public sealed class FakeIde : DriverBase, IIdeDriver
 
     private static string KindOf(Item it)
     {
-        var header = Volt.Engine.Format.St.CodeHelper.ParseCodeHeader(it.Declaration ?? "").Type;
+        var header = Volt.Engine.Format.St.CodeHelper.ParseCodeHeader(it.Declaration ?? "");
         return string.IsNullOrEmpty(header)
             ? ItemKind.Map(it.KindCode) ?? ItemKind.Kinds.FunctionBlock
             : header;

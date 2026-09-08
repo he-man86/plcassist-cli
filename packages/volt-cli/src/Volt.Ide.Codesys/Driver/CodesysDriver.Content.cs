@@ -41,8 +41,8 @@ public sealed partial class CodesysDriver
         // language is already in the content and a second copy could only disagree with it.
         _ = language;
         return new ItemContent(
-            KindOf(item, declaration),
-            declaration.TrimEnd(),
+            KindOf(item),
+            declaration.TrimEnd('\n'),
             body,
             members);
     }
@@ -87,6 +87,21 @@ public sealed partial class CodesysDriver
     /// <c>STImplementationObject</c>, an FBD or LD POU yields <c>NWLImplementationObject</c>, a CFC POU yields
     /// <c>CFCImplementationObject</c> — measured, and the same project proves the discrimination
     /// (271 ST, 1 CFC in one project; 38 ST, 36 NWL in another).</summary>
+    /// <summary>What the vendor holds, minus only the trailing NEWLINES Volt's file format cannot carry.
+    ///
+    /// <para>It used to be <c>Trim()</c>, and that made the read side an EDITOR. Leading whitespace is content:
+    /// a body whose first line is indented, or which opens on a blank line, is exactly what the engineer wrote —
+    /// and it is also what a PUSH legitimately sends, so trimming it turned every such push into a silent
+    /// one-line edit that the next pull reported as drift. Nine files in `pro2193` came back changed after a
+    /// migration for no other reason.</para>
+    ///
+    /// <para>Trailing newlines are the exception because they are not representable: <see cref="StWriter"/>
+    /// ends a body with its own separator before <c>END_&lt;KIND&gt;</c>, so a body that ends in three blank
+    /// lines cannot round-trip whatever this does. Dropping them here is the honest place to lose them.
+    /// Trailing SPACES on the last real line are kept — those are text.</para></summary>
+    private static string? BodyText(string raw) =>
+        raw.TrimEnd('\n') is { } text && text.Trim().Length == 0 ? null : raw.TrimEnd('\n');
+
     private static (BodyLanguage? Language, string? Body) ReadBody(object? iobj)
     {
         var impl = iobj is null ? null : NwlInterop.Get(iobj, "Implementation");
@@ -96,8 +111,7 @@ public sealed partial class CodesysDriver
         {
             case "STImplementationObject":
             {
-                var text = CodesysObjectModel.ReadAspectText(iobj, "Implementation").Trim();
-                return (null, text.Length == 0 ? null : text);
+                return (null, BodyText(CodesysObjectModel.ReadAspectText(iobj, "Implementation")));
             }
 
             case "NWLImplementationObject":
@@ -209,9 +223,6 @@ public sealed partial class CodesysDriver
         return null;
     }
 
-    /// <summary>Compare on the text as it LANDS — the drivers trim, so a trailing newline is not a change.</summary>
-    private static string Text(string? s) => (s ?? "").Trim();
-
     private Accessor ReadAccessor(ItemRef acc)
     {
         var iobj = _om.ReadObject(acc.Native);
@@ -232,7 +243,7 @@ public sealed partial class CodesysDriver
             throw new BridgeException(BridgeErrorCodes.InternalError,
                 $"'{site.Name}': the IDE reports no declaration for this member — that is a broken item, not a " +
                 "transport gap");
-        return decl.Trim();
+        return decl.TrimEnd('\n');
     }
 
     private string ReadDeclarationText(ItemRef item) =>
@@ -268,12 +279,22 @@ public sealed partial class CodesysDriver
     }
 
 
-    private string KindOf(ItemRef item, string declaration)
-    {
-        var mapped = ItemKind.Map(KindCode(item));
-        if (!string.IsNullOrEmpty(mapped)) return mapped!;
-        return CodeHelper.ParseCodeHeader(declaration).Type;
-    }
+    /// <summary>The item's KIND, from the TREE — never from its text.
+    ///
+    /// <para>It used to fall back to parsing the declaration's header when the tree code did not map. That arm
+    /// was unreachable and load-bearing-looking, which is the worst combination: every route into
+    /// <c>ReadContent</c> is already gated on <c>ItemKind.Map</c> answering (<c>ProjectSnapshot</c>,
+    /// <c>FetchService</c>, <c>PushService</c>, <c>ItemLookup</c>), so the fallback could only ever fire if one
+    /// of those gates broke — and then it would answer with a GUESS instead of failing, putting a kind on the
+    /// wire that the tree does not agree with.</para>
+    ///
+    /// <para>Failing loud costs nothing here: <c>Versioning.SafeVersion</c> turns the throw into one logged
+    /// "unreadable" item rather than a dead walk.</para></summary>
+    private string KindOf(ItemRef item) =>
+        ItemKind.Map(KindCode(item))
+        ?? throw new BridgeException(BridgeErrorCodes.InternalError,
+            $"'{Name(item)}' has tree kind {KindCode(item)}, which maps to no Volt kind - it should never have " +
+            "reached ReadContent, because every caller filters on that map first.");
 
     // ── member write ──────────────────────────────────────────────────────────────────────────────
 

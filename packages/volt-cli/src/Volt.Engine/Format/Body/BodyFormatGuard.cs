@@ -71,7 +71,7 @@ public static class BodyFormatGuard
     /// source being written. Throws <see cref="BridgeException"/>; returns quietly when the write is allowed.</summary>
     public static void RequireWritable(ItemContent live, ItemContent pushed)
     {
-        Check(pushed.Kind, "the item", live.Body, pushed.Body);
+        Check("the item", live.Body, pushed.Body);
 
         var byName = live.Members.ToDictionary(m => m.Name, StringComparer.OrdinalIgnoreCase);
         foreach (var member in pushed.Members)
@@ -85,16 +85,16 @@ public static class BodyFormatGuard
             if (member.Kind == ItemKind.Kinds.Property || member.Kind == ItemKind.Kinds.InterfaceProperty
                 || member.Kind == ItemKind.Kinds.InterfaceMethod)
             {
-                Check(member.Kind, $"'{member.Name}' GET", current.Getter?.Body, member.Getter?.Body);
-                Check(member.Kind, $"'{member.Name}' SET", current.Setter?.Body, member.Setter?.Body);
+                Check($"'{member.Name}' GET", current.Getter?.Body, member.Getter?.Body);
+                Check($"'{member.Name}' SET", current.Setter?.Body, member.Setter?.Body);
                 continue;
             }
 
-            Check(member.Kind, $"'{member.Name}'", current.Body, member.Body);
+            Check($"'{member.Name}'", current.Body, member.Body);
         }
     }
 
-    private static void Check(string kind, string what, string? liveBody, string? pushedBody)
+    private static void Check(string what, string? liveBody, string? pushedBody)
     {
         if (pushedBody is null) return;                      // nothing offered for this slot
 

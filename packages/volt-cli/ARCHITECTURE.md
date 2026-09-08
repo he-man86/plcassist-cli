@@ -154,15 +154,43 @@ guard that throws** — real projects legitimately repeat these names, and throw
   filtering was scoped — an object the IDE won't compile has no compiler ground truth — but is NOT implemented:
   excluded objects are currently returned like any other source. If added, wire it into the tree walk, not a
   `/debug` probe.)
-- **Content travels as ONE PLCopen document; STRUCTURE travels on the scripting API.** This is the axis the code
-  is filed on, and it holds in BOTH directions. On read, `Sync/Materializer` gets a POU's declaration, body,
-  methods, actions, properties and accessors out of a single export — but needs a separate COM tree walk
-  (`BuildFolderMap`) for its child folders. On write, `Sync/PushService` imports a single spliced document — and
-  then needs `IProjectTree.Move` (`RestoreChildFolders`) for exactly the same reason. The reason is the same both
-  times: **PLCopen carries no folder membership the import will honour.** CODESYS's export CAN describe it
-  (`bExportFolderStructure` emits a `projectstructure` block) but emits it `handleUnknown="discard"`, and the
-  import does precisely that — measured. Rename is the other structural verb PLCopen cannot express, so it stays
-  on `IProjectTree.Rename`, where the IDE rewrites call-sites.
+- **CONTENT travels as `ItemContent` over the vendor's own object model; STRUCTURE travels on the tree API.**
+  This bullet used to say "content travels as ONE PLCopen document", and that has been false since the PLCopen
+  transport was deleted: `ICodeStore.ReadContent`/`WriteContent` reach declarations and textual bodies through
+  their aspects and graphical bodies as typed node trees, so **nothing is serialized in either direction** —
+  there is no document to splice, no import to re-place items after, and no regeneration carrying unmodelled
+  elements through. What survives from that era is the AXIS, which the deletion did not change: folder
+  membership, rename and move are still not properties of an item's content, so they stay on `IProjectTree`
+  (`TreeNav`), where the IDE rewrites call-sites on a rename. A task is the sharp case — it is placed by KIND
+  rather than by folder name, because the vendor names its container in the installation's LANGUAGE
+  (`TreeNav.ResolveTaskParent`, DIALECT C22).
+- **A DECLARATION is handed to the vendor VERBATIM — nothing re-emits one from parsed fields.** The path is
+  `StReader` → `ItemContent.Declaration` → `PushService` → the driver's declaration aspect, and not one step in
+  it reassembles the text. That is why the header parse can be as thin as it is (`CodeHelper.ParseCodeHeader`
+  reads the leading KEYWORD and nothing else — no name, no return type, no modifiers, and no regex), and it is
+  the rule to refuse any future "normalize the header" on sight. **Three exceptions, and they are the whole
+  list:** an ACTION's header is SYNTHESIZED (`ACTION <name>`, because IEC gives an action a name and a body and
+  nothing else, so there is no declaration to read), a property's accessors are framed with `GET`/`END_GET`, and
+  trailing NEWLINES are dropped at every block edge because `StWriter` cannot represent them.
+- **What a pull writes, a push must send back unchanged:** `StWriter.Write(StReader.Read(x)) == x`, for every
+  file, byte for byte. A workspace file IS the writer's output and a push feeds it straight back to the reader,
+  so this identity is the whole guarantee that pull-then-push is a no-op — and every byte the pair disagrees on
+  is a byte an engineer's project silently loses or gains. It is gated by
+  `test/Volt.Engine.Tests/format/st/StFixedPointTests.cs`, over committed fixtures always and over whole
+  customer projects when `VOLT_CORPUS` names a corpus root. **Necessary, not sufficient:** the writer never
+  emits `Member.Name`, `ReturnType` or `DataType`, so a change to the signature parsers needs its own field
+  assertions — and a member-level boundary move (which side of the line a comment falls on) is byte-identical by
+  construction, so those need structural assertions too. Both kinds live in that same file.
+- **The DECL/IMPL boundary is IMPLICIT in the file, and both sides have to agree on where it is.** There is no
+  marker: the reader infers it and the writer re-inserts a separator, so a disagreement is silent data movement.
+  Five rules cover every real shape, and each has a corpus file that forces it — the kind decides whether a
+  boundary exists at all (a DUT/GVL has none); an explicit body marker (`NETWORK n`, `%FOLDER`) outranks
+  `END_VAR`; otherwise the last `END_VAR`; with no VAR section, the end of the WRAPPED header
+  (`EXTENDS`/`IMPLEMENTS`/a leading `:`); and trailing trivia has THREE homes — above a member it is the
+  member's, after a member's `END_VAR` it is that member's declaration, after a TOP-LEVEL `END_VAR` it is the
+  body. The last one is not a tidy rule and cannot be made one: the writer separates a top-level declaration
+  from its body with a blank line and a member's with a single newline, so identical text has opposite correct
+  answers at the two levels.
 - **CFC, SFC and IL are UNSUPPORTED; only ST, FBD and LD round-trip** (`Graph/NetworkCode`). An unsupported body
   materializes as the `(* @volt-graphical: <LANG> *)` marker — carrying none of the content — and is refused on
   push. It used to be called "read-only", which oversold it: there is nothing readable, and the marker is the
@@ -267,7 +295,7 @@ behavior and error codes are identical across vendors by construction:
 - **One error channel:** only `BridgeException`/`BridgeErrorCodes` cross the wire; a driver must not leak a
   vendor-specific exception type as an expected condition.
 - **Enforced by a guard:** `VendorParityGuardTests` fails the build if a vendor string literal appears in Core code
-  (`Volt.Engine`). Comments may still explain a vendor's PLCopen dialect — the shared transform handles it — but no
+  (`Volt.Engine`). Comments may still explain a vendor's dialect — `Ide/DIALECT.md` is where those live — but no
   `vendor == "twincat"` branch may live above the pipe.
 
 The fuller programme (shrinking `IIdeDriver` to primitives, a conformance suite over both drivers) is tracked in
@@ -359,7 +387,7 @@ marked in the code with its reason — a `ponytail:` comment — rather than lef
 
 See `README.md` for commands. In short: `dotnet build Volt.sln`; the C# unit tests
 (`test/Volt.Engine.Tests/`) run offline against a fake IDE, and the TS e2e tests (`test/e2e/`) drive a live
-bridge over the pipe; the headless CODESYS dev loop is `scripts/codesys-pipe.ps1` (the TwinCAT worker is spawned
+bridge over the pipe; the CODESYS dev loop is `scripts/codesys-pipe.ps1` (the TwinCAT worker is spawned
 by the connector).
 
 ## Reading a vendor API instead of guessing at it

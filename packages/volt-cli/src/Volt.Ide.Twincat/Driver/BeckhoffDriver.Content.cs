@@ -38,7 +38,7 @@ public sealed partial class BeckhoffDriver
         foreach (var site in Volt.Engine.Ide.MemberSites.Of(this, item))
             members.Add(ReadMember(site));
 
-        return new ItemContent(KindOf(item, declaration), declaration.TrimEnd(), body, members);
+        return new ItemContent(KindOf(item), declaration.TrimEnd('\n'), body, members);
     }
 
     public void WriteContent(ItemRef item, ItemContent content,
@@ -283,7 +283,7 @@ public sealed partial class BeckhoffDriver
         var lang = GraphicalLanguageOf(raw);
         if (lang != null) return BodyMarker.For(lang);
 
-        var body = raw.Trim();
+        var body = raw.TrimEnd('\n');
         return body.Length == 0 ? null : body;
     }
 
@@ -629,7 +629,7 @@ public sealed partial class BeckhoffDriver
             throw new BridgeException(BridgeErrorCodes.InternalError,
                 $"'{site.Name}': the IDE reports no declaration for this member — that is a broken item, not a " +
                 "transport gap");
-        return decl.Trim();
+        return decl.TrimEnd('\n');
     }
 
 
@@ -677,12 +677,22 @@ public sealed partial class BeckhoffDriver
     }
 
 
-    private string KindOf(ItemRef item, string declaration)
-    {
-        var mapped = ItemKind.Map(KindCode(item));
-        if (!string.IsNullOrEmpty(mapped)) return mapped!;
-        return CodeHelper.ParseCodeHeader(declaration).Type;
-    }
+    /// <summary>The item's KIND, from the TREE — never from its text.
+    ///
+    /// <para>It used to fall back to parsing the declaration's header when the tree code did not map. That arm
+    /// was unreachable and load-bearing-looking, which is the worst combination: every route into
+    /// <c>ReadContent</c> is already gated on <c>ItemKind.Map</c> answering (<c>ProjectSnapshot</c>,
+    /// <c>FetchService</c>, <c>PushService</c>, <c>ItemLookup</c>), so the fallback could only ever fire if one
+    /// of those gates broke — and then it would answer with a GUESS instead of failing, putting a kind on the
+    /// wire that the tree does not agree with.</para>
+    ///
+    /// <para>Failing loud costs nothing here: <c>Versioning.SafeVersion</c> turns the throw into one logged
+    /// "unreadable" item rather than a dead walk.</para></summary>
+    private string KindOf(ItemRef item) =>
+        ItemKind.Map(KindCode(item))
+        ?? throw new BridgeException(BridgeErrorCodes.InternalError,
+            $"'{Name(item)}' has tree kind {KindCode(item)}, which maps to no Volt kind - it should never have " +
+            "reached ReadContent, because every caller filters on that map first.");
 
     // ── non-source manifest ──
     public string ReadManifest(ItemRef item, string kind)

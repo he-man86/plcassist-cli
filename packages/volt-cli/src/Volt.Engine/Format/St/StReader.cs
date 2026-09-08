@@ -74,13 +74,13 @@ public static class StReader
 		// 1. Identify the outer POU kind (uses the existing CodeHelper
 		// logic which handles pragmas + comments above the keyword; it
 		// also validates the header).
-		var kind = CodeHelper.ParseCodeHeader(sourceText).Type;
+		var kind = CodeHelper.ParseCodeHeader(sourceText);
 
 		// 2. Branch on kind: composite POUs have children, simple
 		// ones (gvl / dut) are single text blobs.
 		if (kind is ItemKind.Kinds.Gvl or ItemKind.Kinds.Dut)
 		{
-			return new ItemContent(kind, sourceText.TrimEnd(), "", new List<Member>());
+			return new ItemContent(kind, sourceText.TrimEnd('\n'), "", new List<Member>());
 		}
 
 		// 3. Composite POU: find the outer END_X to split POU from
@@ -394,7 +394,12 @@ public static class StReader
 		{
 			ctx.Update(lines[i]);
 			if (i <= header || ctx.InsideTrivia) continue;
-			if (!LineStartsWithKeyword(ctx.Code, "EXTENDS") && !LineStartsWithKeyword(ctx.Code, "IMPLEMENTS")) break;
+			// `EXTENDS` / `IMPLEMENTS` / a wrapped `: type`. The colon form is not a keyword and not a guess at
+			// "is this a statement?": NO valid ST statement begins with a colon, so a line that does is a
+			// continuation of the header above it and nothing else. `FUNCTION Compute` / `: REAL` is a real
+			// CODESYS export shape, and without this its return type became the first line of the body.
+			if (!LineStartsWithKeyword(ctx.Code, "EXTENDS") && !LineStartsWithKeyword(ctx.Code, "IMPLEMENTS")
+				&& !ctx.Code.TrimStart().StartsWith(":", StringComparison.Ordinal)) break;
 			end = i + 1;
 		}
 		return end;
@@ -462,7 +467,7 @@ public static class StReader
 		// Split decl from impl inside the block (excluding the sigLine's
 		// own line and the trailing END_X). Re-scan to find last END_VAR.
 		var inner = SliceLines(lines, blockStart, endLine.Value - 1); // includes pragmas + sig
-		var (decl, impl) = SplitDeclImplOfChild(inner);
+		var (decl, impl) = SplitDeclImplOfChild(inner, kind);
 		// The body begins with an optional Volt directive block; %FOLDER is ours (the child's
 		// sub-folder) and is peeled off. The graphical marker (NETWORK … for editable FBD/LD) stays
 		// in the body for graphical detection.
@@ -564,13 +569,30 @@ public static class StReader
 		return new Accessor(decl, impl);
 	}
 
-	private static (string decl, string impl) SplitDeclImplOfChild(IList<string> innerLines)
+	private static (string decl, string impl) SplitDeclImplOfChild(IList<string> innerLines, string kind)
 	{
 		// Same guard as the root POU, plus %FOLDER: a child's impl is everything from the first
 		// %FOLDER/graphical marker (its network-text body — incl. VAR_TEMP — and the %FOLDER directive that
 		// PeelFolderDirective will strip). Real VAR sections stay in the decl before it.
 		int gfx = FirstMarkerLine(innerLines, includeFolder: true);
 		if (gfx >= 0) return SplitAtLine(innerLines, gfx);
+
+		// AN ACTION HAS NO DECLARATION TO PUT TRIVIA IN, so for an action the split stops at the signature line
+		// and everything below it — comments included — is BODY.
+		//
+		// IEC gives an action a name and a body and nothing else, and both drivers say so by writing
+		// `m.Kind == Kinds.Action ? null : m.Declaration` (CodesysDriver.Content.cs, BeckhoffDriver.Content.cs).
+		// So a line that lands in an action's declaration is not moved, it is DELETED from the project on the
+		// next push. Extending an action's declaration over its trailing comments therefore silently dropped
+		// them: 25 actions across the corpora, 12 of them comment-only, would have lost their entire content.
+		// The file still round-trips byte for byte either way — AssembleChild joins the two with one newline —
+		// which is why the fixed-point gate cannot see this and a driver-level test has to.
+		//
+		// AFTER the marker check above, never before: an action with a graphical body needs its `%FOLDER` and
+		// `NETWORK` lines in the body, and splitting at the signature first would leave them in a declaration
+		// nobody writes.
+		if (kind == ItemKind.Kinds.Action)
+			return SplitAtLine(innerLines, Math.Max(FirstCodeLine(innerLines), 0) + 1);
 
 		// No VAR sections — the declaration is the signature line (first non-trivia line) + any preceding
 		// pragmas. Either way the trailing trivia after it is declaration, not body (see DeclarationEnd).
@@ -580,6 +602,17 @@ public static class StReader
 	}
 
 	// ─── Signature parsing helpers (METHOD/ACTION/PROPERTY headers) ──
+
+	/// <summary>The access/abstractness keywords a member signature may carry between its keyword and its name.
+	///
+	/// <para>Spelled ONCE. It used to be written out in both parsers below, and they had already drifted: the
+	/// property pattern allowed <c>?</c> over four keywords where the method pattern allowed <c>*</c> over six,
+	/// so `PROPERTY PUBLIC ABSTRACT Ready : INT` — ordinary CODESYS, and a file Volt itself had written — threw
+	/// <c>InvalidSt</c> from inside the write, mid-batch. A constant cannot drift from itself.</para>
+	///
+	/// <para>They stay TWO patterns, deliberately. A method's <c>: type</c> is optional and a property's is
+	/// mandatory, and merging them would have to make one of those wrong.</para></summary>
+	private const string Modifiers = @"(?:(?:PUBLIC|PRIVATE|PROTECTED|INTERNAL|FINAL|ABSTRACT)\s+)*";
 
 	/// <summary>Name + (methods only) return type off the signature line. The access-modifier group is
 	/// matched but not captured into a field — nothing on the write path tells the IDE a member's
@@ -596,8 +629,7 @@ public static class StReader
 		var clean = CodeHelper.WithoutComments(sig);
 		if (kind == ItemKind.Kinds.Method)
 		{
-			var m = Regex.Match(clean,
-				@"^METHOD\s+(?:(?:PUBLIC|PRIVATE|PROTECTED|INTERNAL|FINAL|ABSTRACT)\s+)*(\w+)(?:\s*:\s*(.+?))?\s*;?\s*$",
+			var m = Regex.Match(clean, $@"^METHOD\s+{Modifiers}(\w+)(?:\s*:\s*(.+?))?\s*;?\s*$",
 				RegexOptions.IgnoreCase);
 			if (!m.Success)
 				throw new BridgeException(BridgeErrorCodes.InvalidSt, $"Cannot parse METHOD signature: {Truncate(sig, 80)}");
@@ -614,13 +646,13 @@ public static class StReader
 
 	private static (string name, string dataType) ParsePropertySignature(string sig)
 	{
-		var m = Regex.Match(sig.TrimEnd(),
-			// The SAME modifier set and repetition the METHOD parser above uses. It was `?` over four keywords
-			// while METHOD had `*` over six, so `PROPERTY PUBLIC ABSTRACT Ready : INT` — ordinary CODESYS — did
-			// not parse, and the failure is a THROWN InvalidSt from inside the write, landing mid-batch.
-			// The engineer never typed it either: a property declared that way in the IDE materializes that way
-			// on pull, so it is a file Volt wrote and then refused to take back.
-			@"^PROPERTY\s+(?:(?:PUBLIC|PRIVATE|PROTECTED|INTERNAL|FINAL|ABSTRACT)\s+)*(\w+)\s*:\s*(.+?)\s*;?\s*$",
+		// COMMENTS OFF FIRST, exactly as the METHOD parser does — and for a sharper reason than symmetry. This
+		// matched the RAW line, so `PROPERTY Ready : BOOL // the ready flag` yielded a DATA TYPE of
+		// `BOOL // the ready flag`, which `PushService.CreateSeed` hands to TwinCAT as the property's type; and
+		// a leading `(* … *)` threw `InvalidSt` mid-push. No corpus property carries a comment today while 207
+		// method signatures do, so this is the same habit arriving at the one parser that could not take it.
+		var m = Regex.Match(CodeHelper.WithoutComments(sig),
+			$@"^PROPERTY\s+{Modifiers}(\w+)\s*:\s*(.+?)\s*;?\s*$",
 			RegexOptions.IgnoreCase);
 		if (!m.Success)
 			throw new BridgeException(BridgeErrorCodes.InvalidSt, $"Cannot parse PROPERTY signature: {Truncate(sig, 80)}");

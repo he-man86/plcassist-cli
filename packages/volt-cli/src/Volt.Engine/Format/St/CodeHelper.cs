@@ -10,12 +10,6 @@ namespace Volt.Engine.Format.St;
 
 public static class CodeHelper
 {
-    // A parsed header carries only the KIND and the NAME — the sole things callers read. It deliberately does
-    // NOT extract a return type / data type / access modifier: those had no readers, and requiring them on the
-    // header line made a header unrecognizable when the `: type` tail wrapped to the next line (a real CODESYS
-    // export form). Child-level metadata (method return types etc.) is parsed separately in StReader.
-    public record CodeHeader(string Type, string? Name);
-
     /// <summary>The first line of a declaration that is actually a HEADER — skipping blank lines, `{…}` pragmas,
     /// `//` comments and `(* … *)` blocks. Returns <c>""</c> when there is none.
     /// <para><b>TOTAL by contract: it never throws.</b> That is what lets a classifier consume it. The CODESYS
@@ -167,56 +161,64 @@ public static class CodeHelper
         return "alias";
     }
 
-    public static CodeHeader ParseCodeHeader(string code)
+    /// <summary>The item KIND a declaration's header names — <c>function_block</c>, <c>program</c>, … — and
+    /// nothing else.
+    ///
+    /// <para><b>It used to return the NAME too, and the name was a lie.</b> Nothing read it: the item's name is
+    /// the FILENAME, which the wire carries as <c>name.kind</c> and both drivers get from the tree. Worse, it was
+    /// wrong wherever a modifier sat where the name was expected — <c>FUNCTION_BLOCK ABSTRACT libObject</c> read
+    /// as <c>ABSTRACT</c>, on 78 files across the corpora. Deleting an unread field is a small win; deleting an
+    /// unread field that is also incorrect removes a trap.</para>
+    ///
+    /// <para><b>And with the name gone, so do the regexes.</b> Nine <c>Regex.Match</c> calls per file existed
+    /// only to capture a name after a keyword, with the modifier alternation spelled twice and a
+    /// FUNCTION_BLOCK-before-FUNCTION ordering hazard called out in a comment. The kind is the FIRST TOKEN of the
+    /// header line, compared whole — which is both faster and unable to have that ordering bug, because
+    /// <c>FUNCTION</c> is not <c>FUNCTION_BLOCK</c> when you compare tokens instead of prefixes.</para>
+    ///
+    /// <para>A keyword with NOTHING after it is still not a header (<c>FUNCTION_BLOCK</c> alone), and that guard
+    /// is kept — the global-variable keywords are the deliberate exception, since a GVL header names nothing.
+    /// Modifiers are simply not looked at any more: <c>METHOD PUBLIC FINAL Foo</c> and <c>METHOD Foo</c> are the
+    /// same kind, which was the only thing the modifier-skipping was ever in service of.</para></summary>
+    public static string ParseCodeHeader(string code)
     {
         if (string.IsNullOrWhiteSpace(code))
             throw new BridgeException(BridgeErrorCodes.InvalidCodeHeader, "Empty code");
 
         var headerLine = HeaderLine(code);
-
         if (headerLine.Length == 0)
             throw new BridgeException(BridgeErrorCodes.InvalidCodeHeader, "No header line found");
 
-        // Every pattern matches ONLY the keyword + the item name, and requires NOTHING after the name on the
-        // header line. That is the whole point of the structural fix: a header's `: type` / return type /
-        // `EXTENDS Base :` tail legally wraps onto the next line in real CODESYS exports, so requiring any of it
-        // on the header line silently loses (or, for PROPERTY/TYPE, throws away) the item. We only need kind +
-        // name; the DUT sub-type and any child metadata are derived elsewhere from the full body.
-        //   FUNCTION_BLOCK is checked before FUNCTION — `\s+` after FUNCTION won't match the `_` in
-        //   FUNCTION_BLOCK, but keep the order explicit anyway.
-        if (Regex.IsMatch(headerLine, @"^(VAR_GLOBAL|VAR_CONFIG)\b", RegexOptions.IgnoreCase))
-            return new CodeHeader(ItemKind.Kinds.Gvl, null);
+        // `HeaderLine` only ever returns a line with code on it, so this cannot come back empty today — but an
+        // array index is the wrong thing to bet that on when every other way out of here is a coded refusal.
+        var tokens = headerLine.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        var keyword = tokens.Length > 0 ? tokens[0] : "";
 
-        if (NameAfter(headerLine, "FUNCTION_BLOCK") is { } fb) return new CodeHeader(ItemKind.Kinds.FunctionBlock, fb);
-        if (NameAfter(headerLine, "PROGRAM") is { } prg) return new CodeHeader(ItemKind.Kinds.Program, prg);
-        if (NameAfter(headerLine, "INTERFACE") is { } iface) return new CodeHeader(ItemKind.Kinds.Interface, iface);
-        if (NameAfter(headerLine, "FUNCTION") is { } fc) return new CodeHeader(ItemKind.Kinds.Function, fc);
-        if (NameAfter(headerLine, "ACTION") is { } act) return new CodeHeader(ItemKind.Kinds.Action, act);
-        // METHOD / PROPERTY may carry access modifiers (PUBLIC/PRIVATE/…) before the name.
-        if (MemberName(headerLine, "METHOD") is { } meth) return new CodeHeader(ItemKind.Kinds.Method, meth);
-        if (MemberName(headerLine, "PROPERTY") is { } prop) return new CodeHeader(ItemKind.Kinds.Property, prop);
+        // A GVL is the one header with no name after the keyword.
+        if (Is(keyword, "VAR_GLOBAL") || Is(keyword, "VAR_CONFIG")) return ItemKind.Kinds.Gvl;
 
-        // A DUT is unambiguous — only a DUT begins with TYPE. Match just the name (EXTENDS/IMPLEMENTS/`:` may
-        // wrap — the case that silently dropped pro2193's Fanuc_* structs). A DUT is ONE kind `dut`; struct/
-        // enum/union/alias is not a Volt concept — it lives only in the declaration body, and the IDE derives
-        // it from that text on both read and create. Volt never classifies the subtype.
-        if (NameAfter(headerLine, "TYPE") is { } dut)
-            return new CodeHeader(ItemKind.Kinds.Dut, dut);
+        // Everything else names something. `TYPE Foo:` counts — the token carries the colon and this does not
+        // care, because the name is not being read, only its presence.
+        if (tokens.Length >= 2)
+        {
+            if (Is(keyword, "FUNCTION_BLOCK")) return ItemKind.Kinds.FunctionBlock;
+            if (Is(keyword, "PROGRAM")) return ItemKind.Kinds.Program;
+            if (Is(keyword, "INTERFACE")) return ItemKind.Kinds.Interface;
+            if (Is(keyword, "FUNCTION")) return ItemKind.Kinds.Function;
+            if (Is(keyword, "ACTION")) return ItemKind.Kinds.Action;
+            if (Is(keyword, "METHOD")) return ItemKind.Kinds.Method;
+            if (Is(keyword, "PROPERTY")) return ItemKind.Kinds.Property;
+            // A DUT is unambiguous — only a DUT begins with TYPE — and it is ONE kind. struct/enum/union/alias
+            // is not a Volt concept on the wire; it lives in the declaration body, where `DutSubtype` reads it
+            // to name the FILE and where both IDEs read it to create the object.
+            if (Is(keyword, "TYPE")) return ItemKind.Kinds.Dut;
+        }
 
         throw new BridgeException(BridgeErrorCodes.InvalidCodeHeader,
             $"Unrecognized code header: {(headerLine.Length > 80 ? headerLine.Substring(0, 80) + "..." : headerLine)}");
     }
 
-    /// <summary>The item name after a leading keyword (`FUNCTION_BLOCK Foo` → `Foo`), or null if the header
-    /// line doesn't start with that keyword. Nothing after the name is required, so a wrapped `: type` tail
-    /// never defeats the match.</summary>
-    private static string? NameAfter(string headerLine, string keyword) =>
-        Regex.Match(headerLine, $@"^{keyword}\s+(\w+)", RegexOptions.IgnoreCase) is { Success: true } m ? m.Groups[1].Value : null;
-
-    /// <summary>Like <see cref="NameAfter"/> but skips optional access/modifier keywords between the keyword and
-    /// the name (`METHOD PUBLIC FINAL Foo` → `Foo`).</summary>
-    private static string? MemberName(string headerLine, string keyword) =>
-        Regex.Match(headerLine, $@"^{keyword}\s+(?:(?:PUBLIC|PRIVATE|PROTECTED|INTERNAL|FINAL|ABSTRACT)\s+)*(\w+)",
-            RegexOptions.IgnoreCase) is { Success: true } m ? m.Groups[1].Value : null;
-
+    /// <summary>Whole-token keyword comparison. IEC identifiers are case-insensitive, so this is too.</summary>
+    private static bool Is(string token, string keyword) =>
+        string.Equals(token, keyword, StringComparison.OrdinalIgnoreCase);
 }
