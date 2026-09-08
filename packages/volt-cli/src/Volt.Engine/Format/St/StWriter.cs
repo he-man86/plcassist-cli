@@ -35,6 +35,14 @@ public static class StWriter
         if (impl.Length > 0)
             sb.Append('\n').Append('\n').Append(impl);
 
+        // `Ordinal`, and it must stay Ordinal — this is a SORT, not a lookup.
+        //
+        // Every NAME LOOKUP in the engine uses `OrdinalIgnoreCase`, because IEC identifiers are
+        // case-insensitive and two members cannot differ only by case. That makes the comparer here look
+        // inconsistent, and it is not: a lookup has to find `Calculate` when asked for `calculate`, while a
+        // sort only has to be the SAME sort on every pull. Ordinal is; and switching to OrdinalIgnoreCase
+        // would move every mixed-case member of every POU in every existing workspace, producing a diff in
+        // the engineer's repo that says nothing changed and means nothing changed.
         var children = item.Members
             .OrderBy(c => KindOrder(c.Kind))
             .ThenBy(c => c.Name, StringComparer.Ordinal)
