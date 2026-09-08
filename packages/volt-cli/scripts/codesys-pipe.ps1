@@ -12,19 +12,24 @@
 .PARAMETER Action   up (launch, default) | down (stop + kill CODESYS) | logs
 .PARAMETER Version  18 or 21 (default 21)
 .PARAMETER Project  fixture .project to open
+.PARAMETER Wait     (up) block until the pipe is serving and print its NAME, so a caller can drive it without
+                    hunting for the pid. Use `-Action pipe` on its own to print the name of an IDE already up.
 .PARAMETER Instance name suffix so MULTIPLE CODESYS can run at once (per-instance stop-flag/pid/logs). Each
                     process serves its own volt.bridge.codesys.<pid> pipe (no VOLT_PIPE set), so two instances never
                     collide — this is how the multi-instance path is smoke-tested end to end.
 #>
 param(
-    [ValidateSet("up", "down", "logs")]
+    [ValidateSet("up", "down", "logs", "pipe")]
     [string]$Action = "up",
     [ValidateSet("18", "21")]
     [string]$Version = "21",
     [string]$Project = "$PSScriptRoot\..\test\fixtures\CodesysTestProject.project",
     [string]$Instance = "",
     # -NoBuild skips the pre-launch bridge rebuild (fast re-launch when you KNOW the DLL is current).
-    [switch]$NoBuild
+    [switch]$NoBuild,
+    # -Wait blocks until the pipe answers and prints its name. Without it `up` returns as soon as CODESYS is
+    # LAUNCHED, which is minutes before it SERVES — and every caller then reinvents the same polling loop.
+    [switch]$Wait
 )
 $ErrorActionPreference = "Stop"
 
@@ -47,6 +52,19 @@ function Get-Profile {
     return ($p.Name -replace '\.profile\.xml$', '')
 }
 
+# THE live bridge pipe's NAME, or $null. Three traps live in these four lines and each one cost real time:
+#   - Git Bash cannot enumerate the pipe namespace at all (`ls //./pipe/` returns empty, SILENTLY), so a caller
+#     in bash must ask PowerShell rather than looking itself;
+#   - the path cannot be passed in from a shell without the backslashes being eaten on the way;
+#   - `Split-Path -Leaf` returns NOTHING for entries under it, because it reads '\.\pipe' as a UNC root.
+# All three look identical from outside - a pipe that never appears, i.e. an IDE that seems slow to start.
+function Get-BridgePipe {
+    [System.IO.Directory]::GetFiles('\\.\pipe\') |
+        Where-Object { $_ -like '*volt.bridge.codesys.*' } |
+        ForEach-Object { $_.Substring($_.LastIndexOf('\') + 1) } |
+        Select-Object -First 1
+}
+
 switch ($Action) {
     "down" {
         New-Item -ItemType File -Force $stopFlag | Out-Null
@@ -57,6 +75,10 @@ switch ($Action) {
             Remove-Item $pidFile -Force -ErrorAction SilentlyContinue
         }
         Remove-Item $stopFlag -Force -ErrorAction SilentlyContinue
+    }
+    "pipe" {
+        $p = Get-BridgePipe
+        if ($p) { $p } else { Write-Error "no volt.bridge.codesys.* pipe - is an IDE up?" }
     }
     "logs" {
         Get-Content (Join-Path $work "bridge-launcher.log") -Tail 40 -ErrorAction SilentlyContinue
@@ -94,5 +116,15 @@ switch ($Action) {
         $proc.Id | Out-File $pidFile
         Write-Host "CODESYS launched (pid $($proc.Id)). Pipe: volt.bridge.codesys.$($proc.Id)"
         Write-Host "Tail launcher log with: codesys-pipe.ps1 logs"
+
+        if ($Wait) {
+            # Opening a real project takes MINUTES; the pipe is the only honest "ready" signal.
+            for ($i = 0; $i -lt 120; $i++) {
+                $p = Get-BridgePipe
+                if ($p) { $p; return }
+                Start-Sleep -Seconds 5
+            }
+            throw "CODESYS launched but no pipe after 10 minutes - see: codesys-pipe.ps1 logs"
+        }
     }
 }

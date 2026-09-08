@@ -50,21 +50,29 @@ describe(`graphical / importer grouping (${BASE})`, () => {
 				await pushOps([{ op: "deleteItem", name: item, ifVersion: items[item] ?? "UNREADABLE000000" }])
 			}
 			await clean()
+			// try/FINALLY, not a trailing `await clean()`. The cleanup used to sit on the SUCCESS path only, so
+			// anything that threw mid-shape - `v` coming back undefined is one line away - leaked that item for
+			// the REST of the process. `sweepOnce` cannot help: it runs once per process, against what a PREVIOUS
+			// run left. This file is one of the two the README names as flaking only in a FULL run, and a leak that
+			// outlives its own test is exactly the shape that produces that.
+			try {
 
-			const src = `PROGRAM ${name}\nVAR\n${vars}\nEND_VAR\n\nNETWORK 0 FBD\n${body}\nEND_NETWORK\n\nEND_PROGRAM\n`
-			const created = await pushOps([{ op: "set", name: item, toFolder: "", sourceText: src, ifVersion: null }])
+				const src = `PROGRAM ${name}\nVAR\n${vars}\nEND_VAR\n\nNETWORK 0 FBD\n${body}\nEND_NETWORK\n\nEND_PROGRAM\n`
+				const created = await pushOps([{ op: "set", name: item, toFolder: "", sourceText: src, ifVersion: null }])
 
-			if (!created.accepted) {
-				report.push(`  ${label.padEnd(24)} REFUSED: ${JSON.stringify(created.conflicts).slice(0, 90)}`)
-				counts.push(-1)
-				continue
+				if (!created.accepted) {
+					report.push(`  ${label.padEnd(24)} REFUSED: ${JSON.stringify(created.conflicts).slice(0, 90)}`)
+					counts.push(-1)
+					continue
+				}
+
+				const v = (await bridge.fetch({ knownItems: {}, onlyItems: [item] })).changed.find((i: any) => i.name === item)
+				const n = [...String(v.sourceText).matchAll(/^NETWORK\s+\d+\s+\w+/gm)].length
+				report.push(`  ${label.padEnd(24)} pushed 1 network -> got ${n}`)
+				counts.push(n)
+			} finally {
+				await clean()
 			}
-
-			const v = (await bridge.fetch({ knownItems: {}, onlyItems: [item] })).changed.find((i: any) => i.name === item)
-			const n = [...String(v.sourceText).matchAll(/^NETWORK\s+\d+\s+\w+/gm)].length
-			report.push(`  ${label.padEnd(24)} pushed 1 network -> got ${n}`)
-			counts.push(n)
-			await clean()
 		}
 
 		console.log("\nIMPORTER GROUPING (D25):\n" + report.join("\n") + "\n")

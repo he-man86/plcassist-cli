@@ -137,6 +137,41 @@ public class StFixedPointTests
         Assert.Equal("BOOL", ready.DataType);
     }
 
+    /// <summary>THE ONE ROUND-TRIP HOLE LEFT, recorded rather than fixed — because fixing it changes the FILE
+    /// FORMAT and invalidates every workspace already on disk.
+    ///
+    /// <para><b>The shape.</b> A TOP-LEVEL declaration ending `END_VAR`, a comment on the very next line, then
+    /// code. <see cref="StWriter"/> separates a top-level declaration from its body with a BLANK LINE, so the
+    /// reader has to treat that blank as the separator — which means it cannot also tell whether a comment sitting
+    /// against `END_VAR` belonged to the declaration or opened the body. It guesses body, the writer re-emits with
+    /// its blank line, and the comment has moved.</para>
+    ///
+    /// <para><b>Why no reader rule fixes it.</b> One blank line cannot encode two different facts. The corpus
+    /// proves both assignments are real: `member-comment-after-end-var.prg` and `trailing-space-on-a-boundary-line.fb`
+    /// are the same text at the two levels with OPPOSITE correct answers, because a member is joined with a single
+    /// newline and a top-level item with two. The fix is writer-side (emit the declaration's own trailing newline
+    /// count) or an explicit boundary marker in the file, like the `%FOLDER` and `NETWORK` markers already there —
+    /// and either one re-pulls every committed corpus and invalidates users' repos. That is a decision, not a
+    /// cleanup.</para>
+    ///
+    /// <para><b>Why it is not urgent.</b> Absent from all 902 files across the five corpora: a pulled file always
+    /// has the writer's blank line, so only a HAND-EDITED file reaches this. But it escalates where it does bite —
+    /// for a CFC/SFC POU the body reads back as `// note` + blank + the marker, <c>BodyMarker.Is</c> is a
+    /// <c>TrimStart</c> prefix test that then says "not a marker", and <c>BodyFormatGuard</c> refuses the push.
+    /// Pulled and never pushable, from one comment in the wrong place.</para>
+    ///
+    /// <para>Un-skip this when the format decision is made; it is the assertion the fix has to satisfy.</para></summary>
+    [Fact(Skip = "KNOWN + measured: fixing it changes the file format and re-pulls every corpus — see the summary.")]
+    public void A_top_level_comment_against_END_VAR_does_not_migrate_into_the_body()
+    {
+        const string text =
+            "FUNCTION_BLOCK Machine\nVAR\n\tstep\t: INT;\nEND_VAR\n" +
+            "// this comment sits against END_VAR, with no blank line under it\n" +
+            "step := 0;\n\nEND_FUNCTION_BLOCK\n";
+
+        Assert.Equal(text, StWriter.Write(StReader.Read(text)));
+    }
+
     /// <summary>The sweep, over whatever `VOLT_CORPUS` points at. Skipped — not failed — when it is unset, which
     /// is every CI run: a corpus is a real customer project and cannot be committed here.</summary>
     [Fact]

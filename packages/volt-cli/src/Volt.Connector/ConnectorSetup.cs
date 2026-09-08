@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using Volt.Wire;
@@ -25,10 +25,17 @@ namespace Volt.Connector
         /// <summary>The TwinCAT worker exe the supervisor spawns one of per XAE window (<c>--xae-pid &lt;pid&gt;</c>),
         /// and probes for live XAE pids (<c>--list-xae-pids</c>). Null when it can't be found (dev without a build).</summary>
         public static string? TwincatExe() =>
-            ResolveWorker("VOLT_TWINCAT_BRIDGE", "VoltBridgeTwincat.exe",
-                Path.Combine("..", "volt-cli", "src", "Volt.Ide.Twincat"));
+            ResolveWorker("VOLT_TWINCAT_BRIDGE", "VoltBridgeTwincat.exe", "Volt.Ide.Twincat");
 
-        /// <summary>Resolve a worker exe: env override → next to the connector (shipped) → the dev build output.</summary>
+        /// <summary>Resolve a worker exe: env override → next to the connector (shipped) → the dev build output.
+        ///
+        /// <para><paramref name="projectDir"/> is relative to <c>src/</c>, which is where four levels up from the
+        /// connector's own bin lands. It used to read <c>../volt-cli/src/Volt.Ide.Twincat</c> — left over from
+        /// when the connector was its OWN package — and so resolved to <c>volt-cli/volt-cli/src/…</c>, a path
+        /// that cannot exist. The consequence was invisible rather than loud: <see cref="TwincatXaeProbe"/>
+        /// returns null for a missing exe, null means "the probe FAILED" (not "no XAE"), and a failed probe
+        /// deliberately leaves the fleet untouched — so a dev build detected no TwinCAT at all, reported an
+        /// empty project list, and logged nothing.</para></summary>
         private static string? ResolveWorker(string envVar, string exeName, string projectDir)
         {
             var baseDir = AppContext.BaseDirectory;
