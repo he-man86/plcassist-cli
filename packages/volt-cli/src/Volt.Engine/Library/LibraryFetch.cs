@@ -58,7 +58,7 @@ internal static class LibraryFetch
                 // Interfaces-Implementation split). Do NOT silently drop it and do NOT guess it into a real
                 // library's folder — surface it LOUD under an explicit `(unresolved)` marker so the matching gap
                 // is impossible to miss (nothing lost, no hidden bug). See openspec bridge-diagnostics-observability.
-                libFolder = LibraryLayout.FolderFor(LibraryLayout.FolderFor(libManBase, LibraryLayout.UnresolvedFolder), LibraryLayout.Sanitize(sig.LibraryPath.Split(',')[0].Trim()));
+                libFolder = LibraryLayout.FolderFor(LibraryLayout.FolderFor(libManBase, LibraryLayout.UnresolvedFolder), LibraryLayout.UnresolvedNameFor(sig.LibraryPath));
                 unmatched++;
                 VoltLog.Debug($"fetch: lib element '{sig.Name}' — owning library '{sig.LibraryPath}' matched no .library ref, foldered under (unresolved)");
             }

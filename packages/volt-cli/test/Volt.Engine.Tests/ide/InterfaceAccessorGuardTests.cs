@@ -1,4 +1,4 @@
-using Xunit;
+﻿using Xunit;
 using Volt.Contracts;
 using Volt.Engine;
 using Volt.Engine.Ide;
@@ -74,6 +74,34 @@ public class InterfaceAccessorGuardTests
     [InlineData("   ", "\n\n")]
     public void Blank_against_blank_is_a_no_op(string? declaration, string? body)
         => InterfaceAccessorGuard.RefuseIfChanged(null, null, declaration, body);
+
+
+    /// <summary>THE REVERSE OF THE TWINCAT SHAPE, AND THE ONE THAT ACTUALLY BIT: the project HOLDS a
+    /// declaration and the pushed source has none.
+    ///
+    /// <para>This is what a pull used to produce. <c>AccessorDeclaration.Keep</c> dropped a bare
+    /// <c>VAR</c>/<c>END_VAR</c> — the value 263 of pro2193's accessors hold — so the <c>.itf</c> file
+    /// materialized a bare <c>GET</c>/<c>END_GET</c>, and the very next push of that untouched interface
+    /// arrived here as live=<c>VAR END_VAR</c> against pushed=nothing. A CHANGE, correctly refused, with a
+    /// message telling the engineer to "remove the edit" they never made and could not see. Seven accessors in
+    /// the corpus's own <c>.itf</c> files are in this shape.</para>
+    ///
+    /// <para>The guard is RIGHT to refuse it — the two really do differ — which is why this is pinned as a
+    /// refusal rather than "fixed" here. What was wrong was upstream, and the pair below is the contract
+    /// between the two: what the IDE holds must survive the pull, or the push is refused for a mismatch the
+    /// pull created.</para></summary>
+    [Fact]
+    public void A_declaration_the_project_holds_and_the_push_omits_is_refused()
+        => Assert.Throws<BridgeException>(() =>
+            InterfaceAccessorGuard.RefuseIfChanged("VAR\nEND_VAR", null, null, null));
+
+    /// <summary>AND THE FIXED PULL PASSES IT. The IDE hands back <c>VAR\nEND_VAR\n</c> (trailing newline and
+    /// all); `Keep` trims only that newline, `StWriter` writes it, `StReader` reads it back — so what arrives
+    /// here equals what the project holds and an untouched interface stays pushable. The exact pair, not a
+    /// paraphrase of it.</summary>
+    [Fact]
+    public void What_the_fixed_pull_hands_back_is_not_a_change()
+        => InterfaceAccessorGuard.RefuseIfChanged("VAR\nEND_VAR\n", null, "VAR\nEND_VAR", null);
 
     /// <summary>THE MESSAGE TELLS THE ENGINEER WHAT TO DO. A refusal that only says "unsupported" sends someone
     /// looking for a mistake in what they wrote; this one names the limit and the way around it, and it is the
