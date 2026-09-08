@@ -71,6 +71,19 @@ namespace Volt.Ide.Codesys
         /// all return the SAME provider singleton, but <c>Compiler35210</c> and friends are SP-pinned and would
         /// break on a CODESYS upgrade. Verified live on SP21 (3.5.21.40).</para>
         ///
+        /// <para><b>That singleton is a session service over PER-PROJECT state, and the read is sound</b>
+        /// (DIALECT C24, <c>scripts/probe-projectsettings-scope.py</c>). The standing doubt was whether one
+        /// project's descriptor reports what the previously-opened project left behind — a real hazard, because
+        /// the service is not a property of the node being described. Measured as a SWITCH rather than a single
+        /// read, on a pair disagreeing in two fields: open A → <c>C0371</c>/UTF-8 off, close, open B →
+        /// none/UTF-8 ON, open A again → <c>C0371</c>/UTF-8 off. Both track the load, both directions, while the
+        /// service object stays one instance throughout.</para>
+        ///
+        /// <para>With NO project open it answers null and defaults — which is what the headless miss that
+        /// opened `project-settings-sync` actually was, an ordering artifact rather than a scope bug. It cannot
+        /// reach a pull: <c>volt init</c> refuses on "the bridge has no PLC project loaded" before any
+        /// descriptor is built.</para>
+        ///
         /// <para>Only the DEVIATIONS from default are emitted. CODESYS's <c>WarningsSet</c> is the dialog's ~75
         /// ROWS, not "the ones that are on" — every row defaults to warning — so listing all of them would churn
         /// the file on any version that adds an id, while telling a reader nothing. Absent from both lists means

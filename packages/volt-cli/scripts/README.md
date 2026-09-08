@@ -80,8 +80,10 @@ task being deleted).
 `probe-nwl-coil-modifiers` (576 assignment targets across five real projects: no edge or negated coil occurs),
 `probe-nwl-boxoutputs`, `probe-nwl-construct`, `probe-nwl-execute-compare`, `probe-nwl-execute-create`.
 
-**Project / settings** — `probe-project-container`, `probe-projectsettings8` (compiler warnings are not
-reliably readable — the subject of the `project-settings-sync` openspec change).
+**Project / settings** — `probe-project-container`, `probe-projectsettings-scope` (the compiler configuration
+is a session SERVICE over per-project state, and the read is sound — DIALECT C24, which closed
+`project-settings-sync`), `probe-projectsettings8` (the option-storage surface, from when the read was still in
+doubt).
 
 ## Running one
 
