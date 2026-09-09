@@ -148,7 +148,19 @@ namespace Volt.Ide.Codesys
         /// Implementation aspect has none. The write side throws for that same missing <c>TextDocument</c>, and
         /// that is not an inconsistency: a write that lands nothing is a failure, while a read of a body that
         /// isn't textual is an answer.</para></summary>
-        public static string ReadAspectText(object? iobject, string aspectName)
+        public static string ReadAspectText(object? iobject, string aspectName) =>
+            TryReadAspectText(iobject, aspectName) ?? "";
+
+        /// <summary>The same read as <see cref="ReadAspectText"/>, keeping the one distinction that one throws
+        /// away: <c>""</c> is text that is EMPTY, <c>null</c> is "there is no text here at all" — no such
+        /// aspect, or an aspect with no <c>TextDocument</c>.
+        ///
+        /// <para>Both answers are correct for a declaration or a POU body, which is why the caller above folds
+        /// them together. They are NOT the same for an Execute box's ST snippet: a box that provides a snippet
+        /// has one, so "no TextDocument" there is an object-model mismatch to fail on, while an empty snippet
+        /// is an ordinary empty box that must still render as <c>EXECUTE … END_EXECUTE</c>. Folding them cost
+        /// exactly that — see <c>CodesysNetworkReader.ReadStCode</c>.</para></summary>
+        public static string? TryReadAspectText(object? iobject, string aspectName)
         {
             if (iobject == null)
                 throw new InvalidOperationException(
@@ -157,9 +169,9 @@ namespace Volt.Ide.Codesys
                     "workspace as an emptied POU and pushed back as one.");
 
             var aspect = GetMember(iobject, aspectName);          // ITextVarDeclObject / ISTImplementationObject
-            if (aspect == null) return "";
+            if (aspect == null) return null;
             var doc = GetMember(aspect, "TextDocument");          // ITextDocument
-            if (doc == null) return "";
+            if (doc == null) return null;
             return GetMember(doc, "Text") as string ?? "";
         }
 

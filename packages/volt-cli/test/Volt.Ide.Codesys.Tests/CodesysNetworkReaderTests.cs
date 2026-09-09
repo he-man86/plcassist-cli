@@ -543,5 +543,71 @@ public class CodesysNetworkReaderTests
         Assert.Contains("split point", ex.Message);
         Assert.Contains("gSplit", ex.Message);   // the engineer needs to know WHICH one
     }
+    /// <summary>AN EMPTY EXECUTE BOX IS STILL AN EXECUTE BOX — <c>StCode</c> is <c>""</c>, never null.
+    ///
+    /// <para>`ReadStCode` trailed with <c>is { Length: &gt; 0 } t ? t : null</c>, so a box whose ST the engineer
+    /// had blanked came back with a NULL <c>StCode</c> and the writer skipped its <c>EXECUTE … END_EXECUTE</c>
+    /// arm entirely, rendering the box as <c>EXECUTE();</c> — a call to a function that does not exist. That is
+    /// the same bad shape this file's main comment describes, reached by a second route.</para>
+    ///
+    /// <para>It also broke the parity boundary: TwinCAT joins the archive's TextLines and answers <c>""</c> for
+    /// the identical box, so the two vendors served different sourceText for the same POU. And it did not stop
+    /// at the pull — pushing the pulled <c>EXECUTE();</c> back rebuilds the network with <c>StCode is null</c>,
+    /// so no STSnippet is written at all and the Execute box returns as an ordinary box named EXECUTE.</para>
+    /// </summary>
+    [Fact]
+    public void An_execute_box_with_empty_ST_reads_as_empty_not_missing()
+    {
+        var box = new Nwl.BoxTreeBox
+        {
+            BoxType = "Execute",
+            InputItemList = new object[] { Nwl.Leaf("a") },
+            STSnippet = new Nwl.STSnippet { Snippet = new _3S.CoDeSys.STObject.STImplementationObject() },
+        };
 
+        var body = CodesysNetworkReader.Read(Nwl.Body(box), BodyLanguage.Fbd);
+
+        var read = Assert.IsType<Box>(body.Networks.Single().Trees.Single());
+        Assert.Equal("", read.StCode);
+        Assert.Contains("END_EXECUTE", NetworkTextWriter.Write(body));
+    }
+
+    /// <summary>The complement, so the rule above cannot decay into "always empty": a snippet WITH text still
+    /// reads its text.</summary>
+    [Fact]
+    public void An_execute_box_reads_its_ST()
+    {
+        var impl = new _3S.CoDeSys.STObject.STImplementationObject();
+        Nwl.TextDocument.ThrowsAfterInsert = false;
+        try { impl.TextDocument.Insert(0, "n := n + 1;"); }
+        finally { Nwl.TextDocument.ThrowsAfterInsert = true; }
+
+        var box = new Nwl.BoxTreeBox
+        {
+            BoxType = "Execute",
+            InputItemList = new object[] { Nwl.Leaf("a") },
+            STSnippet = new Nwl.STSnippet { Snippet = impl },
+        };
+
+        var read = Assert.IsType<Box>(
+            CodesysNetworkReader.Read(Nwl.Body(box), BodyLanguage.Fbd).Networks.Single().Trees.Single());
+        Assert.Equal("n := n + 1;", read.StCode);
+    }
+
+    /// <summary>AND UNREADABLE IS NOT EMPTY. A box that says it provides a snippet and hands over one with no
+    /// text document is an object-model mismatch — the loud failure, not an empty box. TwinCAT's reader already
+    /// throws for its own unwalkable snippet; this is the same refusal on the same wire.</summary>
+    [Fact]
+    public void An_execute_box_whose_snippet_has_no_document_throws()
+    {
+        var box = new Nwl.BoxTreeBox
+        {
+            BoxType = "Execute",
+            InputItemList = new object[] { Nwl.Leaf("a") },
+            STSnippet = new Nwl.STSnippet(),   // ProvidesSTSnippet is true; the Snippet aspect is absent
+        };
+
+        Assert.Throws<System.NotSupportedException>(
+            () => CodesysNetworkReader.Read(Nwl.Body(box), BodyLanguage.Fbd));
+    }
 }

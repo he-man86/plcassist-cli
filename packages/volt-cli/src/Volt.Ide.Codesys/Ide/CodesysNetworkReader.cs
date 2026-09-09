@@ -238,13 +238,32 @@ namespace Volt.Ide.Codesys
         /// <para>What that cost: the engineer's raw ST inside an FBD network was DROPPED. The box materialized
         /// as <c>EXECUTE();</c> — a call to a function that does not exist — so the POU could be pulled and
         /// never pushed back, and the logic was absent from git. Nine such boxes in one real project, and the
-        /// `ProvidesSTSnippet` guard above passed on every one of them.</para></summary>
+        /// `ProvidesSTSnippet` guard above passed on every one of them.</para>
+        ///
+        /// <para><b>An EMPTY snippet is still an Execute box.</b> This trailed with
+        /// <c>is { Length: &gt; 0 } t ? t : null</c>, so a box whose ST the engineer had blanked read back as
+        /// <c>StCode == null</c> and rendered as <c>EXECUTE();</c> — the very shape described above, reached by
+        /// a different route. TwinCAT answers <c>""</c> for that state (its reader joins the archive's
+        /// TextLines) and emits <c>EXECUTE … END_EXECUTE</c>, so the two vendors disagreed byte-for-byte on the
+        /// same POU, and pushing the pulled `EXECUTE();` back rebuilt the box without its snippet at all.</para>
+        ///
+        /// <para>Empty and UNREADABLE are now separate answers rather than one: a box that provides a snippet
+        /// has one (DIALECT C14 — <c>ProvidesSTSnippet</c> is derived from <c>STSnippet != null</c>), so a
+        /// missing snippet or an aspect with no <c>TextDocument</c> is an object-model mismatch and throws,
+        /// exactly as the TwinCAT reader already does for its own unwalkable snippet.</para></summary>
         private static string? ReadStCode(object n)
         {
             if (!NwlInterop.Flag(n, "ProvidesSTSnippet")) return null;
-            var snippet = NwlInterop.Get(n, "STSnippet");
-            if (snippet == null) return null;
-            return CodesysObjectModel.ReadAspectText(snippet, "Snippet") is { Length: > 0 } t ? t : null;
+            var snippet = NwlInterop.Get(n, "STSnippet")
+                          ?? throw new NotSupportedException(
+                              "CODESYS: this network contains an Execute box that reports an ST snippet and has " +
+                              "none. Volt will not materialize the box without the code it runs — the body " +
+                              "would look complete and would not be. Edit this POU in the IDE.");
+            return CodesysObjectModel.TryReadAspectText(snippet, "Snippet")
+                   ?? throw new NotSupportedException(
+                       "CODESYS: this network contains an Execute box whose STSnippet carries no text document. " +
+                       "Volt will not materialize the box without the code it runs — the body would look " +
+                       "complete and would not be. Edit this POU in the IDE.");
         }
 
         private static Operand ReadOperand(object o) =>
