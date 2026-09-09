@@ -160,8 +160,27 @@ namespace Volt.Ide.Codesys
             // after). Build best-effort — even a FAILING app build (headless device/library mismatch) still
             // precompiles the referenced libraries, which is all we need. Libraries precompile independently of the
             // app, so this works whether or not the app build itself succeeds.
-            var app = FindApplication();
-            if (app != null) { try { Build(app); } catch { /* a failed build still precompiles the libraries */ } }
+            // NO SWALLOW, AND NO SILENT SKIP. This read `if (app != null) { try { Build(app); } catch { } }`,
+            // justified as "a failed build still precompiles the libraries" — but a failed build does not throw:
+            // `Build` returns FALSE for a compile that ran and reported errors. The only thing the catch could
+            // ever hide is a precompile that never RAN (no `CommandManager`, or `ExecuteCommand` missing/faulting
+            // on a modal IDE or a CODESYS version bump), which is exactly the case that leaves
+            // `AllPrecompiledSignatures` at the pre-build handful — measured at 2 sigs, against 5220 after.
+            //
+            // And a near-empty set is not a cosmetic loss. `fetch` has ALREADY decided `librariesRefreshed` is
+            // true by the time it calls this, so it ships that handful as the COMPLETE per-library picture, and
+            // `IdeTree.DroppedLibraryFile` then removes every library-signature file the client holds — a real
+            // deletion in the engineer's repository, and a STICKY one, because the next fetch sees unchanged
+            // `.library` versions and re-renders nothing. This is verbatim the chain `TcObjectModel`'s
+            // `FindLibraryManager` documents ("reporting 'no libraries' for a project that has them is worse
+            // than a loud failure"), whose comment already claims the CODESYS twin throws on both of ITS
+            // equivalents. It does. This third one, the precompile, was simply never covered.
+            var app = FindApplication()
+                      ?? throw new InvalidOperationException(
+                          "CODESYS: no Application node, so the referenced libraries cannot be precompiled and " +
+                          "their signatures would come back all but empty — which the client would apply as a " +
+                          "deletion of every library file it holds. Refusing instead.");
+            Build(app);   // FALSE (a failing compile) is fine: libraries precompile independently of the app.
 
             var lmm = GetStaticMember("_3S.CoDeSys.Core.SystemInstances", "LanguageModelMgr")
                       ?? throw new InvalidOperationException("CODESYS: LanguageModelMgr unavailable");
