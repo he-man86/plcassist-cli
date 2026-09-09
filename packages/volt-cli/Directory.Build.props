@@ -13,7 +13,7 @@
 
     NOT set here, deliberately:
       - TargetFramework. It is load-bearing and different per project — net48 for the in-process CODESYS bridge,
-        net8.0-windows for the TwinCAT worker and the tray, netstandard2.0 for everything both must share. A
+        net10.0-windows for the TwinCAT worker and the tray, netstandard2.0 for everything both must share. A
         default would only ever be wrong somewhere and would hide the one constraint that shapes the whole tree.
       - TreatWarningsAsErrors. Turning it on today FAILS the build: Volt.Engine ships five CS8604 warnings
         (PouDocument and four sites in PushService), all on the push path. They want fixing on their own merits,

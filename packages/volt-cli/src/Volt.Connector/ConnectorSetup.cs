@@ -43,8 +43,8 @@ namespace Volt.Connector
             {
                 Environment.GetEnvironmentVariable(envVar),
                 Path.Combine(baseDir, exeName),
-                Path.Combine(baseDir, "..", "..", "..", "..", projectDir, "bin", "Release", "net8.0-windows", exeName),
-                Path.Combine(baseDir, "..", "..", "..", "..", projectDir, "bin", "Debug", "net8.0-windows", exeName),
+                Path.Combine(baseDir, "..", "..", "..", "..", projectDir, "bin", "Release", "net10.0-windows", exeName),
+                Path.Combine(baseDir, "..", "..", "..", "..", projectDir, "bin", "Debug", "net10.0-windows", exeName),
             })
             {
                 if (string.IsNullOrEmpty(c)) continue;

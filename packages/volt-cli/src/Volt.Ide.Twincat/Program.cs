@@ -39,7 +39,7 @@ VoltLog.Init(Vendors.Twincat);
 //
 // WHAT IT REPORTS, and why each line matters to whoever builds the in-proc host:
 //   - bitness + CLR: TcXaeShell is 32-bit and runs the .NET FRAMEWORK clr.dll, so an in-proc host must be
-//     x86/AnyCPU net4x - a sibling of Volt.Ide.Codesys (net48), never this worker (net8, x64).
+//     x86/AnyCPU net4x - a sibling of Volt.Ide.Codesys (net48), never this worker (net10, x64).
 //   - which 3S/PLC modules are loaded: the PLC plugin stack is DEMAND-loaded. A shell with only
 //     "TwinCAT XAE Base" and "System Manager" up has no NWL objects live yet, which says the graphical editor
 //     has not been opened - not that the objects are unreachable.

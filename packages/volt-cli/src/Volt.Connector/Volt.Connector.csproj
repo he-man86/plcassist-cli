@@ -5,7 +5,7 @@
          (external-attach vendors) or as in-IDE loads it launches (CODESYS). One app,
          one tray icon, many invisible workers. -->
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>VoltConnector</AssemblyName>
     <!-- Deliberately NO reference to any vendor bridge or Volt.Engine: the connector only speaks the WIRE

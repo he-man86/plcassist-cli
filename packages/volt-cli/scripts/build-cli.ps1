@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 # Build the unified Volt CLI toolchain + the user-facing Connector (pipe transport):
 #   - volt.exe:            the PLC CLI (Volt.Cli) — git-native sync over the named pipe.
 #   - VoltBridgeTwincat:   standalone worker that attaches to TwinCAT over COM, serves pipe `volt.bridge.twincat`.
@@ -8,16 +8,21 @@ $ErrorActionPreference = "Stop"
 $ROOT = Split-Path $PSScriptRoot -Parent           # the volt-cli package dir
 $DIST = "$ROOT\dist"
 
+# "Has an SDK" is not enough: this machine carries several dotnet installs and the FIRST one with any SDK at
+# all used to win. Since the toolchain targets net10.0 that picked a .NET 8 SDK and failed with NETSDK1045
+# several minutes into the build. Require an SDK that can actually target it.
+$SDK_MAJOR = 10
 function Test-DotnetSdk($exe) {
     if (-not $exe -or -not (Test-Path $exe)) { return $false }
     $sdks = & $exe --list-sdks 2>$null
-    return ($LASTEXITCODE -eq 0 -and $sdks)
+    if ($LASTEXITCODE -ne 0 -or -not $sdks) { return $false }
+    return [bool]($sdks | Where-Object { [int]($_ -split '\.')[0] -ge $SDK_MAJOR })
 }
 $DOTNET = $null
 foreach ($cand in @((Get-Command dotnet.exe -ErrorAction SilentlyContinue).Source, "$env:USERPROFILE\.dotnet\dotnet.exe", "C:\Program Files\dotnet\dotnet.exe")) {
     if (Test-DotnetSdk $cand) { $DOTNET = $cand; break }
 }
-if (-not $DOTNET) { Write-Output "  dotnet with an SDK not found - install the .NET 8 SDK"; exit 1 }
+if (-not $DOTNET) { Write-Output "  no dotnet with a .NET $SDK_MAJOR SDK found - install it (winget install Microsoft.DotNet.SDK.$SDK_MAJOR)"; exit 1 }
 
 Write-Output "========================================"
 Write-Output " Volt CLI toolchain build (pipe)"
@@ -43,7 +48,7 @@ New-Item -ItemType Directory -Force "$DIST\Cli", "$DIST\Twincat", "$DIST\Codesys
 
 # --- volt.exe (the PLC CLI) ----------------------------------------
 # Self-contained: runs on an air-gapped PLC machine with no .NET install (same constraint that keeps volt-config
-# dependency-free). ponytail: self-contained per exe duplicates the net8 runtime; dedupe into a shared runtime dir
+# dependency-free). ponytail: self-contained per exe duplicates the net10 runtime; dedupe into a shared runtime dir
 # only if installer size measurably matters.
 Write-Output "`n[1/4] Volt.Cli (volt.exe)"
 & $DOTNET publish "$ROOT\src\Volt.Cli\Volt.Cli.csproj" @VERARGS -c Release -o "$DIST\Cli" --nologo -v q -r win-x64 --self-contained true

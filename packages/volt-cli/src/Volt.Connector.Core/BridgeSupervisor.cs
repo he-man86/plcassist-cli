@@ -27,7 +27,7 @@ namespace Volt.Connector
     /// pipe (two COM attachments to one XAE). CODESYS needs none of this — its host is in-proc and dies with the IDE.</para>
     ///
     /// <para>Lives in Connector.Core, NOT the WinForms shell: nothing here touches a UI (System.Diagnostics/IO/
-    /// InteropServices only), and while it sat in the net8.0-windows assembly the de-dup, the crash-restart path and
+    /// InteropServices only), and while it sat in the net10.0-windows assembly the de-dup, the crash-restart path and
     /// the orphan guard above were unreachable from any test project — the tested policy was not the one that ran.</para>
     /// </summary>
     public sealed class BridgeSupervisor : IDisposable

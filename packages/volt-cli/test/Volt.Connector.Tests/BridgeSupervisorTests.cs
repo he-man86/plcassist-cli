@@ -11,7 +11,7 @@ namespace Volt.Connector.Tests;
 /// <summary>
 /// The worker-fleet rules that ACTUALLY run: <c>EnsureWorker</c>'s de-dup, its crash-restart, and the job object's
 /// <c>KILL_ON_JOB_CLOSE</c> orphan guard. All three were structurally unreachable from any test project while
-/// <see cref="BridgeSupervisor"/> lived in the net8.0-windows WinForms assembly — the suite asserted a spawn plan
+/// <see cref="BridgeSupervisor"/> lived in the net10.0-windows WinForms assembly — the suite asserted a spawn plan
 /// the tray discarded instead, so the tested policy was not the one that ran.
 ///
 /// <para>Spawning is not test-safe in general, so these drive HARMLESS <c>cmd.exe</c> children out of a per-test

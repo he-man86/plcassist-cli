@@ -12,7 +12,7 @@
 # Those are the JOB IDs below. Rename one and every PR blocks forever on a check that never reports, until an admin
 # updates branch protection to match.
 #
-# `volt-cli` (the C# toolchain) is the one job on windows-latest — the net48/net8-windows IDE hosts + WinForms
+# `volt-cli` (the C# toolchain) is the one job on windows-latest — the net48/net10-windows IDE hosts + WinForms
 # connector don't build on Linux. It is a required context, so the C# suite gates every PR alongside the rest.
 name: ci
 
@@ -104,7 +104,7 @@ jobs:
         run: bun run test:ext
 
   # The unified C# toolchain (packages/volt-cli). Windows-only: the solution builds the net48 in-proc CODESYS host,
-  # the net8-windows TwinCAT worker, and the WinForms connector, none of which compile on Linux. A required context
+  # the net10-windows TwinCAT worker, and the WinForms connector, none of which compile on Linux. A required context
   # (see the header note) — the C# suite gates every PR.
   volt-cli:
     runs-on: windows-latest
@@ -112,7 +112,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: Build the whole toolchain (all TFMs — CLI, IDE hosts, connector)
         run: dotnet build packages/volt-cli/Volt.sln -c Release --nologo
       - name: Test — pipe transport + ported sync + black-box + CODESYS multi-instance
@@ -160,7 +160,7 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - run: bun install --frozen-lockfile
       - name: Control-plane e2e (real ControlServer, single + multi-instance)
         run: bun run --cwd packages/volt-control test:e2e

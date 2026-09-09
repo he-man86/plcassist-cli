@@ -11,7 +11,7 @@ namespace Volt.Connector
     /// <see cref="Tick"/>; every decision about which workers exist is here.
     ///
     /// <para>This composition used to be inline in the WinForms <c>TrayContext</c>, where no test project could
-    /// reach it (net8.0-windows vs the net8.0 test assembly), so the fleet rules that actually ran had zero
+    /// reach it (net10.0-windows vs the net10.0 test assembly), so the fleet rules that actually ran had zero
     /// coverage while the suite asserted a spawn plan the tray discarded.</para>
     /// </summary>
     public sealed class TwincatFleet : IDisposable

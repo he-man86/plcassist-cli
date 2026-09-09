@@ -17,19 +17,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Wire serialization. Pinned to 8.0.x: the net48 in-proc bridge binds this by exact identity (see
-         above), and patch bumps inside 8.0.x keep AssemblyVersion 8.0.0.0, so the resolve handler still finds
-         it. 10.0.x is available and is NOT a bump to take here — it would need a .NET 10 SDK, which the whole
-         toolchain (net8.0 TFMs, `dotnet-version: 8.0.x` in three workflows) is not on. -->
-    <PackageVersion Include="System.Text.Json" Version="8.0.6" />
+    <!-- Wire serialization. ONE declaration because the net48 in-proc CODESYS bridge loads this beside itself
+         (see above); 10.0.x still ships netstandard2.0 and net462 assets, and PipeHost's resolver matches by
+         SIMPLE NAME, not by version, so the bind survives the major. -->
+    <PackageVersion Include="System.Text.Json" Version="10.0.12" />
 
-    <!-- netstandard2.0 needs this for ValueTuple; net8.0 has it in the BCL. -->
+    <!-- netstandard2.0 needs this for ValueTuple; net10.0 has it in the BCL. -->
     <PackageVersion Include="System.ValueTuple" Version="4.6.2" />
 
     <!-- Test tooling — one version across all three test projects. -->
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
   </ItemGroup>
 
 </Project>

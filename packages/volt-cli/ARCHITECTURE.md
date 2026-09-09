@@ -8,7 +8,7 @@ wire, not the driver.
 ## The projects
 
 Nine assemblies. The shape is forced by two hard constraints, not by taste: the CODESYS bridge is a **net48**
-DLL loaded *in-process* by the IDE, the TwinCAT bridge is a **net8.0-windows** exe driving COM — so everything
+DLL loaded *in-process* by the IDE, the TwinCAT bridge is a **net10.0-windows** exe driving COM — so everything
 they share must be `netstandard2.0`; and the tray connector **may not reference the engine**, so whatever it
 needs has to sit below it.
 
@@ -24,13 +24,13 @@ src/Volt.Engine.Host      netstandard2.0  BridgePipeHost: the ONE place a wire o
                                           marshalled onto the IDE thread. Its own assembly precisely so Engine
                                           references no transport.
 src/Volt.Ide.Codesys  net48 library   CODESYS bridge — driver + pipe host, loaded IN-PROCESS by the IDE.
-src/Volt.Ide.Twincat  net8 exe        TwinCAT bridge — driver + worker, STANDALONE, attaches to XAE over COM.
-src/Volt.Cli              net8 exe        the `volt` CLI — the pipe CLIENT (see README.md).
-src/Volt.Connector.Core  net8 library the connector's UI-free model (DetectedProject / IProjectSource /
+src/Volt.Ide.Twincat  net10 exe        TwinCAT bridge — driver + worker, STANDALONE, attaches to XAE over COM.
+src/Volt.Cli              net10 exe        the `volt` CLI — the pipe CLIENT (see README.md).
+src/Volt.Connector.Core  net10 library the connector's UI-free model (DetectedProject / IProjectSource /
                                           ConnectionManager) AND the TwinCAT worker fleet. Here, not in the tray,
-                                          because none of it needs WinForms — and in a net8.0-windows assembly
+                                          because none of it needs WinForms — and in a net10.0-windows assembly
                                           the policy that actually runs was untestable.
-src/Volt.Connector    net8 exe        tray + window over that model. Owns the WinForms shell, the user-facing
+src/Volt.Connector    net10 exe        tray + window over that model. Owns the WinForms shell, the user-facing
                                           lifecycle and the auto-update/install agent. CODESYS is user-activated
                                           in-proc (never launched).
 ```
@@ -56,7 +56,7 @@ graph rather than by convention.
 
 **The golden rule:** everything that can be shared lives in `Core`; only irreducible vendor glue lives in a
 bridge. `Core` targets `netstandard2.0` specifically so it loads inside the net48 in-proc CODESYS host *and* the
-net8 standalone TwinCAT exe unchanged.
+net10 standalone TwinCAT exe unchanged.
 
 ## How a request flows
 
@@ -252,7 +252,7 @@ the bridge's `Driver/` is the bridge between them.**
 These are irreducible differences between how the two IDEs are reached, **not** drift to be refactored away:
 
 - **Hosting.** CODESYS = net48 library loaded *in-process* by reflection (no compile-time refs → loads in any
-  3.5.x); Beckhoff = net8 exe *attaching* to a separate XAE over COM. This dictates each `Ide/` layer.
+  3.5.x); Beckhoff = net10 exe *attaching* to a separate XAE over COM. This dictates each `Ide/` layer.
 - **How a graphical body is reached — and this one is ACCESS, not model.** The two vendors ship the SAME
   `NWLObject` model, member for member (DIALECT N1). CODESYS hands over the live objects, so its writer builds a
   typed tree and a wrong member name throws. TwinCAT hands over the serialization, so its writer edits the

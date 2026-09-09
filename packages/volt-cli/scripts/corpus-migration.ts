@@ -40,12 +40,12 @@ import { SOURCE_EXTENSIONS } from "@volt/control"
 import { callOn } from "../test/e2e/lib/pipe"
 
 const REPO = join(import.meta.dir, "..", "..", "..")
-const VOLT = join(REPO, "packages", "volt-cli", "src", "Volt.Cli", "bin", "Release", "net8.0", "volt.exe")
+const VOLT = join(REPO, "packages", "volt-cli", "src", "Volt.Cli", "bin", "Release", "net10.0", "volt.exe")
 const CORPUS_ROOT = join(REPO, "packages", "volt-lsp-iec", "test-corpus")
 const LAUNCHER = join(import.meta.dir, "codesys-pipe.ps1")
 const TC_LAUNCHER = join(import.meta.dir, "twincat-instances.ps1")
 const TC_WORKER = join(REPO, "packages", "volt-cli", "src", "Volt.Ide.Twincat", "bin", "Release",
-	"net8.0-windows", "VoltBridgeTwincat.exe")
+	"net10.0-windows", "VoltBridgeTwincat.exe")
 /** The pipe THIS run launched. Every `volt` call is pinned to it, so a stray IDE cannot be used. */
 let activePipe: string | undefined
 
