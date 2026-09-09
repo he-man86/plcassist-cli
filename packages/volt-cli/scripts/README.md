@@ -81,6 +81,9 @@ task being deleted).
 `probe-nwl-coil-modifiers` (576 assignment targets across five real projects: no edge or negated coil occurs),
 `probe-nwl-boxoutputs`, `probe-nwl-construct`, `probe-nwl-execute-compare`, `probe-nwl-execute-create`.
 
+**Structure** — `probe-tc-name-collision` (TwinCAT refuses to CREATE a folder whose name an object at that
+level already has, in either kind — but the two may COEXIST, so it is an ORDER constraint, DIALECT D34).
+
 **Project / settings** — `probe-project-container`, `probe-projectsettings-scope` (the compiler configuration
 is a session SERVICE over per-project state, and the read is sound — DIALECT C24, which closed
 `project-settings-sync`), `probe-projectsettings8` (the option-storage surface, from when the read was still in
