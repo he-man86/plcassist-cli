@@ -148,10 +148,24 @@ internal sealed partial class TcObjectModel
                 // Resolve ONLY the TwinCAT project (its system manager) + name. The PLC application inside is CONTENT
                 // — NOT resolved here; EnsurePlc does that lazily on the first content op, so select/health stay out
                 // of the project's tree. TcXaeShell: proj.Object IS the SystemManager; full VS: obj.SystemManager.
+                //
+                // THIS USED TO ADOPT `proj.Object` WHATEVER IT WAS. It read
+                //     try { _sysManager = obj; } catch { _sysManager = null; }
+                //     if (_sysManager == null) { try { _sysManager = obj.SystemManager; } catch { continue; } }
+                // and `_sysManager = obj` is a dynamic-to-dynamic store — an identity conversion the compiler
+                // emits as a bare field write with NO runtime-binder call — so the catch could not fire, the
+                // field was never null, and BOTH escape hatches were dead: the full-VS fallback, and the
+                // `continue` that is this loop's only "not a TwinCAT project, keep looking" branch. With no
+                // discrimination left, a solution whose first project is a C# ADS client or a TcHmi (and a soft
+                // select, which `BridgePipeHost` documents as load-bearing, passes no name to filter on) bound
+                // THAT project: `IsConnected` true, `connect` ok, a GREEN health row — and every content op
+                // dying later at `LookupTreeItem("TIPC")` with an opaque "Cannot find PLC project under TIPC".
+                // The same fact is already recorded one file over on `IsConnected` ("`is not null` binds against
+                // the static type"); this call site never got it.
                 dynamic obj = proj.Object;
-                try { _sysManager = obj; } catch { _sysManager = null; }
-                if (_sysManager == null) { try { _sysManager = obj.SystemManager; } catch { continue; } }
-                if (_sysManager != null) { _projectName = proj.Name; break; }
+                dynamic? mgr = TcSystemManager.Is(obj) ? obj : TcSystemManager.Nested(obj);
+                if (mgr == null) continue;
+                _sysManager = mgr; _projectName = proj.Name; break;
             }
             catch (Exception ex) { VoltLog.Debug($"FindTwinCatProject: project #{i} skipped ({ex.Message})"); }
         }

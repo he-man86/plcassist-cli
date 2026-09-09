@@ -33,7 +33,8 @@ file that makes that checkable rather than a claim is `accessor-census.log`.
 | `start_volt_codesys.py` | **shipped** — the in-IDE host; CODESYS's own message loop answers the pipe, so the IDE stays clickable |
 | `stop_volt_codesys.py` | its counterpart |
 | `run_pipe_production.py` | the launcher `codesys-pipe.ps1` hands to `--runscript` (dialog suppression + a file log) |
-| `probe-tc-task.ps1` | the one PowerShell probe — TwinCAT is COM, not IronPython |
+| `probe-tc-task.ps1` | a PowerShell probe — TwinCAT is COM, not IronPython |
+| `probe-tc-project-object.ps1` | the other one: what `Projects.Item(i).Object` IS, and how to tell a TwinCAT project from a C# one (DIALECT D35) |
 
 ## `voltprobe.py` — the shared half of every probe
 
@@ -83,6 +84,8 @@ task being deleted).
 
 **Structure** — `probe-tc-name-collision` (TwinCAT refuses to CREATE a folder whose name an object at that
 level already has, in either kind — but the two may COEXIST, so it is an ORDER constraint, DIALECT D34).
+
+**Session** — `probe-tc-project-object` (a solution project is told apart by what it can ANSWER: an unknown member on a COM object comes back null, so only a `LookupTreeItem` call discriminates — DIALECT D35).
 
 **Project / settings** — `probe-project-container`, `probe-projectsettings-scope` (the compiler configuration
 is a session SERVICE over per-project state, and the read is sound — DIALECT C24, which closed
