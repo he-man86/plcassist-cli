@@ -207,7 +207,19 @@ public class PouMergeWriteTests
         Assert.Contains("move:FB_Test->Motors", ide.Recorded);
         Assert.Contains("writecontent:FB_Test", ide.Recorded);
         Assert.DoesNotContain(ide.Recorded, r => r.StartsWith("delete:"));
-        Assert.Contains("n := n + 9;", FakeIde.AllText(ide.WrittenContent["FB_Test"]));
+
+        // THE ITEM'S RESULTING STATE, not the last write's record.
+        //
+        // `MoveItem` writes TWICE on purpose: once before the move (so a refusal is atomic — nothing has moved
+        // yet) and once after (because a TwinCAT move re-imports the item's PERSISTED document, so the edit
+        // written moments earlier is not in it, DIALECT D4f). On a driver whose move truly relocates — this
+        // fake, and CODESYS — the second write now finds the body already correct and writes nothing, which is
+        // precisely what `MoveItem`'s comment hoped for: "the price of not encoding a per-vendor quirk".
+        //
+        // So `WrittenContent` holds the SECOND write, whose body is legitimately null. Asserting on it was
+        // asserting an implementation detail; what this test means is "the edit landed", and the item itself is
+        // where that is true.
+        Assert.Equal("n := n + 9;", ide.ReadContent(new ItemRef("FB_Test")).Body);
     }
 
     /// <summary>A move is a MOVE on every driver — with or without the single-document capability, which is a

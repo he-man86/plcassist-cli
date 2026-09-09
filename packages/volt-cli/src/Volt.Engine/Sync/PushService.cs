@@ -751,6 +751,32 @@ public static class PushService
     /// not in the snapshot, so it is correctly seen as changed and written.</para></summary>
     private static ItemContent OnlyChanged(ItemContent live, ItemContent pushed)
     {
+        // THE ITEM'S OWN BODY GETS THE SAME RULE ITS MEMBERS DO.
+        //
+        // `WriteContent` wrote the POU's own declaration and body UNCONDITIONALLY on both drivers, at the end
+        // of both paths — so editing one method rewrote the enclosing POU's body too, though nothing in it had
+        // changed. Every neighbouring writer already refuses that: `TcNetworkWriter.Apply` returns null when
+        // the archive already says exactly this, `CodesysNetworkWriter` compares before `Set`, and this method
+        // has always dropped unchanged MEMBERS. The textual top-level body was the one thing left out.
+        //
+        // It is not free. TwinCAT regenerates a POU's `<LineIds>` — its per-line identity for breakpoints and
+        // ONLINE CHANGE — on any whole-body write, because `ImplementationText` has no line-level form. A
+        // needless rewrite therefore renumbers every line of a body the engineer did not touch, and an online
+        // change to a running PLC sees a bigger delta than the edit actually was.
+        //
+        // NULL is the established way to say "leave it alone": both drivers write an implementation only when
+        // it is non-null, and the member path already passes null for an ACTION's declaration. This says the
+        // same thing with the same word.
+        //
+        // BOTH SIDES MUST BE NON-NULL to skip, and that is the careful part rather than a hedge. `null` on the
+        // live side is not "empty" — it is a body that was not read (a marker, an unreadable graphical body),
+        // and treating it as equal to a pushed "" would silently skip a write. An EMPTY pushed body against a
+        // live one that HAS text still differs, so it is still written, and clearing a body still works: that
+        // exact case was a real data-loss bug on TwinCAT (`!IsNullOrEmpty` where it needed `!= null`), and it
+        // stays fixed because "" and null are never conflated here.
+        if (live.Body is not null && pushed.Body is not null && Text(live.Body) == Text(pushed.Body))
+            pushed = pushed with { Body = null };
+
         if (pushed.Members.Count == 0) return pushed;
 
         var byName = new Dictionary<string, Member>(StringComparer.OrdinalIgnoreCase);
