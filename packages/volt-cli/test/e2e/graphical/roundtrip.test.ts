@@ -142,6 +142,33 @@ END_PROGRAM
 `
 }
 
+// (The blank line between EXECUTE and END_EXECUTE is the CANONICAL form for an empty box — the writer
+// emits one line for the empty ST, and the gate refuses anything else. Measured against the live gate,
+// not guessed: the first cut of this fixture omitted it and was refused NETWORK_NOT_CANONICAL.)
+// The same box with NO ST in it — an Execute box the engineer blanked, which is a shape a real project holds
+// and Volt's own reader used to lose. `ReadStCode` trailed with `is { Length: > 0 } ? t : null`, so an empty
+// snippet read back as StCode == null, the writer skipped its EXECUTE arm, and the box came back as
+// `EXECUTE();` — a call to a function that does not exist. Push→pull was therefore not a fixed point, and
+// pushing that `EXECUTE();` back rebuilt the network with no STSnippet at all: an ordinary box named EXECUTE.
+function emptyExecuteProgram(name: string) {
+	return `PROGRAM ${name}
+VAR
+	bRun : BOOL := TRUE;
+END_VAR
+
+NETWORK 0 FBD
+  LET en1 := bRun;
+  IF en1 THEN
+  EXECUTE
+
+  END_EXECUTE
+  END_IF
+END_NETWORK
+
+END_PROGRAM
+`
+}
+
 // A graphical FUNCTION_BLOCK (not a PROGRAM) — instantiable, so it can be REFERENCED from PLC_PRG and TwinCAT
 // will actually compile its body (TC skips unreferenced POUs; an instance declaration forces compilation).
 function ldFb(name: string) {
@@ -251,6 +278,38 @@ describe(`graphical / round-trip (${BASE})`, () => {
 		// toFolder — matching how `volt push` builds one. That is not cosmetic: absent means "keep the current
 		// folder", while `toFolder: ""` is a real destination (the tree root) and would MOVE this item out of
 		// Device/Plc Logic/Application.
+		const refs2 = await bridge.refs()
+		const r2 = await bridge.push({ expectedProjectVersion: refs2.projectVersion, ops: [{ op: "set", name: fullName, sourceText: after.sourceText, ifVersion: refs2.items[fullName] }] })
+		expect(r2.accepted).toBe(true)
+		const after2 = (await bridge.fetch({ knownItems: {}, onlyItems: [fullName] })).changed.find((i: any) => i.name === fullName)
+		expect(after2.sourceText).toBe(after.sourceText)
+	})
+
+	// THE EMPTY ONE. The test above only ever pushed a box WITH ST, so the reader's empty-vs-missing conflation
+	// was invisible to the whole live tier: an empty snippet came back as `EXECUTE();` and nothing asked.
+	it("an Execute box with EMPTY ST stays an Execute box", async () => {
+		const name = id("net_execute_empty")
+		const fullName = fid("net_execute_empty", "prg")
+
+		const refs = await bridge.refs()
+		const r = await bridge.push({ expectedProjectVersion: refs.projectVersion, ops: [{ op: "set", name: fullName, toFolder: "", sourceText: emptyExecuteProgram(name), ifVersion: null }] })
+
+		// Same tracked gap as the test above — TwinCAT's importer cannot build an Execute box at all, so the
+		// refusal is what stands between the engineer and a silently emptied box.
+		if (VENDOR === "twincat") {
+			expect(r.accepted).toBe(false)
+			expect(JSON.stringify(r.conflicts)).toContain("Execute box")
+			return
+		}
+
+		expect(r.accepted).toBe(true)
+
+		const after = (await bridge.fetch({ knownItems: {}, onlyItems: [fullName] })).changed.find((i: any) => i.name === fullName)
+		expect(after).toBeDefined()
+		expect(after.sourceText).toContain("END_EXECUTE")          // …and NOT the `EXECUTE();` call form
+		expect(after.sourceText).not.toContain("EXECUTE()")
+
+		// A fixed point, which is the half the bug actually broke: the pulled text pushes back unchanged.
 		const refs2 = await bridge.refs()
 		const r2 = await bridge.push({ expectedProjectVersion: refs2.projectVersion, ops: [{ op: "set", name: fullName, sourceText: after.sourceText, ifVersion: refs2.items[fullName] }] })
 		expect(r2.accepted).toBe(true)

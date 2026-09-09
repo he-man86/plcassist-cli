@@ -41,7 +41,10 @@ public static class PushService
         var currentVersions = new Dictionary<string, string>();
         var gatedVersions = new Dictionary<string, string>();
         var itemCache = new Dictionary<string, (ItemRef Item, string Folder)>(StringComparer.OrdinalIgnoreCase);
-        foreach (var it in ide.WalkItems().Items)
+        // Held, not just iterated: `Complete` is what makes ABSENCE from this walk meaningful, and the
+        // create pre-flight below needs exactly that (see `WillCreate`).
+        var walk = ide.WalkItems();
+        foreach (var it in walk.Items)
         {
             var kind = ItemKind.Map(it.KindCode);
             if (kind == null) continue;
@@ -115,7 +118,7 @@ public static class PushService
             try
             {
                 if (IsTask(set.Name)) TaskDescriptorFormat.Gate(text);
-                else ValidateSourceOrThrow(text, Materializer.Bare(set.Name));
+                else ValidateSourceOrThrow(text, WillCreate(walk, itemCache, Materializer.Bare(set.Name)));
             }
             catch (Exception ex) { return Reject(op, ex); }
         }
@@ -511,7 +514,7 @@ public static class PushService
     /// touching the IDE. This is the batch PRE-FLIGHT's worker (<see cref="Handle"/>): running it over every
     /// op before the first write is what makes a push all-or-nothing for the class of refusal that is
     /// decidable from the text alone, which is the class a real push fails on.</summary>
-    private static void ValidateSourceOrThrow(string src, string name)
+    private static void ValidateSourceOrThrow(string src, bool isCreate)
     {
         var split = StReader.Read(src);                       // throws InvalidSt on a malformed document
         // …and every graphical body it carries, root and members alike: network text that does not parse is the
@@ -529,7 +532,38 @@ public static class PushService
         foreach (var m in split.Members) { bodies.Add(m.Body); bodies.Add(m.Getter?.Body); bodies.Add(m.Setter?.Body); }
         foreach (var body in bodies)
             if (body is { } b && NetworkText.Is(b)) NetworkTextGate.Validate(b);
+
+        // AND A CREATE'S MARKER REFUSAL, which is text-decidable in exactly the same way. A body Volt cannot
+        // author materializes as `(* @volt-graphical: CFC *)`, and pushing that at an EXISTING item is the
+        // ordinary no-op — the splice leaves the body alone — while pushing it at an item that does not exist
+        // yet can only land an empty POU. `BodyFormatGuard` therefore refuses it, but it did so from inside
+        // `WriteItemFromSource`, on the create arm, i.e. after the earlier ops of the batch had already been
+        // committed. Migrating a real project into an empty one is precisely the push that hits it — every
+        // CFC/SFC POU in the source — which is why `scripts/corpus-migration.ts` needs a retry loop at all.
+        //
+        // Whether it APPLIES is the one part that is not text-decidable, so it is resolved by the caller the
+        // same way `ApplyOp` resolves it (cache, then live lookup) rather than guessed at: a pre-flight that
+        // refused an UPDATE carrying a marker would break every push of a project that merely contains a CFC
+        // POU, which is a far worse failure than the late refusal this replaces.
+        if (isCreate) BodyFormatGuard.RequireAuthorable(split);
     }
+
+    /// <summary>Does this op CREATE — is there no such item right now?
+    ///
+    /// <para>Answered from the PRE-APPLY WALK and nothing else, because the pre-flight touches no IDE — that is
+    /// the property that makes it free to run over every op. A first cut called <c>ItemLookup.Find</c> here,
+    /// which is a fresh tree walk PER OP: the same answer, bought with the one cost this pass is not allowed to
+    /// have (measured immediately — the live TwinCAT suite went from ~5 minutes to over 20).</para>
+    ///
+    /// <para><c>Complete</c> is the whole reason absence can be read as "not there": a walk that skipped a
+    /// folder says "there may be items under here I did not see", never "these are gone". So an incomplete walk
+    /// declines to decide and leaves the verdict to the driver's own guard, exactly where it was before. That is
+    /// not a fallback in the sense of a guess — a pre-flight that said "create" where the apply path says
+    /// "update" would refuse a push of any project that merely CONTAINS a CFC POU, which is far worse than
+    /// refusing it a moment later.</para></summary>
+    private static bool WillCreate(WalkResult walk, Dictionary<string, (ItemRef Item, string Folder)> itemCache,
+                                   string bare) =>
+        walk.Complete && !itemCache.ContainsKey(bare);
 
     /// <summary>Create-or-update an item and its children from full canonical ST source. Shared by the
     /// set create/update path and the move recreate, so both apply identical full-fidelity write semantics.</summary>

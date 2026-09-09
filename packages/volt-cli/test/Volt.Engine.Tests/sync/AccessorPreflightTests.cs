@@ -42,6 +42,9 @@ public class AccessorPreflightTests
 
     private static string Prg(string name) => $"PROGRAM {name}\nVAR\nEND_VAR\n\nn := 0;\n\nEND_PROGRAM\n";
 
+    /// <summary>A POU whose body Volt cannot author — what a CFC POU materializes as in the workspace.</summary>
+    private const string Cfc = "FUNCTION_BLOCK FB_Cfc\n\n(* @volt-graphical: CFC *)\n\nEND_FUNCTION_BLOCK\n";
+
     private static PushResponse Push(FakeIde ide, params PushOp[] ops)
     {
         var refs = RefsService.Handle(ide);
@@ -96,5 +99,61 @@ public class AccessorPreflightTests
 
         Assert.False(res.Accepted);
         Assert.Empty(ide.CreatedItems);
+    }
+    /// <summary>A CREATE WHOSE BODY IS A MARKER IS REFUSED BEFORE THE FIRST WRITE TOO — the same defect one
+    /// guard over.
+    ///
+    /// <para>A body Volt cannot author materializes as <c>(* @volt-graphical: CFC *)</c>. Pushing that at an
+    /// EXISTING item is the ordinary no-op (the splice leaves the body alone); pushing it at an item that does
+    /// not exist yet can only land an empty POU, so <c>BodyFormatGuard.RequireAuthorable</c> refuses it — but it
+    /// did so from inside <c>WriteItemFromSource</c>'s create arm, after the earlier ops of the batch had
+    /// already been committed to the live IDE.</para>
+    ///
+    /// <para>Migrating a real project into an empty one is exactly the push that hits this — every CFC/SFC POU
+    /// in the source — which is why <c>scripts/corpus-migration.ts</c> carries a retry loop at all.</para>
+    /// </summary>
+    [Fact]
+    public void A_create_whose_body_is_a_marker_is_refused_before_the_first_write()
+    {
+        var ide = new FakeIde();
+
+        var res = Push(ide, Set("First.prg", Prg("First")),
+                            Set("FB_Cfc.fb", Cfc));
+
+        Assert.False(res.Accepted);
+        Assert.Empty(ide.CreatedItems);
+        Assert.Empty(ide.WrittenContent);
+    }
+
+    /// <summary>AND AN UPDATE CARRYING ONE IS NOT. This is the half that makes the check safe to hoist: a
+    /// project that merely CONTAINS a CFC POU pulls that marker into the workspace and pushes it back on every
+    /// subsequent push, so refusing it here would break those projects entirely.</summary>
+    [Fact]
+    public void An_update_that_carries_a_marker_still_pushes()
+    {
+        // The live body IS the marker — which is what makes pushing one back a no-op. (A marker over a body
+        // the IDE says is TEXTUAL stays a refusal, from `BodyFormatGuard`'s live-state rule; that is a
+        // different check and this hoist does not touch it.)
+        var ide = new FakeIde(new FakeIde.Item("FB_Cfc", ItemKind.PlcPouFb, "", true,
+                                               "FUNCTION_BLOCK FB_Cfc", "(* @volt-graphical: CFC *)", null, null));
+        var refs = RefsService.Handle(ide);
+
+        var res = PushService.Handle(ide, new PushRequest
+        {
+            ExpectedProjectVersion = refs.ProjectVersion,
+            Ops = new()
+            {
+                new SetItemOp
+                {
+                    Name = "FB_Cfc.fb",
+                    SourceText = Cfc,
+                    IfVersion = refs.Items["FB_Cfc.fb"],
+                },
+            },
+        });
+
+        Assert.True(res.Accepted, "push refused: " + (res.Conflicts is null
+            ? "(none)"
+            : string.Join(" | ", res.Conflicts.Select(c => c.Reason))));
     }
 }
