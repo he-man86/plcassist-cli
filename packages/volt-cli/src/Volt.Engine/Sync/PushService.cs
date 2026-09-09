@@ -120,7 +120,7 @@ public static class PushService
             catch (Exception ex) { return Reject(op, ex); }
         }
         onProgress?.Invoke(new ProgressFrame { Operation = Ops.Push, Done = 0, Total = opTotal, Phase = "applying" });
-        foreach (var op in request.Ops)
+        foreach (var op in InFolderDepthOrder(request.Ops))
         {
             // A structured network-text diagnostic (parser / round-trip gate) carries a stable code + source
             // line; any other throw is reason-only. `Reject` handles both, and is shared with the pre-flight.
@@ -141,6 +141,37 @@ public static class PushService
         VoltLog.Info($"push {request.Ops.Count} ops — accepted [{FormatApplied(applied)}] ({receipt.FullVersions.Count} items) ({sw.ElapsedMilliseconds}ms)");
         return PushResponse.AcceptedResult(receipt.ProjectVersion, receipt.FullVersions, receipt.Folders);
     }
+
+
+    /// <summary>The ops, DEEPEST FOLDER FIRST — so a folder's contents are created before an item that shares
+    /// the folder's name sits beside it.
+    ///
+    /// <para><b>TwinCAT will not create a folder whose name an object at that level already has</b> (DIALECT
+    /// D34, measured across all four kind × order cells). The two may COEXIST happily; what is refused is
+    /// making the FOLDER second, with the vendor's own words — <c>A file or folder with the name 'X' already
+    /// exists on disk at this location</c>. So it is an ORDER constraint, and order is something a push can
+    /// choose.</para>
+    ///
+    /// <para>Depth descending is SUFFICIENT and needs no name analysis: an item inside <c>F/X</c> has folder
+    /// depth <c>depth(F)+1</c> while the item named <c>X</c> at <c>F</c> has <c>depth(F)</c>, so the child
+    /// always sorts first, at any nesting. Measured cost: `lenze-mid` holds a folder `UDT_CamControlLS/` beside
+    /// a DUT of that name — the only such pair in six real projects — and four of its DUTs could not be
+    /// migrated without this.</para>
+    ///
+    /// <para><b>STABLE, and that matters more than the sort.</b> Ops at equal depth keep the order they
+    /// arrived in, so this adds one rule and changes nothing else. It also does not make order a CONTRACT:
+    /// nothing may depend on it for correctness — a push already carries its own declarations precisely
+    /// because two items can reference each other and no order can satisfy both (see
+    /// <see cref="DeclarationsIn"/>). This is a preference that removes a vendor refusal, not a guarantee.</para></summary>
+    private static IEnumerable<PushOp> InFolderDepthOrder(IReadOnlyList<PushOp> ops) =>
+        ops.Select((op, i) => (op, i))
+           .OrderByDescending(x => x.op is SetItemOp { ToFolder: { } f } ? Depth(f) : 0)
+           .ThenBy(x => x.i)
+           .Select(x => x.op);
+
+    /// <summary>How many folders deep a placement is. Empty or null is the top level, depth 0.</summary>
+    private static int Depth(string folder) =>
+        string.IsNullOrEmpty(folder) ? 0 : folder.Count(c => c == '/') + 1;
 
     /// <summary>The write receipt for the accepted-push log line: each applied op grouped by what it did to the
     /// item (created/updated/renamed/moved/deleted), with the item names — so the log answers "what files did

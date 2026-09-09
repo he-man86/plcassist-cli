@@ -146,6 +146,10 @@ public sealed class FakeIde : DriverBase, IIdeDriver
     /// code chosen (e.g. that every DUT variant creates with the single PlcDut code).</summary>
     public Dictionary<string, int> CreatedKinds { get; } = new();
 
+    /// <summary>Every non-folder create, IN ORDER — for assertions about which item was created first, which a
+    /// name-keyed map cannot answer when a folder and an item share a name.</summary>
+    public List<string> CreatedItems { get; } = new();
+
     // ── test hooks: mutate the IDE OUT FROM UNDER a seeded workspace ─────────────────────────────────
     // These change the walked state (not Recorded) so a subsequent /refs or push-lease check sees a different
     // projectVersion — the "the IDE changed since your last sync" divergence the workspace never applied.
@@ -341,6 +345,12 @@ public sealed class FakeIde : DriverBase, IIdeDriver
     public ItemRef CreateChild(ItemRef parent, string name, int kindCode, string? seed = null)
     {
         Recorded.Add($"create:{name}");
+        // A LIST, not a dictionary, and not derivable from `CreatedKinds`. A folder and an item may share a
+        // NAME — `lenze-mid` has a folder `UDT_CamControlLS/` beside a DUT of that name — so a name-keyed map
+        // collapses the two and cannot say which was created when. That collapse is the same one the wire
+        // itself was bitten by (`SameBareNameVersionTests`), and it silently turned a PASSING create-order
+        // assertion into a failing one.
+        if (kindCode != ItemKind.PlcFolder) CreatedItems.Add(name);
         CreatedParents[name] = NameOf(parent);
         CreatedKinds[name] = kindCode;
         CreatedSeeds[name] = seed;
