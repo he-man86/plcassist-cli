@@ -25,7 +25,7 @@ Volt writes into no other product's configuration; the installer publishes `PATH
 
 ## Development
 
-Bun workspaces (no Turbo — task-running is bun-native `--filter`). Requires `bun@1.3.14`.
+Bun workspaces (no Turbo — task-running is bun-native `--filter`). Requires `bun@1.4.2`.
 
 ```bash
 bun install

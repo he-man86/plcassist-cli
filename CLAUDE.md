@@ -36,7 +36,7 @@ Each `volt-*` package has its own `README.md` — read it before deep work there
 
 ## Tooling & common commands
 
-Package manager is `bun@1.3.14`. Lint is **oxlint**; format is Prettier (`semi: false`, `printWidth: 120`).
+Package manager is `bun@1.4.2`. Lint is **oxlint**; format is Prettier (`semi: false`, `printWidth: 120`).
 
 Standard workflows are root `bun run` scripts — prefer these over invoking `scripts/*.ts` by path:
 
