@@ -14,4 +14,4 @@ if (!semver.satisfies(process.versions.bun, `^${expectedBunVersion}`)) {
 '
 # Typecheck the workspace + scripts (not a workspace package, so typecheck it directly).
 bun run --filter='*' typecheck
-bunx tsgo --noEmit -p scripts/tsconfig.json
+bunx tsc --noEmit -p scripts/tsconfig.json

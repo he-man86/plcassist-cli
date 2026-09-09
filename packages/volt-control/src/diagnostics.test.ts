@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test"
-import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver-protocol/node.js"
+import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver-protocol/node"
 import { countDiagnostics, describeDiagnostics } from "./diagnostics.js"
 
 const diag = (severity: number, source?: string): Diagnostic => ({

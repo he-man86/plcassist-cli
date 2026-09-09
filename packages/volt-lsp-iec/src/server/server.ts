@@ -67,7 +67,7 @@ import {
   type DocumentDiagnosticReport,
   type InitializeResult,
   type WorkspaceDiagnosticReport,
-} from "vscode-languageserver-protocol/node.js"
+} from "vscode-languageserver-protocol/node"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import {
   messagesFor,
@@ -332,7 +332,7 @@ export function runServer(input: Readable, output: Writable, vendor: Vendor = "c
         .catch(() => {}) // a client that advertised dynamicRegistration but can't register — degrade to fresh-at-init
     }
   })
-  conn.onRequest(ShutdownRequest.type, () => null)
+  conn.onRequest(ShutdownRequest.type, () => {})
   conn.onNotification(ExitNotification.type, () => process.exit(0))
 
   // ─── document sync ───────────────────────────────────────────────────────

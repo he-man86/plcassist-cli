@@ -7,7 +7,7 @@
  * Suppression rules (mirroring the compiler): a structurally-dead unit emits no semantic diagnostics, and
  * excluded/uncalled members inside a live unit are filtered out. Parse errors always ride through.
  */
-import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver-protocol/node.js"
+import { DiagnosticSeverity, type Diagnostic } from "vscode-languageserver-protocol/node"
 import {
   computeSemanticDiagnostics,
   inDeadMember,
@@ -28,7 +28,7 @@ const SEVERITY: Record<DiagnosticItem["severity"], DiagnosticSeverity> = {
   hint: DiagnosticSeverity.Hint,
 }
 
-function toLspDiagnostic(item: DiagnosticItem): Diagnostic {
+function toLspDiagnostic(item: DiagnosticItem): VoltDiagnostic {
   // Surface the CODESYS `Cnnnn` the check mirrors as the diagnostic code (users recognise it and can cross-
   // reference the IDE), with a link to its docs page. Falls back to our internal slug for codes with no mapping
   // (network text / parse errors). Config toggles still key on the slug server-side, so this is display-only.
@@ -44,7 +44,12 @@ function toLspDiagnostic(item: DiagnosticItem): Diagnostic {
 }
 
 /** The full LSP diagnostic set for one document — semantic + network text + parse errors, with dead-code suppression. */
-export function documentDiagnostics(store: WorkspaceStore, messages: Messages, d: Document): Diagnostic[] {
+/** LSP 3.18 widened `Diagnostic.message` to `string | MarkupContent`. Volt only ever emits a string, and
+ * saying so here is what keeps every consumer (conformance suites, the push/pull transports) from having to
+ * narrow it back at each use. */
+export type VoltDiagnostic = Diagnostic & { message: string }
+
+export function documentDiagnostics(store: WorkspaceStore, messages: Messages, d: Document): VoltDiagnostic[] {
   // ROOT gate for the whole library-FP class: a referenced library is a precompiled blob the consuming
   // project never recompiles, so CODESYS runs no check on its materialized source — any error we emit on it is
   // a false positive the user can't act on. Library files are marked by their `Library Manager/` path (the

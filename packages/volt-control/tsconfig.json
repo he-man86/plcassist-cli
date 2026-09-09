@@ -5,6 +5,8 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "lib": ["es2022"],
+    // TS7 defaults `types` to [] (no auto-discovery of @types) — every package must name what it needs.
+    "types": ["node"],
     "noEmit": true,
     "skipLibCheck": true
   },

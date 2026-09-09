@@ -14,7 +14,7 @@ import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL, fileURLToPath } from "node:url"
 // The node build (stdio stream readers + connection). nodenext needs the explicit `.js` on the subpath.
-import { StreamMessageReader, StreamMessageWriter } from "vscode-jsonrpc/node.js"
+import { StreamMessageReader, StreamMessageWriter } from "vscode-jsonrpc/node"
 import {
   createProtocolConnection,
   InitializeRequest,
@@ -23,7 +23,7 @@ import {
   DiagnosticSeverity,
   DocumentDiagnosticReportKind,
   type Diagnostic,
-} from "vscode-languageserver-protocol/node.js"
+} from "vscode-languageserver-protocol/node"
 
 const SOURCE = "volt-lsp-iec" // the server tags its diagnostics with this — the precise Volt filter
 

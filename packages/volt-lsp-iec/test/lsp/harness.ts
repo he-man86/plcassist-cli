@@ -26,7 +26,7 @@ import {
   type ClientCapabilities,
   type Diagnostic,
   type InitializeResult,
-} from "vscode-languageserver-protocol/node.js"
+} from "vscode-languageserver-protocol/node"
 import { runServer } from "../../src/server/server.js"
 
 /** Capability presets keyed to the delivery channel a client selects. */
@@ -77,10 +77,9 @@ export function harness(vendor: "codesys" | "twincat" = "codesys"): Harness {
     lastPush.set(p.uri, p.diagnostics)
     pushes.set(p.uri, (pushes.get(p.uri) ?? 0) + 1)
   })
-  client.onRequest(RegistrationRequest.type, () => null) // ack file-watcher dynamic registration
+  client.onRequest(RegistrationRequest.type, () => {}) // ack file-watcher dynamic registration
   client.onRequest(DiagnosticRefreshRequest.type, () => {
     refreshes += 1
-    return null
   })
   client.listen()
 

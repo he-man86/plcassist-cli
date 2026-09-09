@@ -42,7 +42,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: |
           bun run --filter='*' typecheck
-          bunx tsgo --noEmit -p scripts/tsconfig.json
+          bunx tsc --noEmit -p scripts/tsconfig.json
 
   lint:
     runs-on: ubuntu-latest

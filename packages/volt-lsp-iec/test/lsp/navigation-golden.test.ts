@@ -4,7 +4,7 @@
  * assert the service output; these assert what a client receives over the protocol.
  */
 import { test, expect } from "bun:test"
-import { DefinitionRequest, HoverRequest, ReferencesRequest } from "vscode-languageserver-protocol/node.js"
+import { DefinitionRequest, HoverRequest, ReferencesRequest } from "vscode-languageserver-protocol/node"
 import { CAPS, harness } from "./harness.js"
 
 const URI = "file:///F.fb"

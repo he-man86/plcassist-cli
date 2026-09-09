@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@volt/lsp-iec",
   "version": "0.1.0",
@@ -30,7 +30,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "bun run scripts/check-layering.ts",
     "test": "bun test src test/conformance test/lsp",
     "test:corpus": "bun test test/corpus",
@@ -42,11 +42,10 @@
     "@tsconfig/node22": "catalog:",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:"
   },
   "dependencies": {
-    "vscode-languageserver-protocol": "^3.17.5",
-    "vscode-languageserver-textdocument": "^1.0.12"
+    "vscode-languageserver-protocol": "^3.18.3",
+    "vscode-languageserver-textdocument": "^1.0.14"
   }
 }

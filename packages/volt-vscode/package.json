@@ -12,7 +12,7 @@
     "url": "https://github.com/he-man86/volt"
   },
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.91.0"
   },
   "categories": [
     "Programming Languages",
@@ -776,7 +776,7 @@
   "scripts": {
     "build": "tsc --noEmit && bun build src/extension.ts --outfile=dist/extension.js --target=node --format=cjs --external=vscode && bun build ../volt-lsp-iec/src/bin.ts --outfile=dist/lsp-server.js --target=node --format=cjs",
     "dev": "tsc --watch",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "bun test",
     "package": "bun run build && vsce package --no-dependencies --no-update-package-json $(bun ../../scripts/version.ts --vsix)",
     "publish:vscode": "bun run build && vsce publish --no-dependencies",
@@ -785,15 +785,14 @@
   "dependencies": {
     "@volt/control": "workspace:*",
     "@volt/lsp-iec": "workspace:*",
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^10.1.1"
   },
   "devDependencies": {
     "@tsconfig/node22": "catalog:",
     "@types/node": "catalog:",
-    "@types/vscode": "^1.80.0",
-    "@typescript/native-preview": "catalog:",
-    "@vscode/vsce": "^3.0.0",
-    "ovsx": "^1.0.2",
+    "@types/vscode": "^1.91.0",
+    "@vscode/vsce": "^3.7.0",
+    "ovsx": "^1.1.1",
     "typescript": "catalog:"
   }
 }

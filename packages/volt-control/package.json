@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "@volt/control",
   "version": "0.1.0",
   "private": true,
@@ -10,18 +10,17 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "bun test src",
     "test:e2e": "bun run --cwd ../volt-lsp-iec build && bun test test/e2e"
   },
   "dependencies": {
-    "vscode-jsonrpc": "^8.2.0",
-    "vscode-languageserver-protocol": "^3.17.5"
+    "vscode-jsonrpc": "^9.0.2",
+    "vscode-languageserver-protocol": "^3.18.3"
   },
   "devDependencies": {
     "@tsconfig/node22": "catalog:",
     "@types/node": "catalog:",
-    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:"
   }
 }

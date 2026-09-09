@@ -53,7 +53,7 @@ import {
   WorkspaceSymbolRequest,
   type CallHierarchyItem,
   type TypeHierarchyItem,
-} from "vscode-languageserver-protocol/node.js"
+} from "vscode-languageserver-protocol/node"
 import { runServer } from "./server.js"
 
 /** A client connection wired to an in-process server over two pipes. */
@@ -62,7 +62,7 @@ function connect(vendor: "codesys" | "twincat" = "codesys") {
   const s2c = new PassThrough()
   runServer(c2s, s2c, vendor) // server reads c2s, writes s2c
   const client = createProtocolConnection(new StreamMessageReader(s2c), new StreamMessageWriter(c2s))
-  client.onRequest(RegistrationRequest.type, () => null) // ack the file-watcher dynamic registration
+  client.onRequest(RegistrationRequest.type, () => {}) // ack the file-watcher dynamic registration
   client.listen()
   return client
 }
@@ -140,7 +140,9 @@ test("server: didOpen pushes diagnostics (type mismatch)", async () => {
 test("server: a pull-capable client gets NO push (avoids double diagnostics)", async () => {
   const client = connect()
   let pushed = false
-  client.onNotification(PublishDiagnosticsNotification.type, () => (pushed = true))
+  client.onNotification(PublishDiagnosticsNotification.type, () => {
+    pushed = true
+  })
   // Declare pull-diagnostics support — the client will call textDocument/diagnostic itself.
   await client.sendRequest(InitializeRequest.type, {
     processId: null,
@@ -321,7 +323,9 @@ test("server: didChange re-parses; didClose clears diagnostics", async () => {
   expect((h as { contents: { value: string } })?.contents.value).toContain("total")
   // close → server publishes empty diagnostics for the uri
   const cleared = new Promise<{ diagnostics: unknown[] }>((res) =>
-    client.onNotification(PublishDiagnosticsNotification.type, (p) => p.uri === URI && res(p)),
+    client.onNotification(PublishDiagnosticsNotification.type, (p) => {
+      if (p.uri === URI) res(p)
+    }),
   )
   await client.sendNotification(DidCloseTextDocumentNotification.type, { textDocument: { uri: URI } })
   expect((await cleared).diagnostics).toEqual([])
