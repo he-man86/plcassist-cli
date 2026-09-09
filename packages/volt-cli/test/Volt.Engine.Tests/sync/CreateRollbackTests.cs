@@ -60,6 +60,10 @@ public class CreateRollbackTests
         });
     }
 
+    /// <summary>Every refusal reason on a response, safe on an ACCEPTED one (where `Conflicts` is null).</summary>
+    private static string Reasons(PushResponse res) =>
+        res.Conflicts is null ? "(none)" : string.Join(" | ", res.Conflicts.Select(c => c.Reason));
+
     /// <summary>THE REGRESSION. Before the rollback the item survived its own refusal.</summary>
     [Fact]
     public void An_item_whose_content_write_is_refused_is_not_left_in_the_project()
@@ -85,7 +89,7 @@ public class CreateRollbackTests
         var res = Push(ide, "FB_New.fb", Source, null);
 
         Assert.False(res.Accepted);
-        var reason = string.Join(" | ", res.Conflicts.Select(c => c.Reason));
+        var reason = Reasons(res);
         Assert.Contains("the number of networks changes", reason);
     }
 
@@ -114,5 +118,77 @@ public class CreateRollbackTests
 
         Assert.True(res.Accepted);
         Assert.True(ide.Exists("FB_New"));
+    }
+
+    // ── the same rule for a TASK ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>A task's settings are refused when a vendor cannot express one — TwinCAT has no spelling for a
+    /// CODESYS TIME literal, so `Interval: t#4ms` is rejected rather than rounded into a number that means
+    /// something else.</summary>
+    private static FakeIde RefusingTask() =>
+        new()
+        {
+            RefuseTaskWrite = _ => new BridgeException(
+                BridgeErrorCodes.Unsupported,
+                "TwinCAT cannot schedule `Interval: t#4ms` — TwinCAT needs a whole number and a unit"),
+        };
+
+    /// <summary>CANONICAL, exactly — column alignment, `Watchdog:` and all.
+    ///
+    /// <para>My first draft was not, and the format gate refused it BEFORE the task path was ever reached. Both
+    /// rollback tests below passed anyway, because "the task was rolled back" and "no task was ever created"
+    /// assert the same absence. The positive control at the end is what exposed that, and is why it exists.</para></summary>
+    private const string TaskSource =
+        "Type:      Cyclic\nInterval:  t#4ms\nPriority:  10\nWatchdog:  off\nCalls:     PLC_PRG\n";
+
+    /// <summary>THE REGRESSION, and it is worse than the item one: a task with no schedule is IN THE CALL CHAIN
+    /// and runs nothing.
+    ///
+    /// <para>Measured — migrating `bakon-nano` into a blank TwinCAT project refused `RecipeTask.task` on its
+    /// interval and left the task behind. The recovery pull then hit `CONFLICT in 1 file(s)` on that very file:
+    /// the workspace had dropped it as refused while the IDE still held the shell.</para></summary>
+    [Fact]
+    public void A_task_whose_settings_are_refused_is_not_left_in_the_project()
+    {
+        var ide = RefusingTask();
+
+        var res = Push(ide, "RecipeTask.task", TaskSource, null);
+
+        Assert.False(res.Accepted, "the task push must be refused");
+        Assert.False(ide.Exists("RecipeTask"),
+            "the task create was rolled back — a task with no schedule must not survive its own refusal");
+    }
+
+    /// <summary>An EXISTING task survives a refused settings write, exactly as an existing item does.</summary>
+    [Fact]
+    public void An_existing_task_survives_a_refused_write()
+    {
+        var ide = RefusingTask();
+        ide.AddTask("RecipeTask");
+
+        var refs = RefsService.Handle(ide);
+        var res = Push(ide, "RecipeTask.task", TaskSource, refs.Items["RecipeTask.task"]);
+
+        Assert.False(res.Accepted);
+        Assert.True(ide.Exists("RecipeTask"), "a refused UPDATE must leave the engineer's task alone");
+    }
+
+    /// <summary>THE POSITIVE CONTROL, and it is not optional.
+    ///
+    /// <para>A rollback test asserts an item is ABSENT, which is also what a test that never created one
+    /// asserts. Without this, "the task was rolled back" and "the push never reached the task path" are the
+    /// same green. This one fails if a task create does not land, so the two above cannot pass vacuously.</para></summary>
+    [Fact]
+    public void A_task_create_that_succeeds_is_untouched()
+    {
+        var ide = new FakeIde();
+
+        var res = Push(ide, "RecipeTask.task", TaskSource, null);
+
+        // `Conflicts` is NULL on an accepted push, and an assertion message is built EAGERLY in C# — so
+        // dereferencing it here throws on the very path this is asserting works.
+        Assert.True(res.Accepted,
+            "a task push with nothing refusing it must be accepted — " + Reasons(res));
+        Assert.True(ide.Exists("RecipeTask"), "a successful task create must be visible to Exists()");
     }
 }

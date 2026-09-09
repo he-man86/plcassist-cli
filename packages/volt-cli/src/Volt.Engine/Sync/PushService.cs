@@ -259,6 +259,8 @@ public static class PushService
         var settings = TaskDescriptorFormat.Gate(src);
 
         ItemRef task;
+
+        ItemRef? createdParent = null;   // set only when THIS op creates the task
         var action = "updated";
         if (existing is { } found)
         {
@@ -276,11 +278,31 @@ public static class PushService
         }
         else
         {
-            task = ide.CreateChild(TreeNav.ResolveTaskParent(ide, op.ToFolder), name, ItemKind.PlcTask);
+            createdParent = TreeNav.ResolveTaskParent(ide, op.ToFolder);
+            task = ide.CreateChild(createdParent.Value, name, ItemKind.PlcTask);
             action = "created";
         }
 
-        ide.WriteTask(task, settings);
+        // A REFUSED TASK CREATE LEAVES NOTHING BEHIND — the same rule as an item's, for the same reason, and it
+        // was missing here.
+        //
+        // `WriteTask` refuses a setting this vendor cannot express, by name and on purpose: TwinCAT has no
+        // spelling for a CODESYS TIME literal, so `Interval: t#4ms` is rejected rather than rounded into a
+        // number that means something else. Correct — and the task had already been CREATED, so the project
+        // kept an empty one wearing the engineer's name, with no schedule at all.
+        //
+        // MEASURED: migrating `bakon-nano` into a blank TwinCAT project refused `RecipeTask.task` on its
+        // interval and left the task behind; the recovery pull then hit `CONFLICT in 1 file(s)` on that very
+        // file — the workspace had dropped it (refused) while the IDE still held the shell. A task with no
+        // schedule is worse than a POU shell: it is in the call chain and runs nothing.
+        try
+        {
+            ide.WriteTask(task, settings);
+        }
+        catch when (createdParent is { } parent && Rollback(ide, parent, name))
+        {
+            throw;   // unreachable: the filter returns false, so the original refusal propagates untouched.
+        }
         return action;
     }
 

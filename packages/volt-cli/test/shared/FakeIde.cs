@@ -319,8 +319,21 @@ public sealed class FakeIde : DriverBase, IIdeDriver
     /// here - the point is which call the engine made, and with what.</summary>
     public Dictionary<string, TaskSettings> WrittenTasks { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Make the next task-settings write FAIL, the way a vendor's own refusal does — TwinCAT has no
+    /// spelling for a CODESYS TIME literal, so `Interval: t#4ms` is rejected rather than rounded. The engine
+    /// owns what happens NEXT (the create must roll back), and that is only testable offline if the write can
+    /// be made to refuse. Twin of <see cref="RefuseContentWrite"/>.</summary>
+    public Func<ItemRef, Exception?>? RefuseTaskWrite { get; init; }
+
+    /// <summary>Add a task to the project, for tests about what happens to one that ALREADY exists.</summary>
+    public void AddTask(string bareName) =>
+        _items.Add(new Item(bareName, ItemKind.PlcTask, "", true,
+                            "Type:     Cyclic\nInterval: 10ms\nPriority: 1\n", null, null, null));
+
     public void WriteTask(ItemRef task, TaskSettings settings)
     {
+        if (RefuseTaskWrite?.Invoke(task) is { } refusal) throw refusal;
+
         Recorded.Add($"writetask:{NameOf(task)}");
         WrittenTasks[NameOf(task)] = settings;
     }

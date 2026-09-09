@@ -333,6 +333,7 @@ function adaptForVendor(files: Map<string, string>): { files: Map<string, string
 	const field = (label: string) => new RegExp("^" + label + ":( +)([^\\r\\n]*)", "m")
 	const WATCHDOG = field("Watchdog")
 	const TYPE = field("Type")
+	const INTERVAL = field("Interval")
 
 	const notes: string[] = []
 	const out = new Map<string, string>()
@@ -350,6 +351,26 @@ function adaptForVendor(files: Map<string, string>): { files: Map<string, string
 			notes.push(`${name}: watchdog "${watchdog[2].trim()}" DROPPED - TwinCAT has no per-task watchdog ` +
 				`with a time and a sensitivity`)
 		}
+		// AN IEC TIME LITERAL IS A SPELLING, NOT A CAPABILITY — unlike the two below it.
+		//
+		// CODESYS keeps `interval` and `interval_unit` SEPARATELY, exactly as TwinCAT does, and accepts either
+		// form: type a number and a unit and it stores `4`/`ms`; type `t#4ms` and it stores that literal with
+		// NO unit. Volt reports whichever the engineer wrote, so both spellings appear in the same CODESYS
+		// corpora — measured across the five: 6 literals against 8 number+unit. TwinCAT has no literal form, so
+		// every task carrying one is refused and never reaches the comparison.
+		//
+		// Converting is lossless where the literal is simple, and this ONLY converts those: one number, one
+		// unit. A compound (`T#1s500ms`) or fractional (`t#0.5s`) literal is left alone and will be refused by
+		// the bridge, because folding those into a single number is arithmetic on the engineer's schedule and
+		// belongs in a considered change, not in a test fixture adapter.
+		const interval = INTERVAL.exec(adapted)
+		const simple = interval && /^[tT]#(\d+)(ns|us|µs|ms|s|m|h|d)$/.exec(interval[2].trim())
+		if (interval && simple) {
+			adapted = adapted.replace(interval[0], `Interval:${interval[1]}${simple[1]} ${simple[2]}`)
+			notes.push(`${name}: interval "${interval[2].trim()}" -> "${simple[1]} ${simple[2]}" - same duration, ` +
+				`TwinCAT has no TIME-literal spelling`)
+		}
+
 		const type = TYPE.exec(adapted)
 		if (type && type[2].trim() !== "Cyclic") {
 			adapted = adapted.replace(type[0], `Type:${type[1]}Cyclic`)
@@ -445,16 +466,27 @@ function pushAllItCan(
 			return refused
 		} catch (err) {
 			const message = String((err as Error).message)
-			// MATCHED BY BASENAME. The bridge names an item the way the WIRE does — `POUexecute.prg`, the
-			// item's own name — while the staged map is keyed by workspace PATH (`POUs/POUexecute.prg`).
-			// Comparing them directly finds nothing, rethrows, and this whole mechanism does nothing at all.
+			// MATCHED BY BASE NAME, AND WITHOUT THE EXTENSION.
+			//
+			// The bridge names an item the way the WIRE does while the staged map is keyed by workspace PATH,
+			// so the folder has to go: `POUs/POUexecute.prg` against `POUexecute.prg`.
+			//
+			// The EXTENSION has to go too, and that is not obvious. A DUT is ONE wire kind with FOUR file
+			// extensions (`.struct`/`.enum`/`.union`/`.alias`), so lenze-mid's `sUDT_CamControlLS_Calculation`
+			// is `.struct` on disk and `.dut` on the wire. Comparing with extensions matched nothing, the
+			// refusal was rethrown as an unattributable failure, and a run that had found a real vendor limit
+			// reported "the migration itself failed" instead of naming it. Every other kind spells both the
+			// same, which is exactly why it survived the first four corpora.
 			const lines = refusalLines(message)
-			const named = [...remaining.keys()].filter((k) => lines.has(k.split("/").pop()!))
+			const stem = (n: string) => n.split("/").pop()!.replace(/\.[^.]+$/, "")
+			const refusedStems = new Set([...lines.keys()].map(stem))
+			const named = [...remaining.keys()].filter((k) => refusedStems.has(stem(k)))
 			if (named.length === 0) throw err
 
 			for (const k of named) {
 				remaining.delete(k)
-				refused.set(k, lines.get(k.split("/").pop()!) ?? "refused by the bridge")
+				const reason = [...lines].find(([n]) => stem(n) === stem(k))?.[1]
+				refused.set(k, reason ?? "refused by the bridge")
 			}
 			// RE-STAGE FIRST, THEN PULL. `stage` deletes what is no longer in the map, so this drops the
 			// refused file from the workspace before the merge sees it. The other order conflicts on exactly
