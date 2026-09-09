@@ -54,7 +54,7 @@ Load-bearing invariants a maintainer must not break:
 ```bash
 cd packages/volt-lsp-iec        # tests can't run from repo root
 
-bun typecheck                   # tsgo --noEmit — src + test + scripts (NEVER raw tsc)
+bun typecheck                   # tsc --noEmit — src + test + scripts (this tsconfig, not a bare tsc)
 bun test                        # all three layers, offline & deterministic
 bun test src/types              # a single dir / module's unit tests
 bun test test/conformance       # just the conformance replay

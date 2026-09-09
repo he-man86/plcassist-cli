@@ -46,7 +46,7 @@ and no agent runtime: Volt's chrome **is** the window.
 bun run build     # bundle src/main.ts → main.mjs (bun build; electron external)
 bun run dev       # same, in --watch
 bun run start     # build, then launch electron
-bun run typecheck # tsgo --noEmit
+bun run typecheck # tsc --noEmit
 ```
 
 ## Layout

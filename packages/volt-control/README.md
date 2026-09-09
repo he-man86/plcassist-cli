@@ -55,7 +55,7 @@ Two rules the feed keeps: a sync that fails publishes **no view** (a connector t
 Run from `packages/volt-control`:
 
 ```bash
-bun typecheck    # tsgo --noEmit
+bun typecheck    # tsc --noEmit
 bun test         # bun test runner
 ```
 

@@ -46,7 +46,7 @@ bun run build               # build the TS packages (bun --filter; the C# bridge
 bun run build:installer     # the product → dist/release/Volt-win-Setup.exe (payload + electron + Inno)
 bun run test:install        # THE install gate: install/uninstall/update ×N on a real machine (Windows)
 bun run check               # wiring check: built binaries + source-extension + product-version parity
-bun run typecheck           # tsgo --noEmit across all volt packages
+bun run typecheck           # tsc --noEmit across all volt packages
 bun run lint                # oxlint
 ```
 
@@ -64,7 +64,7 @@ with the config directory.
 Per-package work for the TS packages (run from the package dir, e.g. `packages/volt-lsp-iec`):
 
 ```bash
-bun typecheck               # tsc/tsgo --noEmit — ALWAYS use this, never raw `tsc`
+bun typecheck               # tsc --noEmit — use this, not a bare `tsc`: it picks the package's tsconfig
 bun test                    # bun test runner
 bun test path/to/file.test.ts          # single test file
 bun test -t "name of the test"         # single test by name

@@ -105,7 +105,7 @@ VS Code extension manifest). Offline and key-free, so **CI runs it on every push
 The installer itself lives at **`installer/`** — `Volt.iss` plus a `README.md` documenting every location Volt
 writes on disk.
 
-`tsconfig.json` typechecks every script here (pre-push hook + CI: `tsgo --noEmit -p scripts/tsconfig.json`).
+`tsconfig.json` typechecks every script here (pre-push hook + CI: `tsc --noEmit -p scripts/tsconfig.json`).
 
 ## `test-extension.ts` — the extension-install gate (`bun run test:ext`)
 
