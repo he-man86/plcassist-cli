@@ -46,6 +46,9 @@ const LAUNCHER = join(import.meta.dir, "codesys-pipe.ps1")
 const TC_LAUNCHER = join(import.meta.dir, "twincat-instances.ps1")
 const TC_WORKER = join(REPO, "packages", "volt-cli", "src", "Volt.Ide.Twincat", "bin", "Release",
 	"net8.0-windows", "VoltBridgeTwincat.exe")
+/** The pipe THIS run launched. Every `volt` call is pinned to it, so a stray IDE cannot be used. */
+let activePipe: string | undefined
+
 /** The worker this run spawned, so `close()` can stop the one it started and not someone else's. */
 let tcWorker: ReturnType<typeof spawn> | null = null
 
@@ -87,8 +90,11 @@ const CODESYS: Blank = {
 		//
 		// Nothing is needed to make the IDE usable: the launcher serves every project through the SHIPPED host,
 		// so the IDE's own message loop answers the pipe and the window stays clickable while the push runs.
-		ps(LAUNCHER, ["-Action", "up", "-NoBuild", "-Project", project])
-		waitForPipe()
+		const out = ps(LAUNCHER, ["-Action", "up", "-NoBuild", "-Project", project])
+		// The launcher prints `CODESYS launched (pid NNNN)`. Pinning to THAT pid's pipe is what stops the
+		// run attaching to an IDE someone left open — the TwinCAT arm already does this with its XAE pid.
+		const pid = /pid (\d+)/.exec(out)?.[1]
+		activePipe = waitForPipe(pid ? `volt.bridge.codesys.${pid}` : undefined)
 	},
 	close() {
 		if (process.env.VOLT_SHOW) {
@@ -137,7 +143,8 @@ const TWINCAT: Blank = {
 		// worker cannot attach to a solution that is still opening.
 		Bun.sleepSync(90_000)
 		tcWorker = spawn(TC_WORKER, ["--xae-pid", pid], { stdio: ["ignore", "ignore", "inherit"] })
-		const pipe = waitForPipe()
+		const pipe = waitForPipe(`volt.bridge.twincat.${pid}`)
+		activePipe = pipe
 
 		// A TwinCAT XAE starts every project IDLE and must be TOLD which to serve — CODESYS serves its loaded
 		// project by default. Without this the first `volt init` fails with "the bridge has no PLC project
@@ -170,15 +177,33 @@ function codesysInstall(): string {
 }
 
 /** The host serves `volt.bridge.<vendor>.<pid>`; wait for any pipe under the vendor prefix. */
-function waitForPipe(timeoutMs = 300_000): string {
+/**
+ * Wait for the bridge pipe — and for THE ONE THIS RUN LAUNCHED when its pid is known.
+ *
+ * <p>Matching only the PREFIX takes whichever IDE answers first, which is fine only while exactly one is
+ * running. Leave a CODESYS open on another project and the finder silently migrates into THAT — measured: a
+ * stray instance holding a probe's leftovers produced `ENOENT ... VltCollideA.prg` and it was reported as a
+ * GAP in the product. A fabricated finding from a real run is worse than no run.</p>
+ */
+function waitForPipe(expected?: string, timeoutMs = 300_000): string {
 	const prefix = `volt.bridge.${VENDOR}.`
 	const deadline = Date.now() + timeoutMs
 	while (Date.now() < deadline) {
-		const found = readdirSync("\\\\.\\pipe\\").find((p) => p.startsWith(prefix))
-		if (found) return found
+		const pipes = readdirSync("\\\\.\\pipe\\").filter((p) => p.startsWith(prefix))
+		const found = expected ? pipes.find((p) => p === expected) : pipes[0]
+		if (found) {
+			// Say so rather than choosing silently: another IDE on another project is exactly the setup that
+			// fabricated a GAP, and the operator is the only one who can close it.
+			const strays = pipes.filter((p) => p !== found)
+			if (strays.length > 0)
+				console.log(`   NOTE  ${strays.length} other ${VENDOR} IDE(s) serving (${strays.join(", ")}) — this run `
+					+ `is pinned to ${found}`)
+			return found
+		}
 		Bun.sleepSync(2000)
 	}
-	throw new Error(`no ${prefix}* pipe after ${timeoutMs / 1000}s — did the IDE fail to open the blank project?`)
+	throw new Error(`no ${expected ?? prefix + "*"} pipe after ${timeoutMs / 1000}s — did the IDE fail to open `
+		+ "the blank project?")
 }
 
 function ps(script: string, args: string[]): string {
@@ -192,7 +217,14 @@ function ps(script: string, args: string[]): string {
  *  the finding, not noise to be swallowed by an exec error. */
 function volt(cwd: string, args: string[]): string {
 	try {
-		return execFileSync(VOLT, args, { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+		// VOLT_PIPE, not prefix discovery. `volt` finds a bridge the same way `waitForPipe` used to —
+		// first match — so pinning the wait alone still leaves the CLI free to talk to a stray IDE.
+		return execFileSync(VOLT, args, {
+			cwd,
+			encoding: "utf8",
+			maxBuffer: 64 * 1024 * 1024,
+			env: activePipe ? { ...process.env, VOLT_PIPE: activePipe } : process.env,
+		})
 	} catch (err) {
 		const e = err as { stdout?: string; stderr?: string }
 		throw new Error(`volt ${args.join(" ")} failed:\n${e.stdout ?? ""}\n${e.stderr ?? ""}`.trim())
