@@ -516,7 +516,18 @@ public static class PushService
         var split = StReader.Read(src);                       // throws InvalidSt on a malformed document
         // …and every graphical body it carries, root and members alike: network text that does not parse is the
         // most common way an edit is refused, and it is knowable before anything is mutated.
-        foreach (var body in new[] { split.Body }.Concat(split.Members.Select(m => m.Body)))
+        //
+        // ACCESSORS INCLUDED. A property's code lives in its GET/SET, not in a body of its own — `StReader`
+        // gives a property `Body: ""` and puts the text in `Getter`/`Setter` — so enumerating `m.Body` alone
+        // walked past every graphical accessor in the push. That is not a theoretical hole: the drivers each
+        // run `NetworkTextGate.Validate` on an accessor themselves (CodesysDriver.Content WriteAccessor,
+        // BeckhoffDriver.Content Collect), so a non-canonical GET body WAS refused — for the first time from
+        // inside the write, after the earlier ops of the same push had already landed in the live IDE and
+        // could not be rolled back. Which is precisely what this pre-flight exists to stop.
+        // `BodyFormatGuard.RequireAuthorable` already splits members this way for the same reason.
+        var bodies = new List<string?> { split.Body };
+        foreach (var m in split.Members) { bodies.Add(m.Body); bodies.Add(m.Getter?.Body); bodies.Add(m.Setter?.Body); }
+        foreach (var body in bodies)
             if (body is { } b && NetworkText.Is(b)) NetworkTextGate.Validate(b);
     }
 
